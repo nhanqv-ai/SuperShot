@@ -1,0 +1,29 @@
+# macOS
+.DS_Store
+
+# Agent internal coordination
+.agents/
+main
+
+# Swift Package Manager & Build artifacts
+.build/
+.swiftpm/
+Packages/
+Package.resolved
+DerivedData/
+*.xcodeproj
+*.xcworkspace
+*.xcuserstate
+
+# Output App Bundles and Binaries
+*.app/
+*.dSYM/
+*.zip
+.verifier_bin
+.adversarial_runner
+Contents/
+
+# Python bytecode & cache
+__pycache__/
+*.py[cod]
+*$py.class
