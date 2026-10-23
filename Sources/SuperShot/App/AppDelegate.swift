@@ -36,6 +36,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         previousAppTracker = PreviousAppTracker.shared
         autoPasteService = AutoPasteService.shared
 
+        // 2b. Initialize Update Subsystem
+        UpdateManager.shared.appSettings = appSettings
+        UpdateManager.shared.checkOnStartupIfNeeded(appSettings: appSettings)
+        UpdateManager.shared.startPeriodicCheck(interval: 86400, appSettings: appSettings)
+
         // 3. Initialize Settings Window Controller
         settingsWindowController = SettingsWindowController(
             appSettings: appSettings,
@@ -93,6 +98,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         }
         statusItemManager.onCheckForUpdatesRequested = { [weak self] in
             self?.openSettings(tab: .about)
+            UpdateManager.shared.checkForUpdates(userInitiated: true)
         }
 
         // 5. Register Global Carbon Hotkeys
@@ -457,5 +463,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         statusItemManager?.dismissPopover()
         storageManager?.flushDiskQueue()
         appSettings?.flushDiskQueue()
+        UpdateManager.shared.stopPeriodicCheck()
     }
 }
