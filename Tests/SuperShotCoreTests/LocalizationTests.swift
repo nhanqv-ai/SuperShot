@@ -1,0 +1,124 @@
+import Foundation
+import SuperShotCore
+
+/// Unit tests for AppLanguage, LocalizationManager, and multilingual coverage.
+public struct LocalizationTests {
+    public static func run(sandboxDir: URL) {
+        TestHarness.startSuite("Localization & Multilingual Tests")
+
+        // 1. AppLanguage cases and count check
+        TestHarness.assertEqual(AppLanguage.allCases.count, 10, "10 cases in AppLanguage (system + 9 languages)")
+        TestHarness.assertEqual(AppLanguage.system.displayName, "System Default", "System display name")
+        TestHarness.assertEqual(AppLanguage.english.displayName, "English", "English display name")
+        TestHarness.assertEqual(AppLanguage.vietnamese.displayName, "Tiếng Việt", "Vietnamese display name")
+        TestHarness.assertEqual(AppLanguage.german.displayName, "Deutsch", "German display name")
+        TestHarness.assertEqual(AppLanguage.french.displayName, "Français", "French display name")
+        TestHarness.assertEqual(AppLanguage.spanish.displayName, "Español", "Spanish display name")
+        TestHarness.assertEqual(AppLanguage.japanese.displayName, "日本語", "Japanese display name")
+        TestHarness.assertEqual(AppLanguage.simplifiedChinese.displayName, "简体中文", "Simplified Chinese display name")
+        TestHarness.assertEqual(AppLanguage.traditionalChinese.displayName, "繁體中文", "Traditional Chinese display name")
+        TestHarness.assertEqual(AppLanguage.korean.displayName, "한국어", "Korean display name")
+
+        // 2. Dynamic runtime language switching
+        let loc = LocalizationManager.shared
+
+        // Vietnamese
+        loc.setLanguage(.vietnamese)
+        TestHarness.assertEqual(loc.effectiveLanguage, .vietnamese, "Effective language switches to Vietnamese")
+        TestHarness.assertEqual(loc.tr(.searchPlaceholder), "Tìm kiếm ảnh chụp...", "Search placeholder translated to Vietnamese")
+        TestHarness.assertEqual(loc.tr(.actionScrollCapture), "Chụp cuộn trang", "Scroll capture action translated to Vietnamese")
+        TestHarness.assertEqual(loc.tr(.toolSelect), "Chọn / Di chuyển", "Select tool translated to Vietnamese")
+        TestHarness.assertEqual(loc.tr(.toolRectangle), "Hình chữ nhật", "Rectangle tool translated to Vietnamese")
+        TestHarness.assertEqual(loc.tr(.toolBlur), "Làm mờ / Điểm ảnh", "Blur tool translated to Vietnamese")
+        TestHarness.assertEqual(loc.tr(.presetRed), "Đỏ", "Red preset translated to Vietnamese")
+
+        // German
+        loc.setLanguage(.german)
+        TestHarness.assertEqual(loc.effectiveLanguage, .german, "Effective language switches to German")
+        TestHarness.assertEqual(loc.tr(.toolRectangle), "Rechteck", "Rectangle tool translated to German")
+        TestHarness.assertEqual(loc.tr(.actionScrollCapture), "Scroll-Aufnahme", "Scroll capture translated to German")
+
+        // French
+        loc.setLanguage(.french)
+        TestHarness.assertEqual(loc.effectiveLanguage, .french, "Effective language switches to French")
+        TestHarness.assertEqual(loc.tr(.toolHighlighter), "Surligneur", "Highlighter translated to French")
+
+        // Spanish
+        loc.setLanguage(.spanish)
+        TestHarness.assertEqual(loc.effectiveLanguage, .spanish, "Effective language switches to Spanish")
+        TestHarness.assertEqual(loc.tr(.toolArrow), "Flecha", "Arrow translated to Spanish")
+
+        // Japanese
+        loc.setLanguage(.japanese)
+        TestHarness.assertEqual(loc.effectiveLanguage, .japanese, "Effective language switches to Japanese")
+        TestHarness.assertEqual(loc.tr(.toolPen), "ペン", "Pen translated to Japanese")
+        TestHarness.assertEqual(loc.tr(.emptyHistoryTitle), "スクリーンショットはまだありません", "Empty history translated to Japanese")
+
+        // Simplified Chinese
+        loc.setLanguage(.simplifiedChinese)
+        TestHarness.assertEqual(loc.effectiveLanguage, .simplifiedChinese, "Effective language switches to Simplified Chinese")
+        TestHarness.assertEqual(loc.tr(.pinnedSection), "已置顶", "Pinned section translated to Simplified Chinese")
+
+        // Traditional Chinese
+        loc.setLanguage(.traditionalChinese)
+        TestHarness.assertEqual(loc.effectiveLanguage, .traditionalChinese, "Effective language switches to Traditional Chinese")
+        TestHarness.assertEqual(loc.tr(.pinnedSection), "已置頂", "Pinned section translated to Traditional Chinese")
+
+        // Korean
+        loc.setLanguage(.korean)
+        TestHarness.assertEqual(loc.effectiveLanguage, .korean, "Effective language switches to Korean")
+        TestHarness.assertEqual(loc.tr(.toolText), "텍스트", "Text tool translated to Korean")
+
+        // English
+        loc.setLanguage(.english)
+        TestHarness.assertEqual(loc.effectiveLanguage, .english, "Effective language switches to English")
+        TestHarness.assertEqual(loc.tr(.searchPlaceholder), "Search screenshots...", "Search placeholder translated to English")
+        TestHarness.assertEqual(loc.tr(.actionScrollCapture), "Scrolling Capture", "Scroll capture translated to English")
+
+        // 3. Dynamic parameterized string formatting
+        TestHarness.assertEqual(L10nKey.dimensionBadge(1920, 1080).localized(for: .english), "1920 x 1080 px", "Dimension badge formatting")
+        TestHarness.assertEqual(L10nKey.itemCount(3, 10).localized(for: .vietnamese), "3 / 10", "Vietnamese item count")
+        TestHarness.assertEqual(L10nKey.itemCount(3, 10).localized(for: .english), "3 of 10", "English item count")
+        TestHarness.assertEqual(L10nKey.versionLabel("1.0.0").localized(for: .english), "Version 1.0.0", "Version label formatting")
+
+        // 4. Zero emoji invariant check across all keys in all languages
+        validateZeroEmojisAcrossDictionary()
+
+        // 5. Reset to system
+        loc.setLanguage(.system)
+        TestHarness.assertEqual(loc.currentLanguage, .system, "Reset language to system")
+    }
+
+    private static func validateZeroEmojisAcrossDictionary() {
+        let testKeys: [L10nKey] = [
+            .appTitle, .searchPlaceholder, .preferencesTooltip, .dismissTooltip,
+            .toolSelect, .toolRectangle, .toolEllipse, .toolArrow, .toolLine,
+            .toolPen, .toolHighlighter, .toolText, .toolBlur, .actionScrollCapture,
+            .actionCopy, .actionSave, .pinnedSection, .recentSection, .tabGeneral,
+            .tabCaptureSave, .tabHistory, .tabAbout, .presetRed, .presetGreen
+        ]
+
+        let emojiRanges: [ClosedRange<UInt32>] = [
+            0x1F300...0x1FAFF, // Misc Symbols & Pictographs
+            0x2600...0x27BF,   // Dingbats & Symbols
+            0x1F1E6...0x1F1FF  // Flags
+        ]
+
+        for key in testKeys {
+            for lang in AppLanguage.allCases {
+                let string = key.localized(for: lang)
+                for scalar in string.unicodeScalars {
+                    let val = scalar.value
+                    var isEmoji = false
+                    for range in emojiRanges {
+                        if range.contains(val) { isEmoji = true; break }
+                    }
+                    if !isEmoji && (val == 0xFE0E || val == 0xFE0F) {
+                        isEmoji = true
+                    }
+                    TestHarness.assertFalse(isEmoji, "Key \(key) in \(lang.rawValue) contains zero emojis")
+                }
+            }
+        }
+    }
+}

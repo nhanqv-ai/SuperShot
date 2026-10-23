@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleExecutable</key>
+    <string>SuperShot</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.supershot.SuperShot</string>
+    <key>CFBundleName</key>
+    <string>SuperShot</string>
+    <key>CFBundleDisplayName</key>
+    <string>SuperShot</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>1.0.0</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>13.0</string>
+    <key>LSUIElement</key>
+    <true/>
+    <key>NSHighResolutionCapable</key>
+    <true/>
+    <key>NSHumanReadableCopyright</key>
+    <string>Copyright 2026 SuperShot. All rights reserved.</string>
+    <key>NSPrincipalClass</key>
+    <string>NSApplication</string>
+    <key>NSSupportsAutomaticGraphicsSwitching</key>
+    <true/>
+    <key>NSScreenCaptureUsageDescription</key>
+    <string>SuperShot requires Screen Recording permission to capture display regions and scrolling content.</string>
+    <key>NSAppleEventsUsageDescription</key>
+    <string>SuperShot requires Accessibility permission to support direct auto-paste and keyboard shortcuts.</string>
+</dict>
+</plist>
