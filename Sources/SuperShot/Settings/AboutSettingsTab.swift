@@ -58,7 +58,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.1"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.2"
                 Text(LocalizationManager.shared.tr(.versionLabel(version)))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
@@ -110,6 +110,7 @@ public struct AboutSettingsTab: View {
                         .foregroundColor(.accentColor)
                     }
                     .buttonStyle(.plain)
+                    .pointingHandCursor()
                 }
             }
             .padding(.horizontal, 14)
@@ -138,6 +139,7 @@ public struct AboutSettingsTab: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .pointingHandCursor()
 
                 if let msg = updateStatusMessage {
                     Text(msg)
@@ -155,6 +157,7 @@ public struct AboutSettingsTab: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .pointingHandCursor()
                 .confirmationDialog(
                     LocalizationManager.shared.tr(.resetAllConfirmTitle),
                     isPresented: $showingResetAllConfirmation,

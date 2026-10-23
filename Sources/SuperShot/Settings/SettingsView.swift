@@ -101,6 +101,7 @@ public struct SettingsView: View {
                     )
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
             }
         }
         .padding(.horizontal, 16)
@@ -150,6 +151,7 @@ public struct SettingsView: View {
             Button(localizationManager.tr(.doneButton)) {
                 onClose?()
             }
+            .pointingHandCursor()
             .keyboardShortcut(.defaultAction)
         }
         .padding(.horizontal, 16)

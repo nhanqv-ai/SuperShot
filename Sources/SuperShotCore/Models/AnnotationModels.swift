@@ -67,6 +67,56 @@ public enum AnnotationTool: String, Codable, CaseIterable, Sendable {
     }
 }
 
+// MARK: - CursorProvider
+
+/// Provides high-DPI vector resize cursors for diagonal and directional manipulation.
+public enum CursorProvider {
+    /// Diagonal resize cursor for North-West <-> South-East (top-left to bottom-right).
+    public static let diagonalNWSE: NSCursor = makeDiagonalCursor(nwToSe: true)
+
+    /// Diagonal resize cursor for North-East <-> South-West (top-right to bottom-left).
+    public static let diagonalNESW: NSCursor = makeDiagonalCursor(nwToSe: false)
+
+    private static func makeDiagonalCursor(nwToSe: Bool) -> NSCursor {
+        let size = NSSize(width: 18, height: 18)
+        let image = NSImage(size: size, flipped: false) { _ in
+            guard let ctx = NSGraphicsContext.current?.cgContext else { return false }
+            ctx.saveGState()
+            ctx.translateBy(x: 9, y: 9)
+            ctx.rotate(by: nwToSe ? -.pi / 4.0 : .pi / 4.0)
+
+            // Draw double-headed horizontal arrow centered at origin, rotated by +/-45 deg
+            let path = CGMutablePath()
+            // Left arrow head + shaft + right arrow head
+            path.move(to: CGPoint(x: -7.5, y: 0))
+            path.addLine(to: CGPoint(x: -3.2, y: 3.6))
+            path.addLine(to: CGPoint(x: -3.2, y: 1.1))
+            path.addLine(to: CGPoint(x: 3.2, y: 1.1))
+            path.addLine(to: CGPoint(x: 3.2, y: 3.6))
+            path.addLine(to: CGPoint(x: 7.5, y: 0))
+            path.addLine(to: CGPoint(x: 3.2, y: -3.6))
+            path.addLine(to: CGPoint(x: 3.2, y: -1.1))
+            path.addLine(to: CGPoint(x: -3.2, y: -1.1))
+            path.addLine(to: CGPoint(x: -3.2, y: -3.6))
+            path.closeSubpath()
+
+            ctx.addPath(path)
+            ctx.setLineWidth(2.2)
+            ctx.setLineJoin(.round)
+            ctx.setStrokeColor(NSColor.white.cgColor)
+            ctx.strokePath()
+
+            ctx.addPath(path)
+            ctx.setFillColor(NSColor.black.cgColor)
+            ctx.fillPath()
+
+            ctx.restoreGState()
+            return true
+        }
+        return NSCursor(image: image, hotSpot: NSPoint(x: 9, y: 9))
+    }
+}
+
 // MARK: - AnnotationHandle
 
 /// Interactive grab handle positions anchored to a vector object's bounding box.
@@ -84,19 +134,24 @@ public enum AnnotationHandle: String, Codable, CaseIterable, Sendable {
     case startPoint
     case endPoint
 
-    /// Corresponding AppKit cursor for the handle resize direction.
+    /// Corresponding AppKit cursor for the handle resize direction (defaults to flipped top-left coordinate space).
     public var cursor: NSCursor {
+        cursor(isFlipped: true)
+    }
+
+    /// Returns the directional resize cursor accounting for whether the host NSView is flipped.
+    public func cursor(isFlipped: Bool) -> NSCursor {
         switch self {
         case .topLeft, .bottomRight:
-            return NSCursor.crosshair
+            return isFlipped ? CursorProvider.diagonalNWSE : CursorProvider.diagonalNESW
         case .topRight, .bottomLeft:
-            return NSCursor.crosshair
+            return isFlipped ? CursorProvider.diagonalNESW : CursorProvider.diagonalNWSE
         case .topCenter, .bottomCenter:
             return NSCursor.resizeUpDown
         case .middleLeft, .middleRight:
             return NSCursor.resizeLeftRight
         case .startPoint, .endPoint:
-            return NSCursor.crosshair
+            return NSCursor.pointingHand
         }
     }
 }

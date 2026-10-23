@@ -25,6 +25,7 @@ public struct FloatingToolbarsTests {
         testAppSettingsPersistenceAcrossSessions()
         testPresetUpdateAtCapacity16()
         testEndToEndCaptureOverlayAnnotationCompositing()
+        testContextAwareCursorResolution()
     }
 
     // 1. Tool Mapping & Counts
@@ -357,6 +358,74 @@ public struct FloatingToolbarsTests {
         TestHarness.assertNotNil(composited, "Overlay renderFinalSelectionImage produced composited CGImage")
         TestHarness.assertEqual(composited?.width, 600, "Composited Retina @2x width is 600px")
         TestHarness.assertEqual(composited?.height, 400, "Composited Retina @2x height is 400px")
+    }
+
+    // 15. Context-Aware Cursor & Hover UX Resolution (v1.0.2)
+    private static func testContextAwareCursorResolution() {
+        // A. Diagonal & Cardinal Resize Handles
+        TestHarness.assertTrue(SelectionHandle.topLeft.cursor === CursorProvider.diagonalNWSE, "SelectionHandle.topLeft uses diagonalNWSE cursor")
+        TestHarness.assertTrue(SelectionHandle.bottomRight.cursor === CursorProvider.diagonalNWSE, "SelectionHandle.bottomRight uses diagonalNWSE cursor")
+        TestHarness.assertTrue(SelectionHandle.topRight.cursor === CursorProvider.diagonalNESW, "SelectionHandle.topRight uses diagonalNESW cursor")
+        TestHarness.assertTrue(SelectionHandle.bottomLeft.cursor === CursorProvider.diagonalNESW, "SelectionHandle.bottomLeft uses diagonalNESW cursor")
+        TestHarness.assertTrue(SelectionHandle.topCenter.cursor === NSCursor.resizeUpDown, "SelectionHandle.topCenter uses resizeUpDown cursor")
+        TestHarness.assertTrue(SelectionHandle.middleRight.cursor === NSCursor.resizeLeftRight, "SelectionHandle.middleRight uses resizeLeftRight cursor")
+        TestHarness.assertFalse(CursorProvider.diagonalNWSE === CursorProvider.diagonalNESW, "NWSE and NESW diagonal cursors are distinct instances")
+
+        // B. AnnotationHandle cursor in both flipped (minY at top) and unflipped (minY at bottom) coordinates
+        TestHarness.assertTrue(AnnotationHandle.topLeft.cursor(isFlipped: true) === CursorProvider.diagonalNWSE, "Flipped AnnotationHandle.topLeft (visual NW) uses diagonalNWSE")
+        TestHarness.assertTrue(AnnotationHandle.topLeft.cursor(isFlipped: false) === CursorProvider.diagonalNESW, "Unflipped AnnotationHandle.topLeft (visual SW) uses diagonalNESW")
+        TestHarness.assertTrue(AnnotationHandle.startPoint.cursor(isFlipped: false) === NSCursor.pointingHand, "Line start handle uses pointingHand")
+
+        // C. CaptureOverlayContentView Cursor Resolution & Floating Toolbar Protection
+        let mockProvider = MockScreenCaptureProvider()
+        let manager = ScreenCaptureManager(provider: mockProvider)
+        guard let captured = manager.captureMainScreen() else {
+            TestHarness.recordFail("Cursor UX", reason: "Failed to capture mock screen")
+            return
+        }
+        let overlayWindow = CaptureOverlayWindow(capturedScreen: captured, appSettings: AppSettings())
+        guard let contentView = overlayWindow.contentViewRef else {
+            TestHarness.recordFail("Cursor UX", reason: "contentViewRef is nil")
+            return
+        }
+
+        // Establish selection at (300, 300, 400, 300)
+        let sel = CGRect(x: 300, y: 300, width: 400, height: 300)
+        contentView.selectionRect = sel
+        let resolvedToolbarFrames = ToolbarPositionCalculator.resolveToolbarFrames(selectionRect: sel, screenBounds: contentView.bounds)
+
+        // 1) Point over Vertical Toolbar -> isPointOverFloatingUI is true and resolveCanvasCursor returns nil (never crosshair!)
+        let vFrame = resolvedToolbarFrames.vertical
+        let vCenter = CGPoint(x: vFrame.midX, y: vFrame.midY)
+        TestHarness.assertTrue(contentView.isPointOverFloatingUI(vCenter), "Point inside vertical toolbar is detected as floating UI")
+        TestHarness.assertNil(contentView.resolveCanvasCursor(at: vCenter), "resolveCanvasCursor returns nil over vertical toolbar so button pointingHand is preserved")
+
+        // 2) Point over Horizontal Action Toolbar -> isPointOverFloatingUI is true and resolveCanvasCursor returns nil
+        let hFrame = resolvedToolbarFrames.horizontal
+        let hCenter = CGPoint(x: hFrame.midX, y: hFrame.midY)
+        TestHarness.assertTrue(contentView.isPointOverFloatingUI(hCenter), "Point inside horizontal toolbar is detected as floating UI")
+        TestHarness.assertNil(contentView.resolveCanvasCursor(at: hCenter), "resolveCanvasCursor returns nil over horizontal toolbar so button pointingHand is preserved")
+
+        // 3) Point outside selection & toolbars -> crosshair
+        let outsidePoint = CGPoint(x: 50, y: 50)
+        TestHarness.assertTrue(contentView.resolveCanvasCursor(at: outsidePoint) === NSCursor.crosshair, "Point outside selection resolves to crosshair")
+
+        // 4) Point over selection Top-Left handle (300, 600) -> diagonalNWSE
+        let tlHandlePoint = CGPoint(x: 300, y: 600)
+        TestHarness.assertTrue(contentView.resolveCanvasCursor(at: tlHandlePoint) === CursorProvider.diagonalNWSE, "Top-Left selection handle resolves to diagonalNWSE")
+
+        // 5) Point inside selection in .select mode -> openHand (movable selection/object)
+        contentView.toolbarsViewModel.selectTool(.select)
+        let insidePoint = CGPoint(x: 500, y: 450)
+        TestHarness.assertTrue(contentView.resolveCanvasCursor(at: insidePoint) === NSCursor.openHand, "Inside selection in .select mode resolves to openHand")
+
+        // 6) Point inside selection in .text mode -> iBeam
+        contentView.toolbarsViewModel.selectTool(.text)
+        TestHarness.assertTrue(contentView.resolveCanvasCursor(at: insidePoint) === NSCursor.iBeam, "Inside selection in .text mode resolves to iBeam")
+
+        // 7) Point inside selection in .rectangle drawing mode -> crosshair
+        contentView.toolbarsViewModel.selectTool(.rectangle)
+        TestHarness.assertTrue(contentView.resolveCanvasCursor(at: insidePoint) === NSCursor.crosshair, "Inside selection in .rectangle mode resolves to crosshair")
     }
 
     // Helper: Synthetic CGImage Creator

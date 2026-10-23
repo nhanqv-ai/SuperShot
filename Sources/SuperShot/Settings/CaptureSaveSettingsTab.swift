@@ -173,6 +173,7 @@ public struct CaptureSaveSettingsTab: View {
                             .disabled(appSettings.presets.count <= 1)
                         }
                         .help("\(preset.name) (\(preset.hex))")
+                        .pointingHandCursor()
                         .onTapGesture {
                             appSettings.activeColorHex = preset.hex
                         }

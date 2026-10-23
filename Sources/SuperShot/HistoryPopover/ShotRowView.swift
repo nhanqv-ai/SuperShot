@@ -90,6 +90,7 @@ public struct ShotRowView: View {
         )
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .contentShape(Rectangle())
+        .pointingHandCursor()
         .onTapGesture {
             ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
             onSelect?(item)
@@ -155,6 +156,7 @@ public struct ShotRowView: View {
                         .background(RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
                 .help(localizationManager.tr(.actionCopy))
 
                 // Save to File Button
@@ -169,6 +171,7 @@ public struct ShotRowView: View {
                         .background(RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
                 .help(localizationManager.tr(.actionSave))
 
                 // Pin / Unpin Button
@@ -183,6 +186,7 @@ public struct ShotRowView: View {
                         .background(RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
                 .help(item.isPinned ? "Unpin" : "Pin")
 
                 // Delete Button
@@ -197,6 +201,7 @@ public struct ShotRowView: View {
                         .background(RoundedRectangle(cornerRadius: 3).fill(Color.red.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
+                .pointingHandCursor()
                 .help(localizationManager.tr(.deleteButton))
             } else {
                 if item.isPinned {

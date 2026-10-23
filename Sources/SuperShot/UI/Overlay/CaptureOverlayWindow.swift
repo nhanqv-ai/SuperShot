@@ -48,6 +48,11 @@ public class CaptureOverlayWindow: NSPanel {
     public override var canBecomeKey: Bool { true }
     public override var canBecomeMain: Bool { true }
 
+    public override func close() {
+        NSCursor.arrow.set()
+        super.close()
+    }
+
     public override func keyDown(with event: NSEvent) {
         if let view = contentViewRef, view.handleOverlayKeyDown(with: event) {
             return

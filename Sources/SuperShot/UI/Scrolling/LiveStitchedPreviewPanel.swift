@@ -363,6 +363,7 @@ public struct LiveStitchedPreviewContentView: View {
                             .cornerRadius(5)
                     }
                     .buttonStyle(PlainButtonStyle())
+                    .pointingHandCursor()
                     .help(viewModel.isPaused ? "Resume" : "Pause")
                 }
 
@@ -377,6 +378,7 @@ public struct LiveStitchedPreviewContentView: View {
                         .cornerRadius(5)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .pointingHandCursor()
                 .help("Cancel (Esc)")
 
                 Button(action: { viewModel.finish() }) {
@@ -390,6 +392,7 @@ public struct LiveStitchedPreviewContentView: View {
                         .cornerRadius(5)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .pointingHandCursor()
                 .help("Done (Return / Space)")
             }
         }
@@ -440,5 +443,6 @@ public struct ModePillButton: View {
                 .cornerRadius(4)
         }
         .buttonStyle(PlainButtonStyle())
+        .pointingHandCursor()
     }
 }

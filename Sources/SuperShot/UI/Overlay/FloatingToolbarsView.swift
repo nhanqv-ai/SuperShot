@@ -205,6 +205,7 @@ public struct VerticalAnnotationToolbarView: View {
                 .cornerRadius(6)
             }
             .buttonStyle(PlainButtonStyle())
+            .pointingHandCursor()
             .help("\(LocalizationManager.shared.tr(.strokeWidth)): \(Int(appSettings.activeStrokeWidth))pt / \(LocalizationManager.shared.tr(.fontSize)): \(Int(appSettings.activeFontSize))pt")
             .popover(isPresented: $viewModel.isStrokeWidthPresented, arrowEdge: .leading) {
                 StrokeWidthPopoverView(
@@ -228,6 +229,7 @@ public struct VerticalAnnotationToolbarView: View {
                 .cornerRadius(6)
             }
             .buttonStyle(PlainButtonStyle())
+            .pointingHandCursor()
             .help(LocalizationManager.shared.tr(.colorPalette))
             .popover(isPresented: $viewModel.isColorPalettePresented, arrowEdge: .leading) {
                 ColorPalettePopoverView(
@@ -377,6 +379,7 @@ public struct StrokeWidthPopoverView: View {
                         }
                     }
                     .buttonStyle(PlainButtonStyle())
+                    .pointingHandCursor()
                     .help("\(Int(width)) px")
                 }
             }
@@ -401,6 +404,7 @@ public struct StrokeWidthPopoverView: View {
                             .cornerRadius(4)
                     }
                     .buttonStyle(PlainButtonStyle())
+                    .pointingHandCursor()
                     .help("\(Int(size)) pt")
                 }
             }
@@ -419,6 +423,7 @@ public struct ToolIconButton: View {
     public var isSelected: Bool = false
     public var isEnabled: Bool = true
     public let action: () -> Void
+    @State private var isHovered: Bool = false
 
     public init(icon: String, tooltip: String, isSelected: Bool = false, isEnabled: Bool = true, action: @escaping () -> Void) {
         self.icon = icon
@@ -434,6 +439,9 @@ public struct ToolIconButton: View {
                 if isSelected {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(Color.accentColor)
+                } else if isHovered && isEnabled {
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.primary.opacity(0.14))
                 }
                 Image(systemName: icon)
                     .font(.system(size: 14, weight: .medium))
@@ -444,6 +452,10 @@ public struct ToolIconButton: View {
         }
         .buttonStyle(PlainButtonStyle())
         .disabled(!isEnabled)
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .pointingHandCursor(isEnabled: isEnabled)
         .help(tooltip)
     }
 }
@@ -453,6 +465,7 @@ public struct ActionButton: View {
     public let tooltip: String
     public var tint: Color = .primary
     public let action: () -> Void
+    @State private var isHovered: Bool = false
 
     public init(icon: String, tooltip: String, tint: Color = .primary, action: @escaping () -> Void) {
         self.icon = icon
@@ -467,10 +480,14 @@ public struct ActionButton: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(tint)
                 .frame(width: 32, height: 32)
-                .background(Color.primary.opacity(0.06))
+                .background(Color.primary.opacity(isHovered ? 0.16 : 0.06))
                 .cornerRadius(6)
         }
         .buttonStyle(PlainButtonStyle())
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .pointingHandCursor()
         .help(tooltip)
     }
 }
@@ -478,6 +495,7 @@ public struct ActionButton: View {
 public struct ActionShareButton: View {
     @ObservedObject public var viewModel: FloatingToolbarsViewModel
     @State private var hostingViewRef: NSView?
+    @State private var isHovered: Bool = false
 
     public init(viewModel: FloatingToolbarsViewModel) {
         self.viewModel = viewModel
@@ -493,10 +511,14 @@ public struct ActionShareButton: View {
                 .font(.system(size: 14, weight: .medium))
                 .foregroundColor(.primary)
                 .frame(width: 32, height: 32)
-                .background(Color.primary.opacity(0.06))
+                .background(Color.primary.opacity(isHovered ? 0.16 : 0.06))
                 .cornerRadius(6)
         }
         .buttonStyle(PlainButtonStyle())
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .pointingHandCursor()
         .help("\(LocalizationManager.shared.tr(.shareButton))")
         .background(ViewAccessor(viewRef: $hostingViewRef))
     }
@@ -538,6 +560,108 @@ public struct ViewAccessor: NSViewRepresentable {
     }
 
     public func updateNSView(_ nsView: NSView, context: Context) {}
+}
+
+// MARK: - AppKit & SwiftUI Cursor Tracking Modifiers
+
+public final class CursorTrackingOverlayNSView: NSView {
+    public var targetCursor: NSCursor = .pointingHand
+    public var fallbackCursor: NSCursor = .arrow
+    public var isCursorEnabled: Bool = true
+    private var trackingAreaRef: NSTrackingArea?
+
+    public override func hitTest(_ point: NSPoint) -> NSView? {
+        return nil
+    }
+
+    public override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = trackingAreaRef {
+            removeTrackingArea(existing)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseEnteredAndExited, .mouseMoved, .cursorUpdate, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingAreaRef = area
+    }
+
+    public override func resetCursorRects() {
+        super.resetCursorRects()
+        addCursorRect(bounds, cursor: isCursorEnabled ? targetCursor : fallbackCursor)
+    }
+
+    public override func cursorUpdate(with event: NSEvent) {
+        (isCursorEnabled ? targetCursor : fallbackCursor).set()
+    }
+
+    public override func mouseEntered(with event: NSEvent) {
+        (isCursorEnabled ? targetCursor : fallbackCursor).set()
+    }
+
+    public override func mouseMoved(with event: NSEvent) {
+        (isCursorEnabled ? targetCursor : fallbackCursor).set()
+    }
+
+    public override func mouseExited(with event: NSEvent) {
+        fallbackCursor.set()
+    }
+}
+
+public struct CursorTrackingRepresentable: NSViewRepresentable {
+    public let targetCursor: NSCursor
+    public let fallbackCursor: NSCursor
+    public let isEnabled: Bool
+
+    public init(targetCursor: NSCursor = .pointingHand, fallbackCursor: NSCursor = .arrow, isEnabled: Bool = true) {
+        self.targetCursor = targetCursor
+        self.fallbackCursor = fallbackCursor
+        self.isEnabled = isEnabled
+    }
+
+    public func makeNSView(context: Context) -> CursorTrackingOverlayNSView {
+        let view = CursorTrackingOverlayNSView()
+        view.targetCursor = targetCursor
+        view.fallbackCursor = fallbackCursor
+        view.isCursorEnabled = isEnabled
+        return view
+    }
+
+    public func updateNSView(_ nsView: CursorTrackingOverlayNSView, context: Context) {
+        nsView.targetCursor = targetCursor
+        nsView.fallbackCursor = fallbackCursor
+        nsView.isCursorEnabled = isEnabled
+        nsView.window?.invalidateCursorRects(for: nsView)
+    }
+}
+
+public struct PointingHandCursorModifier: ViewModifier {
+    public let isEnabled: Bool
+
+    public init(isEnabled: Bool = true) {
+        self.isEnabled = isEnabled
+    }
+
+    public func body(content: Content) -> some View {
+        content
+            .background(CursorTrackingRepresentable(targetCursor: .pointingHand, fallbackCursor: .arrow, isEnabled: isEnabled))
+            .onHover { hovering in
+                if hovering {
+                    (isEnabled ? NSCursor.pointingHand : NSCursor.arrow).set()
+                } else {
+                    NSCursor.arrow.set()
+                }
+            }
+    }
+}
+
+extension View {
+    public func pointingHandCursor(isEnabled: Bool = true) -> some View {
+        self.modifier(PointingHandCursorModifier(isEnabled: isEnabled))
+    }
 }
 
 // MARK: - Keyboard Shortcut Handler

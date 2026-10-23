@@ -294,9 +294,9 @@ public enum SelectionHandle: String, CaseIterable, Sendable {
     public var cursor: NSCursor {
         switch self {
         case .topLeft, .bottomRight:
-            return NSCursor.crosshair
+            return CursorProvider.diagonalNWSE
         case .topRight, .bottomLeft:
-            return NSCursor.crosshair
+            return CursorProvider.diagonalNESW
         case .topCenter, .bottomCenter:
             return NSCursor.resizeUpDown
         case .middleLeft, .middleRight:

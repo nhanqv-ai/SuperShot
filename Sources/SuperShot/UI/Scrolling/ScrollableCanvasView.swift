@@ -22,6 +22,9 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
 
     private var activeTextField: NSTextField?
     private var editingObjectID: UUID?
+    private var trackingAreaRef: NSTrackingArea?
+    private var isDraggingOnCanvas: Bool = false
+    public var isPointOverFloatingToolbar: ((CGPoint) -> Bool)?
     private var cancellables = Set<AnyCancellable>()
 
     public init(baseImage: CGImage, engine: AnnotationEngine, scale: CGFloat = 2.0) {
@@ -46,6 +49,68 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     }
 
     public override var acceptsFirstResponder: Bool { true }
+
+    public override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = trackingAreaRef {
+            removeTrackingArea(existing)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingAreaRef = area
+    }
+
+    /// Resolves the appropriate AppKit cursor for the given document point in the scrollable canvas.
+    /// Returns nil when the point is over a floating toolbar or popover.
+    public func resolveCanvasCursor(at point: CGPoint, windowPoint: CGPoint? = nil) -> NSCursor? {
+        if let winPt = windowPoint, isPointOverFloatingToolbar?(winPt) == true {
+            return nil
+        }
+        if let tf = activeTextField, tf.frame.contains(point) {
+            return .iBeam
+        }
+
+        if isDraggingOnCanvas {
+            if let aHandle = engine.activeResizeHandle {
+                return aHandle.cursor(isFlipped: true)
+            }
+            if engine.isDraggingExistingObject {
+                return .closedHand
+            }
+            return engine.activeTool == .text ? .iBeam : (engine.activeTool == .select ? .arrow : .crosshair)
+        }
+
+        if let sel = engine.selectedObject, let aHandle = sel.handle(at: point) {
+            return aHandle.cursor(isFlipped: true)
+        }
+
+        switch engine.activeTool {
+        case .select:
+            if engine.hitObject(at: point) != nil {
+                return .openHand
+            }
+            return .arrow
+        case .text:
+            return .iBeam
+        case .rectangle, .ellipse, .arrow, .line, .pen, .highlighter, .blur:
+            return .crosshair
+        }
+    }
+
+    private func updateCanvasCursor(with event: NSEvent) {
+        let winPt = event.locationInWindow
+        let docPt = convert(winPt, from: nil)
+        if let resolved = resolveCanvasCursor(at: docPt, windowPoint: winPt) {
+            resolved.set()
+        } else if NSCursor.current != NSCursor.pointingHand {
+            NSCursor.arrow.set()
+        }
+    }
 
     // MARK: - Viewport Drawing
 
@@ -283,6 +348,10 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
 
     // MARK: - Interactive Mouse Events
 
+    public override func mouseMoved(with event: NSEvent) {
+        updateCanvasCursor(with: event)
+    }
+
     public override func mouseDown(with event: NSEvent) {
         commitActiveTextEditing()
         let point = convert(event.locationInWindow, from: nil)
@@ -290,15 +359,18 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         // Double click on text object initiates in-place text editing
         if event.clickCount == 2, let clickedObj = engine.selectObject(at: point), clickedObj.tool == .text {
             startInlineTextEditing(for: clickedObj)
+            updateCanvasCursor(with: event)
             return
         }
 
+        isDraggingOnCanvas = true
         engine.startDrag(
             at: point,
             colorHex: currentColorHex,
             strokeWidth: currentStrokeWidth,
             fontSize: currentFontSize
         )
+        updateCanvasCursor(with: event)
         needsDisplay = true
     }
 
@@ -307,11 +379,13 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         let shift = event.modifierFlags.contains(.shift)
         engine.updateDrag(to: point, shiftKeyPressed: shift)
         autoscroll(with: event)
+        updateCanvasCursor(with: event)
         needsDisplay = true
     }
 
     public override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        isDraggingOnCanvas = false
         let committed = engine.endDrag(at: point)
 
         // If newly created object is a text box, immediately focus inline editor
@@ -319,6 +393,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
             startInlineTextEditing(for: created)
         }
 
+        updateCanvasCursor(with: event)
         needsDisplay = true
     }
 
@@ -455,6 +530,21 @@ public final class ScrollableCanvasView: NSView {
         hToolbar.translatesAutoresizingMaskIntoConstraints = false
         addSubview(vToolbar)
         addSubview(hToolbar)
+
+        docView.isPointOverFloatingToolbar = { [weak self, weak vToolbar, weak hToolbar] winPt in
+            guard let self = self else { return false }
+            if self.toolbarsViewModel.isColorPalettePresented || self.toolbarsViewModel.isStrokeWidthPresented {
+                return true
+            }
+            let localPt = self.convert(winPt, from: nil)
+            if let v = vToolbar, !v.isHidden, v.frame.insetBy(dx: -4, dy: -4).contains(localPt) {
+                return true
+            }
+            if let h = hToolbar, !h.isHidden, h.frame.insetBy(dx: -4, dy: -4).contains(localPt) {
+                return true
+            }
+            return false
+        }
 
         NSLayoutConstraint.activate([
             sView.topAnchor.constraint(equalTo: topAnchor),
@@ -654,12 +744,18 @@ public final class ScrollableAnnotationWindow: NSWindow {
         self.title = "SuperShot — Tall Scrolling Screenshot"
         self.minSize = NSSize(width: 600, height: 400)
         self.isReleasedWhenClosed = false
+        self.acceptsMouseMovedEvents = true
         self.contentView = canvas
         self.center()
 
         canvas.onCloseRequested = { [weak self] in
             self?.close()
         }
+    }
+
+    public override func close() {
+        NSCursor.arrow.set()
+        super.close()
     }
 
     public override func keyDown(with event: NSEvent) {

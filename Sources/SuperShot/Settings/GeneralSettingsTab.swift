@@ -183,6 +183,7 @@ public struct GeneralSettingsTab: View {
                         .font(.system(size: 10))
                 }
                 .buttonStyle(.borderless)
+                .pointingHandCursor()
                 .help("Reset to Option+S")
             }
 
@@ -205,6 +206,7 @@ public struct GeneralSettingsTab: View {
                         .font(.system(size: 10))
                 }
                 .buttonStyle(.borderless)
+                .pointingHandCursor()
                 .help("Reset to Option+Shift+S")
             }
         }
@@ -263,6 +265,7 @@ public struct GeneralSettingsTab: View {
             )
         }
         .buttonStyle(.plain)
+        .pointingHandCursor()
     }
 
     private func startRecording(action: HotKeyAction) {

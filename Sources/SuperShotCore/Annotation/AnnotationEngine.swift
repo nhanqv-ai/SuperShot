@@ -24,8 +24,8 @@ public final class AnnotationEngine: ObservableObject {
 
     // Interactive Drag State Tracking
     private var dragStartPoint: CGPoint?
-    private var isDraggingExistingObject: Bool = false
-    private var activeResizeHandle: AnnotationHandle?
+    public private(set) var isDraggingExistingObject: Bool = false
+    public private(set) var activeResizeHandle: AnnotationHandle?
     private var preDragObjectSnapshot: AnnotationObject?
 
     // MARK: - Initialization
@@ -48,6 +48,16 @@ public final class AnnotationEngine: ObservableObject {
         let action = AnnotationAction.create(object)
         execute(action: action)
         selectedObjectID = object.id
+    }
+
+    /// Non-mutating hit-test returning the topmost object containing point, or nil if none.
+    public func hitObject(at point: CGPoint) -> AnnotationObject? {
+        for obj in objects.reversed() {
+            if obj.contains(point: point) {
+                return obj
+            }
+        }
+        return nil
     }
 
     /// Selects the topmost object containing point. Returns nil if empty space clicked.
