@@ -6,7 +6,7 @@
 
 <p align="center">
   <strong>Ultra-lightweight, Lightning-Fast Native macOS Screenshot &amp; In-Place Annotation Tool</strong><br>
-  <em>Swift &bull; SwiftUI &bull; Lightshot-Style Overlay &bull; Vector Annotations &bull; Apple Silicon (arm64) &bull; Multi-language Support</em>
+  <em>Swift &bull; SwiftUI &bull; Lightshot-Style Overlay &bull; Vector Annotations &bull; Universal 2 &bull; Multi-language Support</em>
 </p>
 
 <p align="center">
@@ -15,10 +15,10 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.11"><img src="https://img.shields.io/badge/version-v1.0.11-blue.svg?style=flat-square" alt="Version v1.0.11"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.12"><img src="https://img.shields.io/badge/version-v1.0.12-blue.svg?style=flat-square" alt="Version v1.0.12"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
-  <img src="https://img.shields.io/badge/architecture-Apple%20Silicon%20(arm64)-blue.svg?style=flat-square" alt="Architecture">
+  <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
   <img src="https://img.shields.io/badge/Swift-6.0-orange.svg?style=flat-square" alt="Swift">
 </p>
 
@@ -119,9 +119,9 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
-### What's New in v1.0.11
+### What's New in v1.0.12
 
-- **Pure Native Apple Silicon (`arm64`) Architecture**: Removed legacy Intel (`x86_64`) Mach-O slices and Rosetta 2 headless launch checks so macOS 26 (Tahoe) and future macOS releases never trigger the *"Support Ending for Intel-based Apps"* notification while cutting app bundle size in half.
+- **Universal 2 (`arm64` + `x86_64`) Support without Rosetta 2 Alert**: Restores full Universal 2 fat binary support for both Apple Silicon (`arm64`) and Intel (`x86_64`) Macs while replacing Rosetta 2 (`arch -x86_64`) runtime launch checks in `verify_app.sh` / `verify_bundle.sh` with static Mach-O inspection (`lipo -info` + `otool -arch x86_64 -L`), ensuring macOS 26 (Tahoe) on Apple Silicon never shows the *"Support Ending for Intel-based Apps"* notification.
 
 ### What's New in v1.0.10
 
@@ -161,12 +161,12 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### System Requirements
 
 - macOS 13.0 (Ventura), macOS 14.6+ (Sonoma), or newer
-- Apple Silicon Mac (`arm64`: M1/M2/M3/M4)
+- Apple Silicon Mac (`arm64`: M1/M2/M3/M4) or Intel Mac (`x86_64`, e.g. MacBook Pro 2020)
 
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.11.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.12.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -310,9 +310,9 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
-### Điểm mới trong v1.0.11
+### Điểm mới trong v1.0.12
 
-- **Kiến trúc thuần Apple Silicon (`arm64`)**: Loại bỏ hoàn toàn thành phần nhị phân Intel (`x86_64`) và bước chạy thử qua Rosetta 2, chấm dứt thông báo hệ thống *"Support Ending for Intel-based Apps"* trên macOS 26 (Tahoe) đồng thời giảm một nửa dung lượng ứng dụng.
+- **Hỗ trợ đầy đủ Universal 2 (`arm64` + `x86_64`) không gây cảnh báo Rosetta 2**: Giữ nguyên kiến trúc Universal 2 chạy gốc trên cả MacBook chip Apple Silicon (`arm64`) lẫn MacBook chip Intel (`x86_64`), đồng thời thay thế lệnh chạy giả lập `arch -x86_64` trong kịch bản kiểm thử bằng kiểm tra tĩnh (`lipo -info` và `otool -arch x86_64 -L`) giúp macOS 26 (Tahoe) không bao giờ bật cảnh báo *"Support Ending for Intel-based Apps"*.
 
 ### Điểm mới trong v1.0.10
 
@@ -352,12 +352,12 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Yêu cầu hệ thống
 
 - macOS 13.0 (Ventura), macOS 14.6+ (Sonoma) trở lên
-- Máy Mac dùng chip Apple Silicon (`arm64`: M1/M2/M3/M4)
+- Hỗ trợ tốt trên cả chip Apple Silicon (`arm64`: M1/M2/M3/M4) và chip Intel (`x86_64`, ví dụ MacBook Pro 2020)
 
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.11.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.12.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 
