@@ -377,6 +377,20 @@ public struct AnnotationEngineTests {
         TestHarness.assertEqual(createdSquare?.bounds.width, 60.0, "M2 Production: Shift drag width is 60")
         TestHarness.assertEqual(createdSquare?.bounds.height, 60.0, "M2 Production: Shift drag height is 60")
 
+        // 7b. Free-aspect Ellipse vs Shift-constrained Circle
+        prodEngine.activeTool = .ellipse
+        prodEngine.startDrag(at: CGPoint(x: 100, y: 100))
+        prodEngine.updateDrag(to: CGPoint(x: 220, y: 160), shiftKeyPressed: false)
+        let freeEllipse = prodEngine.endDrag(at: CGPoint(x: 220, y: 160))
+        TestHarness.assertEqual(freeEllipse?.bounds.width, 120.0, "Free-aspect ellipse preserves width 120")
+        TestHarness.assertEqual(freeEllipse?.bounds.height, 60.0, "Free-aspect ellipse preserves height 60")
+
+        prodEngine.startDrag(at: CGPoint(x: 100, y: 100))
+        prodEngine.updateDrag(to: CGPoint(x: 220, y: 160), shiftKeyPressed: true)
+        let shiftCircle = prodEngine.endDrag(at: CGPoint(x: 220, y: 160))
+        TestHarness.assertEqual(shiftCircle?.bounds.width, 120.0, "Shift-constrained ellipse width is 120")
+        TestHarness.assertEqual(shiftCircle?.bounds.height, 120.0, "Shift-constrained ellipse height is 120")
+
         // 8. ImageRenderer Rasterization
         testImageRendererRasterization()
     }
@@ -398,13 +412,24 @@ public struct AnnotationEngineTests {
         let annotations = [
             AnnotationObject(tool: .rectangle, bounds: CGRect(x: 10, y: 10, width: 80, height: 50), colorHex: "#FF3B30", strokeWidth: 3.0),
             AnnotationObject(tool: .arrow, points: [CGPoint(x: 100, y: 50), CGPoint(x: 180, y: 120)], colorHex: "#007AFF"),
-            AnnotationObject(tool: .text, bounds: CGRect(x: 200, y: 20, width: 100, height: 30), fontSize: 16.0, text: "Test"),
-            AnnotationObject(tool: .blur, bounds: CGRect(x: 250, y: 150, width: 80, height: 40))
+            AnnotationObject(tool: .text, bounds: CGRect(x: 50, y: 20, width: 100, height: 50), fontSize: 16.0, text: "Line 1\nLine 2"),
+            AnnotationObject(tool: .blur, bounds: CGRect(x: 60, y: 60, width: 80, height: 40))
         ]
 
         let rendered = ImageRenderer.render(baseImage: baseCGImage, annotations: annotations, cropRect: nil, scale: 2.0)
         TestHarness.assertNotNil(rendered, "ImageRenderer produced non-nil composited CGImage")
         TestHarness.assertEqual(rendered?.width, 400, "Retina @2x scale width is accurate")
         TestHarness.assertEqual(rendered?.height, 300, "Retina @2x scale height is accurate")
+
+        // Subregion cropRect with offset origin (50, 20, 100x80 points -> 200x160 pixels at 2x)
+        let croppedRendered = ImageRenderer.render(
+            baseImage: baseCGImage,
+            annotations: annotations,
+            cropRect: CGRect(x: 50, y: 20, width: 100, height: 80),
+            scale: 2.0
+        )
+        TestHarness.assertNotNil(croppedRendered, "ImageRenderer produced non-nil cropped & composited CGImage")
+        TestHarness.assertEqual(croppedRendered?.width, 200, "Cropped Retina @2x width is 200px (100pt * 2)")
+        TestHarness.assertEqual(croppedRendered?.height, 160, "Cropped Retina @2x height is 160px (80pt * 2)")
     }
 }

@@ -176,26 +176,47 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         let path = CGMutablePath()
         guard let first = points.first else { return path }
         path.move(to: first)
-        for i in 1..<points.count {
-            path.addLine(to: points[i])
+        if points.count == 1 {
+            path.addEllipse(in: CGRect(x: first.x - 1, y: first.y - 1, width: 2, height: 2))
+            return path
+        }
+        if points.count == 2 {
+            path.addLine(to: points[1])
+            return path
+        }
+        for i in 1..<(points.count - 1) {
+            let p0 = points[i]
+            let p1 = points[i + 1]
+            let mid = CGPoint(x: (p0.x + p1.x) / 2.0, y: (p0.y + p1.y) / 2.0)
+            path.addQuadCurve(to: mid, control: p0)
+        }
+        if let last = points.last {
+            path.addLine(to: last)
         }
         return path
     }
 
     private func drawText(obj: AnnotationObject, context: CGContext) {
-        guard !obj.text.isEmpty else { return }
+        guard !obj.text.isEmpty, editingObjectID != obj.id else { return }
         let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
         let nsColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: nsColor]
-        let attrStr = NSAttributedString(string: obj.text, attributes: attrs)
-        let line = CTLineCreateWithAttributedString(attrStr)
 
-        context.saveGState()
-        context.translateBy(x: obj.bounds.minX, y: obj.bounds.minY + obj.fontSize)
-        context.scaleBy(x: 1.0, y: -1.0)
-        context.textPosition = .zero
-        CTLineDraw(line, context)
-        context.restoreGState()
+        let lines = obj.text.components(separatedBy: .newlines)
+        let lineHeight = obj.fontSize * 1.25
+
+        for (index, rawLine) in lines.enumerated() {
+            guard !rawLine.isEmpty else { continue }
+            let attrStr = NSAttributedString(string: rawLine, attributes: attrs)
+            let line = CTLineCreateWithAttributedString(attrStr)
+
+            context.saveGState()
+            context.translateBy(x: obj.bounds.minX, y: obj.bounds.minY + obj.fontSize + CGFloat(index) * lineHeight)
+            context.scaleBy(x: 1.0, y: -1.0)
+            context.textPosition = .zero
+            CTLineDraw(line, context)
+            context.restoreGState()
+        }
     }
 
     private func drawSelectionHighlight(for obj: AnnotationObject, context: CGContext) {
@@ -246,11 +267,11 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
 
     public override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
-        engine.endDrag(at: point)
+        let committed = engine.endDrag(at: point)
 
         // If newly created object is a text box, immediately focus inline editor
-        if engine.activeTool == .text, let last = engine.objects.last, last.tool == .text, last.text.isEmpty {
-            startInlineTextEditing(for: last)
+        if let created = committed, created.tool == .text, (created.text.isEmpty || created.text == "Text") {
+            startInlineTextEditing(for: created)
         }
 
         needsDisplay = true
@@ -261,13 +282,20 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     private func startInlineTextEditing(for obj: AnnotationObject) {
         commitActiveTextEditing()
 
-        let field = NSTextField(frame: obj.bounds)
-        field.stringValue = obj.text
+        let fieldFrame = CGRect(
+            x: obj.bounds.minX,
+            y: obj.bounds.minY,
+            width: max(140, obj.bounds.width),
+            height: max(obj.fontSize + 12, obj.bounds.height)
+        )
+        let field = NSTextField(frame: fieldFrame)
+        field.stringValue = obj.text == "Text" ? "" : obj.text
+        field.placeholderString = "Text"
         field.font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
         field.textColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
         field.isBordered = true
         field.drawsBackground = true
-        field.backgroundColor = NSColor.black.withAlphaComponent(0.7)
+        field.backgroundColor = NSColor.black.withAlphaComponent(0.75)
         field.focusRingType = .none
         field.delegate = self
 
@@ -280,9 +308,13 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
 
     public func commitActiveTextEditing() {
         guard let field = activeTextField, let objID = editingObjectID else { return }
-        let newText = field.stringValue
+        let trimmed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
         engine.selectedObjectID = objID
-        engine.updateSelectedText(newText)
+        if trimmed.isEmpty {
+            engine.deleteSelected()
+        } else {
+            engine.updateSelectedText(field.stringValue)
+        }
         field.removeFromSuperview()
         activeTextField = nil
         editingObjectID = nil
@@ -344,16 +376,25 @@ public final class ScrollableCanvasView: NSView {
     public let scrollView: ScrollableAnnotationScrollView
     public let documentView: ScrollableAnnotationDocumentView
     public let engine: AnnotationEngine
+    public let appSettings: AppSettings
+    public let toolbarsViewModel: FloatingToolbarsViewModel
 
     public var onCopyRequested: (() -> Void)?
     public var onSaveRequested: (() -> Void)?
     public var onShareRequested: ((NSView) -> Void)?
     public var onCloseRequested: (() -> Void)?
 
-    public init(baseImage: CGImage, scale: CGFloat = 2.0) {
+    private var cancellables = Set<AnyCancellable>()
+
+    public init(baseImage: CGImage, scale: CGFloat = 2.0, appSettings: AppSettings = AppSettings()) {
         let engine = AnnotationEngine()
         self.engine = engine
+        self.appSettings = appSettings
+        self.toolbarsViewModel = FloatingToolbarsViewModel(appSettings: appSettings)
         let docView = ScrollableAnnotationDocumentView(baseImage: baseImage, engine: engine, scale: scale)
+        docView.currentColorHex = appSettings.activeColorHex
+        docView.currentStrokeWidth = CGFloat(appSettings.activeStrokeWidth)
+        docView.currentFontSize = CGFloat(appSettings.activeFontSize)
         self.documentView = docView
         let sView = ScrollableAnnotationScrollView(documentCanvasView: docView)
         self.scrollView = sView
@@ -363,12 +404,126 @@ public final class ScrollableCanvasView: NSView {
         sView.translatesAutoresizingMaskIntoConstraints = false
         addSubview(sView)
 
+        let vToolbar = NSHostingView(rootView: VerticalAnnotationToolbarView(viewModel: toolbarsViewModel, appSettings: appSettings))
+        let hToolbar = NSHostingView(rootView: HorizontalActionToolbarView(viewModel: toolbarsViewModel))
+        vToolbar.translatesAutoresizingMaskIntoConstraints = false
+        hToolbar.translatesAutoresizingMaskIntoConstraints = false
+        addSubview(vToolbar)
+        addSubview(hToolbar)
+
         NSLayoutConstraint.activate([
             sView.topAnchor.constraint(equalTo: topAnchor),
             sView.bottomAnchor.constraint(equalTo: bottomAnchor),
             sView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            sView.trailingAnchor.constraint(equalTo: trailingAnchor)
+            sView.trailingAnchor.constraint(equalTo: trailingAnchor),
+
+            vToolbar.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            vToolbar.topAnchor.constraint(equalTo: topAnchor, constant: 16),
+            vToolbar.widthAnchor.constraint(equalToConstant: ToolbarLayoutCalculator.verticalToolbarSize.width),
+            vToolbar.heightAnchor.constraint(equalToConstant: ToolbarLayoutCalculator.verticalToolbarSize.height),
+
+            hToolbar.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+            hToolbar.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16),
+            hToolbar.widthAnchor.constraint(equalToConstant: ToolbarLayoutCalculator.horizontalToolbarSize.width),
+            hToolbar.heightAnchor.constraint(equalToConstant: ToolbarLayoutCalculator.horizontalToolbarSize.height)
         ])
+
+        setupToolbarBindings()
+    }
+
+    private func setupToolbarBindings() {
+        engine.$canUndo
+            .sink { [weak self] canUndo in
+                self?.toolbarsViewModel.canUndo = canUndo
+            }
+            .store(in: &cancellables)
+
+        engine.$canRedo
+            .sink { [weak self] canRedo in
+                self?.toolbarsViewModel.canRedo = canRedo
+            }
+            .store(in: &cancellables)
+
+        toolbarsViewModel.onToolChanged = { [weak self] toolType in
+            guard let self = self else { return }
+            self.documentView.commitActiveTextEditing()
+            switch toolType {
+            case .select: self.engine.activeTool = .select
+            case .rectangle: self.engine.activeTool = .rectangle
+            case .ellipse: self.engine.activeTool = .ellipse
+            case .arrow: self.engine.activeTool = .arrow
+            case .line: self.engine.activeTool = .line
+            case .pen: self.engine.activeTool = .pen
+            case .highlighter: self.engine.activeTool = .highlighter
+            case .text: self.engine.activeTool = .text
+            case .blur: self.engine.activeTool = .blur
+            }
+        }
+
+        toolbarsViewModel.onColorSelected = { [weak self] hex in
+            guard let self = self else { return }
+            self.documentView.currentColorHex = hex
+            if self.engine.selectedObjectID != nil {
+                self.engine.recolorSelected(newHex: hex)
+                self.documentView.needsDisplay = true
+            }
+        }
+
+        toolbarsViewModel.onStrokeWidthSelected = { [weak self] width in
+            guard let self = self else { return }
+            self.documentView.currentStrokeWidth = width
+            if self.engine.selectedObjectID != nil {
+                self.engine.updateSelectedStrokeWidth(width)
+                self.documentView.needsDisplay = true
+            }
+        }
+
+        toolbarsViewModel.onFontSizeSelected = { [weak self] size in
+            guard let self = self else { return }
+            self.documentView.currentFontSize = size
+            if self.engine.selectedObjectID != nil {
+                self.engine.updateSelectedFontSize(size)
+                self.documentView.needsDisplay = true
+            }
+        }
+
+        toolbarsViewModel.onUndoRequested = { [weak self] in
+            self?.documentView.commitActiveTextEditing()
+            self?.engine.undo()
+            self?.documentView.needsDisplay = true
+        }
+
+        toolbarsViewModel.onRedoRequested = { [weak self] in
+            self?.documentView.commitActiveTextEditing()
+            self?.engine.redo()
+            self?.documentView.needsDisplay = true
+        }
+
+        toolbarsViewModel.onCopyRequested = { [weak self] in
+            guard let self = self else { return }
+            self.documentView.commitActiveTextEditing()
+            self.copyToClipboard()
+            self.onCopyRequested?()
+        }
+
+        toolbarsViewModel.onSaveRequested = { [weak self] in
+            guard let self = self else { return }
+            self.documentView.commitActiveTextEditing()
+            self.saveToFile(window: self.window)
+            self.onSaveRequested?()
+        }
+
+        toolbarsViewModel.onShareRequested = { [weak self] anchorView in
+            guard let self = self else { return }
+            self.documentView.commitActiveTextEditing()
+            self.share(from: anchorView)
+            self.onShareRequested?(anchorView)
+        }
+
+        toolbarsViewModel.onCancelRequested = { [weak self] in
+            self?.documentView.commitActiveTextEditing()
+            self?.onCloseRequested?()
+        }
     }
 
     required init?(coder: NSCoder) {
@@ -443,8 +598,8 @@ public final class ScrollableCanvasView: NSView {
 public final class ScrollableAnnotationWindow: NSWindow {
     public let canvasView: ScrollableCanvasView
 
-    public init(baseImage: CGImage, scale: CGFloat = 2.0) {
-        let canvas = ScrollableCanvasView(baseImage: baseImage, scale: scale)
+    public init(baseImage: CGImage, scale: CGFloat = 2.0, appSettings: AppSettings = AppSettings()) {
+        let canvas = ScrollableCanvasView(baseImage: baseImage, scale: scale, appSettings: appSettings)
         self.canvasView = canvas
 
         let defaultRect = NSRect(x: 100, y: 100, width: 1200, height: 850)
@@ -457,6 +612,7 @@ public final class ScrollableAnnotationWindow: NSWindow {
 
         self.title = "SuperShot — Tall Scrolling Screenshot"
         self.minSize = NSSize(width: 600, height: 400)
+        self.isReleasedWhenClosed = false
         self.contentView = canvas
         self.center()
 
@@ -468,6 +624,13 @@ public final class ScrollableAnnotationWindow: NSWindow {
     public override func keyDown(with event: NSEvent) {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let keyCode = event.keyCode
+
+        // Delete / Backspace removes selected annotation
+        if (keyCode == 51 || keyCode == 117), canvasView.engine.selectedObjectID != nil {
+            canvasView.engine.deleteSelected()
+            canvasView.documentView.needsDisplay = true
+            return
+        }
 
         // Esc: Close window
         if keyCode == 53 {
@@ -489,13 +652,17 @@ public final class ScrollableAnnotationWindow: NSWindow {
 
         // Cmd+C / Return: Copy to clipboard
         if (flags == .command && keyCode == 8) || (keyCode == 36 && flags.isEmpty) {
-            canvasView.copyToClipboard()
+            canvasView.toolbarsViewModel.triggerCopy()
             return
         }
 
         // Cmd+S: Save to file
         if flags == .command && keyCode == 1 {
-            canvasView.saveToFile(window: self)
+            canvasView.toolbarsViewModel.triggerSave()
+            return
+        }
+
+        if ToolbarKeyShortcutHandler.handleKeyEvent(event: event, viewModel: canvasView.toolbarsViewModel) {
             return
         }
 

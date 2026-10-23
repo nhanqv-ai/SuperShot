@@ -160,7 +160,7 @@ public final class AnnotationEngine: ObservableObject {
             var w = abs(currentPoint.x - startPoint.x)
             var h = abs(currentPoint.y - startPoint.y)
 
-            if shiftKeyPressed || draft.tool == .ellipse {
+            if shiftKeyPressed {
                 let side = max(w, h)
                 w = side
                 h = side

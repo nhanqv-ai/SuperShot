@@ -163,6 +163,7 @@ public struct AboutSettingsTab: View {
         appSettings.jpegQuality = def.jpegQuality
         appSettings.maxScrollHeightPx = def.maxScrollHeightPx
         appSettings.capacity = def.capacity
+        storageManager.capacity = def.capacity
         appSettings.launchAtLogin = def.launchAtLogin
         appSettings.language = def.language
         appSettings.autoPasteOnSelection = def.autoPasteOnSelection

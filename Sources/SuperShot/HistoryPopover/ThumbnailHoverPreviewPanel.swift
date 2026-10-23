@@ -76,6 +76,10 @@ public struct ThumbnailHoverPreviewCardView: View {
                 .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1)
         )
         .onAppear { loadFullImage() }
+        .onChange(of: item?.id) { _ in
+            previewImage = nil
+            loadFullImage()
+        }
     }
 
     private func loadFullImage() {

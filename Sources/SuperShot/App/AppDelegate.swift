@@ -28,8 +28,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         NSApplication.shared.setActivationPolicy(.accessory)
 
         // 2. Initialize Foundation Services
-        storageManager = StorageManager()
         appSettings = AppSettings()
+        LocalizationManager.shared.setLanguage(code: appSettings.language)
+        storageManager = StorageManager(initialCapacity: appSettings.capacity)
         hotKeyManager = HotKeyManager.shared
         previousAppTracker = PreviousAppTracker.shared
         autoPasteService = AutoPasteService.shared
@@ -106,7 +107,19 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
                 self.triggerScrollingCapture()
             }
         }
-        hotKeyManager.registerDefaults()
+        let regionRegistered = hotKeyManager.register(
+            action: .inPlaceCapture,
+            keyCode: appSettings.regionHotKeyKeyCode,
+            modifiers: appSettings.regionHotKeyModifiers
+        )
+        let scrollRegistered = hotKeyManager.register(
+            action: .scrollingCapture,
+            keyCode: appSettings.scrollHotKeyKeyCode,
+            modifiers: appSettings.scrollHotKeyModifiers
+        )
+        if !regionRegistered || !scrollRegistered {
+            hotKeyManager.registerDefaults()
+        }
     }
 
     // MARK: - Capture Triggers
@@ -125,7 +138,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         // Close any existing overlay
         activeOverlayWindow?.close()
 
-        let overlay = CaptureOverlayWindow(capturedScreen: capturedScreen)
+        let overlay = CaptureOverlayWindow(capturedScreen: capturedScreen, appSettings: appSettings)
         overlay.captureDelegate = self
         self.activeOverlayWindow = overlay
 
@@ -162,13 +175,15 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
             selectionRect: selectionRect
         )
         panel.onFinished = { [weak self] image, _, _ in
-            self?.activeStitchedPreviewPanel?.close()
-            self?.activeStitchedPreviewPanel = nil
-            self?.handleCaptureCompletion(
+            guard let self = self else { return }
+            self.activeStitchedPreviewPanel?.close()
+            self.activeStitchedPreviewPanel = nil
+            self.handleCaptureCompletion(
                 image: image,
                 captureType: .scrolling,
-                sourceApp: self?.previousAppTracker.previousApp?.localizedName
+                sourceApp: self.previousAppTracker.previousApp?.localizedName
             )
+            self.presentScrollableAnnotationWindow(image: image, scale: display.scaleFactor)
         }
         panel.onCancelled = { [weak self] in
             self?.activeStitchedPreviewPanel?.close()
@@ -177,12 +192,38 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         panel.orderFront(nil)
         self.activeStitchedPreviewPanel = panel
 
+        ScrollingCaptureManager.shared.configuration.maxScrollHeightPx = appSettings.maxScrollHeightPx
         ScrollingCaptureManager.shared.delegate = panel
         _ = ScrollingCaptureManager.shared.startSession(
             selectionRect: selectionRect,
             displayInfo: display,
             mode: .auto
         )
+    }
+
+    public func presentScrollableAnnotationWindow(image: CGImage, scale: CGFloat) {
+        guard ProcessInfo.processInfo.environment["SUPER_SHOT_HEADLESS"] == nil else { return }
+        activeScrollCanvasWindow?.close()
+
+        let win = ScrollableAnnotationWindow(baseImage: image, scale: scale, appSettings: appSettings)
+        win.canvasView.onCopyRequested = { [weak self, weak win] in
+            guard let self = self, let win = win else { return }
+            if let rendered = ImageRenderer.render(
+                baseImage: win.canvasView.documentView.baseImage,
+                annotations: win.canvasView.engine.objects,
+                scale: win.canvasView.documentView.scale
+            ) {
+                self.handleCaptureCompletion(
+                    image: rendered,
+                    captureType: .scrolling,
+                    sourceApp: self.previousAppTracker.previousApp?.localizedName
+                )
+            }
+            win.close()
+        }
+        self.activeScrollCanvasWindow = win
+        win.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     // MARK: - CaptureOverlayWindowDelegate
@@ -198,15 +239,17 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         let windowSize = overlay.frame.size
         let scale = display.scaleFactor
 
-        let croppedImage = ScreenCaptureManager.cropImage(
-            fullImage,
-            selectionInWindow: rect,
-            windowSize: windowSize,
-            scaleFactor: scale
-        ) ?? fullImage
+        let finalImage = overlay.contentViewRef?.renderFinalSelectionImage()
+            ?? ScreenCaptureManager.cropImage(
+                fullImage,
+                selectionInWindow: rect,
+                windowSize: windowSize,
+                scaleFactor: scale
+            )
+            ?? fullImage
 
         handleCaptureCompletion(
-            image: croppedImage,
+            image: finalImage,
             captureType: .region,
             sourceApp: previousAppTracker.previousApp?.localizedName
         )
@@ -220,16 +263,18 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         let windowSize = overlay.frame.size
         let scale = display.scaleFactor
 
-        let croppedImage = ScreenCaptureManager.cropImage(
-            fullImage,
-            selectionInWindow: rect,
-            windowSize: windowSize,
-            scaleFactor: scale
-        ) ?? fullImage
+        let finalImage = overlay.contentViewRef?.renderFinalSelectionImage()
+            ?? ScreenCaptureManager.cropImage(
+                fullImage,
+                selectionInWindow: rect,
+                windowSize: windowSize,
+                scaleFactor: scale
+            )
+            ?? fullImage
 
-        saveImageToFile(croppedImage)
+        saveImageToFile(finalImage)
         handleCaptureCompletion(
-            image: croppedImage,
+            image: finalImage,
             captureType: .region,
             sourceApp: previousAppTracker.previousApp?.localizedName,
             skipClipboard: true
@@ -293,7 +338,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
             sourceApp: sourceApp,
             captureType: captureType,
             tags: [],
-            format: appSettings.saveFormat
+            format: appSettings.saveFormat,
+            jpegQuality: appSettings.jpegQuality
         )
 
         // 2. Auto-save to directory if configured
@@ -345,7 +391,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
             if response == .OK, let url = panel.url {
                 let uti = self.appSettings.saveFormat == .png ? UTType.png.identifier : UTType.jpeg.identifier
                 guard let dest = CGImageDestinationCreateWithURL(url as CFURL, uti as CFString, 1, nil) else { return }
-                CGImageDestinationAddImage(dest, image, nil)
+                var options: [CFString: Any] = [:]
+                if self.appSettings.saveFormat == .jpeg {
+                    options[kCGImageDestinationLossyCompressionQuality] = self.appSettings.jpegQuality
+                }
+                CGImageDestinationAddImage(dest, image, options as CFDictionary)
                 CGImageDestinationFinalize(dest)
             }
         }
@@ -362,7 +412,11 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
 
         let uti = appSettings.saveFormat == .png ? UTType.png.identifier : UTType.jpeg.identifier
         guard let dest = CGImageDestinationCreateWithURL(targetURL as CFURL, uti as CFString, 1, nil) else { return }
-        CGImageDestinationAddImage(dest, image, nil)
+        var options: [CFString: Any] = [:]
+        if appSettings.saveFormat == .jpeg {
+            options[kCGImageDestinationLossyCompressionQuality] = appSettings.jpegQuality
+        }
+        CGImageDestinationAddImage(dest, image, options as CFDictionary)
         CGImageDestinationFinalize(dest)
     }
 

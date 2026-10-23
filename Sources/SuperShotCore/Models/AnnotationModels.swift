@@ -351,7 +351,7 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
         var newW = max(1.0, abs(maxX - minX))
         var newH = max(1.0, abs(maxY - minY))
 
-        if shiftConstrained || tool == .ellipse {
+        if shiftConstrained {
             let side = max(newW, newH)
             newW = side
             newH = side

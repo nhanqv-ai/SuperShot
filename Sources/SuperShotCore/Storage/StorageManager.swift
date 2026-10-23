@@ -11,6 +11,7 @@ public protocol StorageManaging: AnyObject, ObservableObject {
     var recentItems: [ShotItem] { get }
     
     func save(image: CGImage, sourceApp: String?, captureType: ShotCaptureType, tags: [String], format: ImageSaveFormat) throws -> ShotItem
+    func save(image: CGImage, sourceApp: String?, captureType: ShotCaptureType, tags: [String], format: ImageSaveFormat, jpegQuality: Double) throws -> ShotItem
     func save(imageData: Data, thumbnailData: Data, item: ShotItem)
     func loadCGImage(for item: ShotItem) -> CGImage?
     func loadThumbnailCGImage(for item: ShotItem) -> CGImage?
@@ -133,13 +134,25 @@ public final class StorageManager: ObservableObject, StorageManaging {
         tags: [String] = [],
         format: ImageSaveFormat = .png
     ) throws -> ShotItem {
+        try save(image: image, sourceApp: sourceApp, captureType: captureType, tags: tags, format: format, jpegQuality: 0.9)
+    }
+
+    /// Saves a newly captured CGImage with explicit JPEG quality, creating thumbnails and ShotItem record.
+    public func save(
+        image: CGImage,
+        sourceApp: String?,
+        captureType: ShotCaptureType,
+        tags: [String],
+        format: ImageSaveFormat,
+        jpegQuality: Double
+    ) throws -> ShotItem {
         let id = UUID()
         let ext = format == .png ? "png" : "jpg"
         let imgName = "\(id.uuidString).\(ext)"
         let thumbName = "\(id.uuidString)_thumb.\(ext)"
 
         // Encode full-size image to Data
-        guard let fullData = StorageManager.encodeCGImage(image, format: format, quality: 0.9) else {
+        guard let fullData = StorageManager.encodeCGImage(image, format: format, quality: jpegQuality) else {
             throw NSError(domain: "com.supershot.storage", code: 1, userInfo: [NSLocalizedDescriptionKey: "Failed to encode full-size image"])
         }
 

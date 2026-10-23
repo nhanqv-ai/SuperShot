@@ -1,5 +1,8 @@
 import Foundation
 import AppKit
+import SwiftUI
+import Combine
+import CoreText
 import SuperShotCore
 
 public enum DragMode: Equatable {
@@ -7,30 +10,274 @@ public enum DragMode: Equatable {
     case creating(startPoint: CGPoint)
     case moving(startPoint: CGPoint, originalRect: CGRect)
     case resizing(handle: SelectionHandle, anchorPoint: CGPoint)
+    case annotating
 }
 
-public class CaptureOverlayContentView: NSView {
+public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     public let capturedScreen: CapturedScreen
+    public let appSettings: AppSettings
+    public let annotationEngine = AnnotationEngine()
+    public let toolbarsViewModel: FloatingToolbarsViewModel
     public weak var windowDelegate: CaptureOverlayWindow?
 
     public var selectionRect: CGRect = .zero {
         didSet {
+            toolbarsViewModel.selectionRect = selectionRect
+            updateToolbarPositions()
             needsDisplay = true
         }
     }
 
-    private var dragMode: DragMode = .none
+    private var dragMode: DragMode = .none {
+        didSet {
+            updateToolbarVisibility()
+        }
+    }
 
-    public init(frame: NSRect, capturedScreen: CapturedScreen, windowDelegate: CaptureOverlayWindow) {
+    private var verticalToolbarHost: NSHostingView<VerticalAnnotationToolbarView>?
+    private var horizontalToolbarHost: NSHostingView<HorizontalActionToolbarView>?
+    private var activeTextField: NSTextField?
+    private var editingObjectID: UUID?
+    private var cancellables = Set<AnyCancellable>()
+
+    public init(
+        frame: NSRect,
+        capturedScreen: CapturedScreen,
+        appSettings: AppSettings = AppSettings(),
+        windowDelegate: CaptureOverlayWindow
+    ) {
         self.capturedScreen = capturedScreen
+        self.appSettings = appSettings
+        self.toolbarsViewModel = FloatingToolbarsViewModel(appSettings: appSettings)
         self.windowDelegate = windowDelegate
         super.init(frame: frame)
         self.wantsLayer = true
+
+        setupFloatingToolbars()
+        setupBindings()
     }
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
+
+    public override var acceptsFirstResponder: Bool { true }
+
+    // MARK: - Floating Toolbars Setup
+
+    private func setupFloatingToolbars() {
+        let vView = VerticalAnnotationToolbarView(viewModel: toolbarsViewModel, appSettings: appSettings)
+        let hView = HorizontalActionToolbarView(viewModel: toolbarsViewModel)
+
+        let vHost = NSHostingView(rootView: vView)
+        let hHost = NSHostingView(rootView: hView)
+
+        vHost.frame = CGRect(origin: .zero, size: ToolbarLayoutCalculator.verticalToolbarSize)
+        hHost.frame = CGRect(origin: .zero, size: ToolbarLayoutCalculator.horizontalToolbarSize)
+        vHost.isHidden = true
+        hHost.isHidden = true
+
+        addSubview(vHost)
+        addSubview(hHost)
+
+        self.verticalToolbarHost = vHost
+        self.horizontalToolbarHost = hHost
+    }
+
+    private func setupBindings() {
+        annotationEngine.$canUndo
+            .sink { [weak self] canUndo in
+                self?.toolbarsViewModel.canUndo = canUndo
+            }
+            .store(in: &cancellables)
+
+        annotationEngine.$canRedo
+            .sink { [weak self] canRedo in
+                self?.toolbarsViewModel.canRedo = canRedo
+            }
+            .store(in: &cancellables)
+
+        annotationEngine.objectWillChange
+            .sink { [weak self] _ in
+                self?.needsDisplay = true
+            }
+            .store(in: &cancellables)
+
+        toolbarsViewModel.onToolChanged = { [weak self] toolType in
+            guard let self = self else { return }
+            self.commitActiveTextEditing()
+            self.annotationEngine.activeTool = Self.mapTool(toolType)
+        }
+
+        toolbarsViewModel.onColorSelected = { [weak self] hex in
+            guard let self = self else { return }
+            if self.annotationEngine.selectedObjectID != nil {
+                self.annotationEngine.recolorSelected(newHex: hex)
+                self.needsDisplay = true
+            }
+        }
+
+        toolbarsViewModel.onStrokeWidthSelected = { [weak self] width in
+            guard let self = self else { return }
+            if self.annotationEngine.selectedObjectID != nil {
+                self.annotationEngine.updateSelectedStrokeWidth(width)
+                self.needsDisplay = true
+            }
+        }
+
+        toolbarsViewModel.onFontSizeSelected = { [weak self] size in
+            guard let self = self else { return }
+            if self.annotationEngine.selectedObjectID != nil {
+                self.annotationEngine.updateSelectedFontSize(size)
+                self.needsDisplay = true
+            }
+        }
+
+        toolbarsViewModel.onUndoRequested = { [weak self] in
+            self?.commitActiveTextEditing()
+            self?.annotationEngine.undo()
+            self?.needsDisplay = true
+        }
+
+        toolbarsViewModel.onRedoRequested = { [weak self] in
+            self?.commitActiveTextEditing()
+            self?.annotationEngine.redo()
+            self?.needsDisplay = true
+        }
+
+        toolbarsViewModel.onCopyRequested = { [weak self] in
+            guard let self = self, !self.selectionRect.isEmpty else { return }
+            self.commitActiveTextEditing()
+            self.windowDelegate?.captureDelegate?.overlayDidConfirmSelection(
+                rect: self.selectionRect,
+                display: self.capturedScreen.displayInfo
+            )
+            self.windowDelegate?.close()
+        }
+
+        toolbarsViewModel.onSaveRequested = { [weak self] in
+            guard let self = self, !self.selectionRect.isEmpty else { return }
+            self.commitActiveTextEditing()
+            self.windowDelegate?.captureDelegate?.overlayDidTriggerSave(
+                rect: self.selectionRect,
+                display: self.capturedScreen.displayInfo
+            )
+            self.windowDelegate?.close()
+        }
+
+        toolbarsViewModel.onShareRequested = { [weak self] anchorView in
+            guard let self = self, !self.selectionRect.isEmpty else { return }
+            self.commitActiveTextEditing()
+            guard let rendered = self.renderFinalSelectionImage() else { return }
+            let nsImage = NSImage(cgImage: rendered, size: NSSize(width: rendered.width, height: rendered.height))
+            let picker = NSSharingServicePicker(items: [nsImage])
+            picker.show(relativeTo: anchorView.bounds, of: anchorView, preferredEdge: .minY)
+        }
+
+        toolbarsViewModel.onScrollCaptureRequested = { [weak self] in
+            guard let self = self, !self.selectionRect.isEmpty else { return }
+            self.commitActiveTextEditing()
+            self.windowDelegate?.captureDelegate?.overlayDidTriggerScroll(
+                rect: self.selectionRect,
+                display: self.capturedScreen.displayInfo
+            )
+            self.windowDelegate?.close()
+        }
+
+        toolbarsViewModel.onCancelRequested = { [weak self] in
+            guard let self = self else { return }
+            self.commitActiveTextEditing()
+            self.windowDelegate?.captureDelegate?.overlayDidCancel()
+            self.windowDelegate?.close()
+        }
+    }
+
+    private static func mapTool(_ toolType: AnnotationToolType) -> AnnotationTool {
+        switch toolType {
+        case .select: return .select
+        case .rectangle: return .rectangle
+        case .ellipse: return .ellipse
+        case .arrow: return .arrow
+        case .line: return .line
+        case .pen: return .pen
+        case .highlighter: return .highlighter
+        case .text: return .text
+        case .blur: return .blur
+        }
+    }
+
+    private func updateToolbarVisibility() {
+        let shouldShow = !selectionRect.isEmpty && dragMode == .none
+        verticalToolbarHost?.isHidden = !shouldShow
+        horizontalToolbarHost?.isHidden = !shouldShow
+    }
+
+    private func updateToolbarPositions() {
+        guard !selectionRect.isEmpty else {
+            verticalToolbarHost?.isHidden = true
+            horizontalToolbarHost?.isHidden = true
+            return
+        }
+
+        let resolved = ToolbarPositionCalculator.resolveToolbarFrames(
+            selectionRect: selectionRect,
+            screenBounds: bounds,
+            vertSize: ToolbarLayoutCalculator.verticalToolbarSize,
+            horizSize: ToolbarLayoutCalculator.horizontalToolbarSize
+        )
+
+        verticalToolbarHost?.frame = resolved.vertical
+        horizontalToolbarHost?.frame = resolved.horizontal
+        updateToolbarVisibility()
+    }
+
+    // MARK: - Final Composited Bitmap Rendering
+
+    public func renderFinalSelectionImage() -> CGImage? {
+        commitActiveTextEditing()
+        guard !selectionRect.isEmpty else { return nil }
+
+        let windowH = bounds.height
+        let scale = capturedScreen.displayInfo.scaleFactor
+
+        if annotationEngine.objects.isEmpty {
+            return ScreenCaptureManager.cropImage(
+                capturedScreen.fullImage,
+                selectionInWindow: selectionRect,
+                windowSize: bounds.size,
+                scaleFactor: scale
+            )
+        }
+
+        // Convert selectionRect and AnnotationObjects from Cocoa (bottom-left) to top-left coordinate space
+        let topLeftCropRect = CGRect(
+            x: max(0, min(selectionRect.minX, bounds.width)),
+            y: max(0, min(windowH - selectionRect.maxY, windowH)),
+            width: max(1, min(selectionRect.width, bounds.width - selectionRect.minX)),
+            height: max(1, min(selectionRect.height, windowH - (windowH - selectionRect.maxY)))
+        )
+
+        let topLeftAnnotations: [AnnotationObject] = annotationEngine.objects.map { obj in
+            var copy = obj
+            copy.bounds = CGRect(
+                x: obj.bounds.minX,
+                y: windowH - obj.bounds.maxY,
+                width: obj.bounds.width,
+                height: obj.bounds.height
+            )
+            copy.points = obj.points.map { CGPoint(x: $0.x, y: windowH - $0.y) }
+            return copy
+        }
+
+        return ImageRenderer.render(
+            baseImage: capturedScreen.fullImage,
+            annotations: topLeftAnnotations,
+            cropRect: topLeftCropRect,
+            scale: scale
+        )
+    }
+
+    // MARK: - Drawing
 
     public override func draw(_ dirtyRect: NSRect) {
         guard let context = NSGraphicsContext.current?.cgContext else { return }
@@ -50,6 +297,12 @@ public class CaptureOverlayContentView: NSView {
             dimPath.append(NSBezierPath(rect: selectionRect))
             dimPath.windingRule = .evenOdd
             dimPath.fill()
+
+            // Step 2b: Draw vector annotations clipped inside selectionRect
+            context.saveGState()
+            context.clip(to: selectionRect)
+            drawAnnotations(in: context)
+            context.restoreGState()
 
             // Step 3: Draw selection border (crisp 1.5pt white outline)
             NSColor.white.setStroke()
@@ -75,6 +328,160 @@ public class CaptureOverlayContentView: NSView {
             drawDimensionBadge(in: context)
         }
         context.restoreGState()
+    }
+
+    private func drawAnnotations(in context: CGContext) {
+        // 1. Region Blur objects
+        for obj in annotationEngine.objects where obj.tool == .blur {
+            drawBlurAnnotation(obj: obj, in: context)
+        }
+
+        // 2. Vector objects
+        for obj in annotationEngine.objects where obj.tool != .blur {
+            drawVectorAnnotation(obj: obj, in: context)
+        }
+
+        // 3. Active drag draft
+        if let draft = annotationEngine.activeDragObject {
+            if draft.tool == .blur {
+                drawBlurAnnotation(obj: draft, in: context)
+            } else {
+                drawVectorAnnotation(obj: draft, in: context)
+            }
+        }
+
+        // 4. Selection handles on selected vector annotation
+        if let selected = annotationEngine.selectedObject {
+            context.saveGState()
+            context.setStrokeColor(NSColor.systemBlue.cgColor)
+            context.setLineWidth(1.5)
+            context.stroke(selected.bounds.insetBy(dx: -2, dy: -2))
+
+            for (_, pos) in selected.handlePositions() {
+                let hr = CGRect(x: pos.x - 4, y: pos.y - 4, width: 8, height: 8)
+                context.setFillColor(NSColor.white.cgColor)
+                context.fillEllipse(in: hr)
+                context.setStrokeColor(NSColor.systemBlue.cgColor)
+                context.setLineWidth(1.5)
+                context.strokeEllipse(in: hr)
+            }
+            context.restoreGState()
+        }
+    }
+
+    private func drawBlurAnnotation(obj: AnnotationObject, in context: CGContext) {
+        context.saveGState()
+        let blockSize: CGFloat = 12.0
+        let cols = max(1, Int(ceil(obj.bounds.width / blockSize)))
+        let rows = max(1, Int(ceil(obj.bounds.height / blockSize)))
+        for r in 0..<rows {
+            for c in 0..<cols {
+                let cellX = obj.bounds.minX + CGFloat(c) * blockSize
+                let cellY = obj.bounds.minY + CGFloat(r) * blockSize
+                let cell = CGRect(
+                    x: cellX,
+                    y: cellY,
+                    width: min(blockSize, obj.bounds.maxX - cellX),
+                    height: min(blockSize, obj.bounds.maxY - cellY)
+                )
+                let shade = ((r + c) % 2 == 0) ? 0.45 : 0.55
+                context.setFillColor(gray: shade, alpha: 0.90)
+                context.fill(cell)
+            }
+        }
+        context.restoreGState()
+    }
+
+    private func drawVectorAnnotation(obj: AnnotationObject, in context: CGContext) {
+        let nsColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
+        context.saveGState()
+        context.setStrokeColor(nsColor.cgColor)
+        context.setFillColor(nsColor.cgColor)
+        context.setLineWidth(obj.strokeWidth)
+        context.setLineCap(.round)
+        context.setLineJoin(.round)
+
+        switch obj.tool {
+        case .rectangle:
+            context.stroke(obj.bounds)
+        case .ellipse:
+            context.strokeEllipse(in: obj.bounds)
+        case .line:
+            guard obj.points.count >= 2 else { break }
+            context.strokeLineSegments(between: [obj.points[0], obj.points[1]])
+        case .arrow:
+            guard obj.points.count >= 2 else { break }
+            drawArrow(p1: obj.points[0], p2: obj.points[1], strokeWidth: obj.strokeWidth, color: nsColor, context: context)
+        case .pen:
+            guard !obj.points.isEmpty else { break }
+            let path = buildSmoothPath(points: obj.points)
+            context.addPath(path)
+            context.strokePath()
+        case .highlighter:
+            guard !obj.points.isEmpty else { break }
+            context.setBlendMode(.multiply)
+            let marker = nsColor.withAlphaComponent(0.35)
+            context.setStrokeColor(marker.cgColor)
+            context.setLineWidth(max(16.0, obj.strokeWidth))
+            let path = buildSmoothPath(points: obj.points)
+            context.addPath(path)
+            context.strokePath()
+        case .text:
+            guard !obj.text.isEmpty, editingObjectID != obj.id else { break }
+            let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
+            let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: nsColor]
+            let attrStr = NSAttributedString(string: obj.text, attributes: attrs)
+            attrStr.draw(in: CGRect(x: obj.bounds.minX, y: obj.bounds.minY, width: max(200, obj.bounds.width), height: max(obj.fontSize * 1.5, obj.bounds.height)))
+        case .blur, .select:
+            break
+        }
+        context.restoreGState()
+    }
+
+    private func drawArrow(p1: CGPoint, p2: CGPoint, strokeWidth: CGFloat, color: NSColor, context: CGContext) {
+        let dx = p2.x - p1.x
+        let dy = p2.y - p1.y
+        let len = hypot(dx, dy)
+        guard len > 1.0 else { return }
+        let theta = atan2(dy, dx)
+        let headLen = max(12.0, min(len * 0.5, strokeWidth * 4.0))
+        let wingAngle: CGFloat = 0.488
+        let shaftEnd = CGPoint(x: p2.x - (headLen * 0.7) * cos(theta), y: p2.y - (headLen * 0.7) * sin(theta))
+        let w1 = CGPoint(x: p2.x - headLen * cos(theta - wingAngle), y: p2.y - headLen * sin(theta - wingAngle))
+        let w2 = CGPoint(x: p2.x - headLen * cos(theta + wingAngle), y: p2.y - headLen * sin(theta + wingAngle))
+
+        context.strokeLineSegments(between: [p1, shaftEnd])
+        let arrowPath = CGMutablePath()
+        arrowPath.move(to: p2)
+        arrowPath.addLine(to: w1)
+        arrowPath.addLine(to: w2)
+        arrowPath.closeSubpath()
+        context.addPath(arrowPath)
+        context.fillPath()
+    }
+
+    private func buildSmoothPath(points: [CGPoint]) -> CGPath {
+        let path = CGMutablePath()
+        guard let first = points.first else { return path }
+        path.move(to: first)
+        if points.count == 1 {
+            path.addEllipse(in: CGRect(x: first.x - 1, y: first.y - 1, width: 2, height: 2))
+            return path
+        }
+        if points.count == 2 {
+            path.addLine(to: points[1])
+            return path
+        }
+        for i in 1..<(points.count - 1) {
+            let p0 = points[i]
+            let p1 = points[i + 1]
+            let mid = CGPoint(x: (p0.x + p1.x) / 2.0, y: (p0.y + p1.y) / 2.0)
+            path.addQuadCurve(to: mid, control: p0)
+        }
+        if let last = points.last {
+            path.addLine(to: last)
+        }
+        return path
     }
 
     private func drawDimensionBadge(in context: CGContext) {
@@ -107,20 +514,100 @@ public class CaptureOverlayContentView: NSView {
         str.draw(in: textRect)
     }
 
+    // MARK: - Mouse & Keyboard Interaction
+
+    public func handleOverlayKeyDown(with event: NSEvent) -> Bool {
+        if activeTextField != nil {
+            if event.keyCode == 53 || event.keyCode == 36 || event.keyCode == 76 {
+                commitActiveTextEditing()
+                return true
+            }
+            return false
+        }
+
+        // Delete / Backspace removes selected vector annotation object
+        if (event.keyCode == 51 || event.keyCode == 117), annotationEngine.selectedObjectID != nil {
+            annotationEngine.deleteSelected()
+            needsDisplay = true
+            return true
+        }
+
+        if !selectionRect.isEmpty {
+            return ToolbarKeyShortcutHandler.handleKeyEvent(event: event, viewModel: toolbarsViewModel)
+        }
+        return false
+    }
+
     public override func mouseDown(with event: NSEvent) {
+        commitActiveTextEditing()
         let point = convert(event.locationInWindow, from: nil)
 
+        // 1. Selection Box Grab Handles always take priority for resizing the region
         if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
             let anchor = SelectionBoxGeometry.anchorPoint(for: handle, in: selectionRect)
             dragMode = .resizing(handle: handle, anchorPoint: anchor)
             return
         }
 
+        // 2. Inside Selection Box: Vector Annotation or Region Move
         if selectionRect.contains(point) {
+            // Double-click on an existing text object edits it in place
+            if event.clickCount == 2,
+               let hitObj = annotationEngine.selectObject(at: point),
+               hitObj.tool == .text {
+                startInlineTextEditing(for: hitObj)
+                needsDisplay = true
+                return
+            }
+
+            if annotationEngine.activeTool != .select {
+                dragMode = .annotating
+                annotationEngine.startDrag(
+                    at: point,
+                    tool: annotationEngine.activeTool,
+                    colorHex: appSettings.activeColorHex,
+                    strokeWidth: CGFloat(appSettings.activeStrokeWidth),
+                    fontSize: CGFloat(appSettings.activeFontSize)
+                )
+                needsDisplay = true
+                return
+            }
+
+            // When activeTool == .select, check if user clicked an existing annotation handle or object
+            if let sel = annotationEngine.selectedObject, sel.handle(at: point) != nil {
+                dragMode = .annotating
+                annotationEngine.startDrag(
+                    at: point,
+                    tool: .select,
+                    colorHex: appSettings.activeColorHex,
+                    strokeWidth: CGFloat(appSettings.activeStrokeWidth),
+                    fontSize: CGFloat(appSettings.activeFontSize)
+                )
+                needsDisplay = true
+                return
+            }
+
+            if annotationEngine.selectObject(at: point) != nil {
+                dragMode = .annotating
+                annotationEngine.startDrag(
+                    at: point,
+                    tool: .select,
+                    colorHex: appSettings.activeColorHex,
+                    strokeWidth: CGFloat(appSettings.activeStrokeWidth),
+                    fontSize: CGFloat(appSettings.activeFontSize)
+                )
+                needsDisplay = true
+                return
+            }
+
+            // Otherwise, move the entire selection box
+            annotationEngine.deselectAll()
             dragMode = .moving(startPoint: point, originalRect: selectionRect)
             return
         }
 
+        // 3. Outside Selection Box: Start creating a new selection region
+        annotationEngine.deselectAll()
         dragMode = .creating(startPoint: point)
         selectionRect = CGRect(origin: point, size: CGSize(width: 1, height: 1))
     }
@@ -131,6 +618,16 @@ public class CaptureOverlayContentView: NSView {
         switch dragMode {
         case .none:
             break
+        case .annotating:
+            let clampedPoint = CGPoint(
+                x: max(selectionRect.minX, min(currentPoint.x, selectionRect.maxX)),
+                y: max(selectionRect.minY, min(currentPoint.y, selectionRect.maxY))
+            )
+            annotationEngine.updateDrag(
+                to: clampedPoint,
+                shiftKeyPressed: event.modifierFlags.contains(.shift)
+            )
+            needsDisplay = true
         case .creating(let startPoint):
             selectionRect = SelectionBoxGeometry.normalizeRect(p1: startPoint, p2: currentPoint, bounds: bounds)
         case .moving(let startPoint, let originalRect):
@@ -141,6 +638,13 @@ public class CaptureOverlayContentView: NSView {
             if newRect.maxX > bounds.maxX { newRect.origin.x = bounds.maxX - newRect.width }
             if newRect.minY < bounds.minY { newRect.origin.y = bounds.minY }
             if newRect.maxY > bounds.maxY { newRect.origin.y = bounds.maxY - newRect.height }
+            let actualDx = newRect.origin.x - selectionRect.origin.x
+            let actualDy = newRect.origin.y - selectionRect.origin.y
+            if actualDx != 0 || actualDy != 0 {
+                for i in 0..<annotationEngine.objects.count {
+                    annotationEngine.objects[i].translate(by: CGPoint(x: actualDx, y: actualDy))
+                }
+            }
             selectionRect = newRect
         case .resizing(let handle, let anchor):
             switch handle {
@@ -163,7 +667,16 @@ public class CaptureOverlayContentView: NSView {
     }
 
     public override func mouseUp(with event: NSEvent) {
+        let point = convert(event.locationInWindow, from: nil)
+        if dragMode == .annotating {
+            let committed = annotationEngine.endDrag(at: point)
+            if let obj = committed, obj.tool == .text {
+                startInlineTextEditing(for: obj)
+            }
+        }
         dragMode = .none
+        updateToolbarPositions()
+        needsDisplay = true
     }
 
     public override func mouseMoved(with event: NSEvent) {
@@ -171,9 +684,64 @@ public class CaptureOverlayContentView: NSView {
         if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
             handle.cursor.set()
         } else if selectionRect.contains(point) {
-            NSCursor.openHand.set()
+            if annotationEngine.activeTool == .select {
+                NSCursor.openHand.set()
+            } else if annotationEngine.activeTool == .text {
+                NSCursor.iBeam.set()
+            } else {
+                NSCursor.crosshair.set()
+            }
         } else {
             NSCursor.crosshair.set()
         }
+    }
+
+    // MARK: - Inline Text Editing
+
+    private func startInlineTextEditing(for obj: AnnotationObject) {
+        commitActiveTextEditing()
+
+        let fieldFrame = CGRect(
+            x: obj.bounds.minX,
+            y: obj.bounds.minY,
+            width: max(140, obj.bounds.width),
+            height: max(obj.fontSize + 12, obj.bounds.height)
+        )
+        let field = NSTextField(frame: fieldFrame)
+        field.stringValue = obj.text == "Text" ? "" : obj.text
+        field.placeholderString = "Text"
+        field.font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
+        field.textColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
+        field.isBordered = true
+        field.drawsBackground = true
+        field.backgroundColor = NSColor.black.withAlphaComponent(0.75)
+        field.focusRingType = .none
+        field.delegate = self
+
+        addSubview(field)
+        window?.makeFirstResponder(field)
+
+        self.activeTextField = field
+        self.editingObjectID = obj.id
+    }
+
+    public func commitActiveTextEditing() {
+        guard let field = activeTextField, let objID = editingObjectID else { return }
+        let trimmed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        annotationEngine.selectedObjectID = objID
+        if trimmed.isEmpty {
+            annotationEngine.deleteSelected()
+        } else {
+            annotationEngine.updateSelectedText(field.stringValue)
+        }
+        field.removeFromSuperview()
+        activeTextField = nil
+        editingObjectID = nil
+        window?.makeFirstResponder(self)
+        needsDisplay = true
+    }
+
+    public func controlTextDidEndEditing(_ obj: Notification) {
+        commitActiveTextEditing()
     }
 }

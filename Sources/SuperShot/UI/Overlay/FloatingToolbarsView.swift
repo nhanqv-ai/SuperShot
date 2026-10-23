@@ -141,6 +141,9 @@ public final class FloatingToolbarsViewModel: ObservableObject {
     public var onUndoRequested: (() -> Void)?
     public var onRedoRequested: (() -> Void)?
     public var onToolChanged: ((AnnotationToolType) -> Void)?
+    public var onColorSelected: ((String) -> Void)?
+    public var onStrokeWidthSelected: ((CGFloat) -> Void)?
+    public var onFontSizeSelected: ((CGFloat) -> Void)?
 
     public init(appSettings: AppSettings = .init()) {
         self.appSettings = appSettings
@@ -149,6 +152,11 @@ public final class FloatingToolbarsViewModel: ObservableObject {
     public func selectTool(_ tool: AnnotationToolType) {
         activeTool = tool
         onToolChanged?(tool)
+    }
+
+    public func selectColor(_ hex: String) {
+        appSettings.activeColorHex = hex
+        onColorSelected?(hex)
     }
 
     public func triggerCopy() { onCopyRequested?() }
@@ -198,7 +206,11 @@ public struct VerticalAnnotationToolbarView: View {
             .buttonStyle(PlainButtonStyle())
             .help("\(LocalizationManager.shared.tr(.strokeWidth)): \(Int(appSettings.activeStrokeWidth))pt / \(LocalizationManager.shared.tr(.fontSize)): \(Int(appSettings.activeFontSize))pt")
             .popover(isPresented: $viewModel.isStrokeWidthPresented, arrowEdge: .leading) {
-                StrokeWidthPopoverView(appSettings: appSettings)
+                StrokeWidthPopoverView(
+                    appSettings: appSettings,
+                    onStrokeWidthChanged: { viewModel.onStrokeWidthSelected?(CGFloat($0)) },
+                    onFontSizeChanged: { viewModel.onFontSizeSelected?(CGFloat($0)) }
+                )
             }
 
             Button(action: { viewModel.isColorPalettePresented.toggle() }) {
@@ -217,7 +229,12 @@ public struct VerticalAnnotationToolbarView: View {
             .buttonStyle(PlainButtonStyle())
             .help(LocalizationManager.shared.tr(.colorPalette))
             .popover(isPresented: $viewModel.isColorPalettePresented, arrowEdge: .leading) {
-                ColorPalettePopoverView(appSettings: appSettings)
+                ColorPalettePopoverView(
+                    appSettings: appSettings,
+                    onColorChanged: { hex in
+                        viewModel.onColorSelected?(hex)
+                    }
+                )
             }
 
             ToolbarDivider()
@@ -322,9 +339,17 @@ public struct StrokeWidthPopoverView: View {
     @ObservedObject public var appSettings: AppSettings
     public let strokeWidthOptions: [Double] = [1.0, 2.0, 3.0, 5.0, 8.0, 12.0]
     public let fontSizeOptions: [Double] = [12.0, 14.0, 18.0, 24.0, 36.0, 48.0]
+    public var onStrokeWidthChanged: ((Double) -> Void)?
+    public var onFontSizeChanged: ((Double) -> Void)?
 
-    public init(appSettings: AppSettings) {
+    public init(
+        appSettings: AppSettings,
+        onStrokeWidthChanged: ((Double) -> Void)? = nil,
+        onFontSizeChanged: ((Double) -> Void)? = nil
+    ) {
         self.appSettings = appSettings
+        self.onStrokeWidthChanged = onStrokeWidthChanged
+        self.onFontSizeChanged = onFontSizeChanged
     }
 
     public var body: some View {
@@ -335,7 +360,10 @@ public struct StrokeWidthPopoverView: View {
 
             HStack(spacing: 6) {
                 ForEach(strokeWidthOptions, id: \.self) { width in
-                    Button(action: { appSettings.activeStrokeWidth = width }) {
+                    Button(action: {
+                        appSettings.activeStrokeWidth = width
+                        onStrokeWidthChanged?(width)
+                    }) {
                         ZStack {
                             Circle()
                                 .fill(appSettings.activeStrokeWidth == width ? Color.accentColor : Color.primary.opacity(0.15))
@@ -358,7 +386,10 @@ public struct StrokeWidthPopoverView: View {
 
             HStack(spacing: 6) {
                 ForEach(fontSizeOptions, id: \.self) { size in
-                    Button(action: { appSettings.activeFontSize = size }) {
+                    Button(action: {
+                        appSettings.activeFontSize = size
+                        onFontSizeChanged?(size)
+                    }) {
                         Text("\(Int(size))")
                             .font(.system(size: 11, weight: appSettings.activeFontSize == size ? .bold : .regular))
                             .foregroundColor(appSettings.activeFontSize == size ? .white : .primary)

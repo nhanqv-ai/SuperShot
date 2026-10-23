@@ -65,10 +65,13 @@ public struct ImageRenderer {
             drawBlurRegion(obj: obj, baseImage: baseImage, context: context, targetRect: targetRect, scale: scale)
         }
 
-        // 2. Second pass: Composite Vector Drawing Annotations
+        // 2. Second pass: Composite Vector Drawing Annotations (translated by targetRect origin)
+        context.saveGState()
+        context.translateBy(x: -targetRect.minX, y: -targetRect.minY)
         for obj in annotations where obj.tool != .blur {
             drawVectorAnnotation(obj: obj, context: context)
         }
+        context.restoreGState()
 
         return context.makeImage()
     }
@@ -215,15 +218,22 @@ public struct ImageRenderer {
             .font: font,
             .foregroundColor: nsColor
         ]
-        let attrString = NSAttributedString(string: obj.text, attributes: attributes)
-        let line = CTLineCreateWithAttributedString(attrString)
 
-        context.saveGState()
-        context.translateBy(x: obj.bounds.minX, y: obj.bounds.minY + obj.fontSize)
-        context.scaleBy(x: 1.0, y: -1.0)
-        context.textPosition = .zero
-        CTLineDraw(line, context)
-        context.restoreGState()
+        let lines = obj.text.components(separatedBy: .newlines)
+        let lineHeight = obj.fontSize * 1.25
+
+        for (index, rawLine) in lines.enumerated() {
+            guard !rawLine.isEmpty else { continue }
+            let attrString = NSAttributedString(string: rawLine, attributes: attributes)
+            let line = CTLineCreateWithAttributedString(attrString)
+
+            context.saveGState()
+            context.translateBy(x: obj.bounds.minX, y: obj.bounds.minY + obj.fontSize + CGFloat(index) * lineHeight)
+            context.scaleBy(x: 1.0, y: -1.0)
+            context.textPosition = .zero
+            CTLineDraw(line, context)
+            context.restoreGState()
+        }
     }
 
     // MARK: - Region Blur / Software Pixelation
@@ -239,17 +249,20 @@ public struct ImageRenderer {
         let intersect = b.intersection(targetRect)
         guard !intersect.isNull && intersect.width > 0 && intersect.height > 0 else { return }
 
+        let localX = intersect.minX - targetRect.minX
+        let localY = intersect.minY - targetRect.minY
+
         if let ciFiltered = renderCoreImagePixelate(baseImage: baseImage, rect: intersect, scale: scale) {
             context.saveGState()
             context.translateBy(x: 0, y: targetRect.height)
             context.scaleBy(x: 1.0, y: -1.0)
-            let drawY = -(intersect.minY + intersect.height) + targetRect.height
-            context.draw(ciFiltered, in: CGRect(x: intersect.minX, y: drawY, width: intersect.width, height: intersect.height))
+            let drawY = -(localY + intersect.height) + targetRect.height
+            context.draw(ciFiltered, in: CGRect(x: localX, y: drawY, width: intersect.width, height: intersect.height))
             context.restoreGState()
             return
         }
 
-        drawSoftwarePixelation(rect: intersect, context: context)
+        drawSoftwarePixelation(rect: CGRect(x: localX, y: localY, width: intersect.width, height: intersect.height), context: context)
     }
 
     private static func renderCoreImagePixelate(baseImage: CGImage, rect: CGRect, scale: CGFloat) -> CGImage? {

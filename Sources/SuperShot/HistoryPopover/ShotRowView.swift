@@ -265,6 +265,10 @@ public struct ShotThumbnailView: View {
                 .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
         )
         .onAppear { loadThumbnail() }
+        .onChange(of: item.id) { _ in
+            loadedImage = nil
+            loadThumbnail()
+        }
     }
 
     private func loadThumbnail() {

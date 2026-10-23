@@ -24,8 +24,8 @@ public final class MockHotKeyManager: HotKeyManaging {
     }
 
     public func registerDefaults() {
-        register(action: .inPlaceCapture, keyCode: UInt32(kVK_ANSI_S), modifiers: UInt32(optionKey))
-        register(action: .scrollingCapture, keyCode: UInt32(kVK_ANSI_S), modifiers: UInt32(optionKey | shiftKey))
+        _ = register(action: .inPlaceCapture, keyCode: UInt32(kVK_ANSI_S), modifiers: UInt32(optionKey))
+        _ = register(action: .scrollingCapture, keyCode: UInt32(kVK_ANSI_S), modifiers: UInt32(optionKey | shiftKey))
     }
 
     public func isRegistered(action: HotKeyAction) -> Bool {
@@ -86,10 +86,15 @@ public struct HotKeyManagerTests {
         mock.onAction?(.scrollingCapture)
         TestHarness.assertEqual(triggeredAction, .scrollingCapture, "Action callback dispatches correctly")
 
-        // 5. Shared HotKeyManager API sanity
+        // 5. Shared HotKeyManager API sanity & extended keyGlyph formatting
         let realMgr = HotKeyManager.shared
         TestHarness.assertNotNil(realMgr, "HotKeyManager.shared singleton instantiated")
         TestHarness.assertEqual(HotKeyAction.inPlaceCapture.identifier, "inPlaceCapture", "InPlaceCapture identifier matches")
         TestHarness.assertEqual(HotKeyAction.scrollingCapture.identifier, "scrollingCapture", "ScrollingCapture identifier matches")
+
+        let customD = HotKeyShortcut(keyCode: UInt32(kVK_ANSI_D), carbonModifiers: UInt32(optionKey | shiftKey))
+        TestHarness.assertEqual(customD.displayString, "⌥⇧D", "Custom key D formats cleanly as ⌥⇧D")
+        let customF5 = HotKeyShortcut(keyCode: UInt32(kVK_F5), carbonModifiers: UInt32(cmdKey))
+        TestHarness.assertEqual(customF5.displayString, "⌘F5", "Custom key F5 formats cleanly as ⌘F5")
     }
 }

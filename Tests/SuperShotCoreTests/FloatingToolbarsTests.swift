@@ -24,6 +24,7 @@ public struct FloatingToolbarsTests {
         testPalettePresetClamping16()
         testAppSettingsPersistenceAcrossSessions()
         testPresetUpdateAtCapacity16()
+        testEndToEndCaptureOverlayAnnotationCompositing()
     }
 
     // 1. Tool Mapping & Counts
@@ -158,6 +159,22 @@ public struct FloatingToolbarsTests {
         let handledEsc = ToolbarKeyShortcutHandler.handleKeyEvent(event: eventEsc, viewModel: vm)
         TestHarness.assertTrue(handledEsc, "Escape key should be handled")
         TestHarness.assertTrue(cancelCalled, "Escape key must trigger onCancelRequested")
+
+        let eventCmdS = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "s",
+            charactersIgnoringModifiers: "s",
+            isARepeat: false,
+            keyCode: 1
+        )!
+        let handledCmdS = ToolbarKeyShortcutHandler.handleKeyEvent(event: eventCmdS, viewModel: vm)
+        TestHarness.assertTrue(handledCmdS, "Cmd+S should be handled")
+        TestHarness.assertTrue(saveCalled, "Cmd+S must trigger onSaveRequested")
     }
 
     // 7. Reviewer 1 Polish: ColorPreset.parseRGB Guard
@@ -298,6 +315,48 @@ public struct FloatingToolbarsTests {
         TestHarness.assertFalse(add17Success, "addPreset must return false for 17th unique preset at capacity 16")
         TestHarness.assertEqual(appSettings.presets.count, 16, "Preset count remains 16 after rejected addition")
         TestHarness.assertFalse(appSettings.presets.contains(where: { $0.hex == "#ABCDEF" }), "17th unique preset not present")
+    }
+
+    // 14. End-to-End CaptureOverlayWindow + FloatingToolbars + AnnotationEngine + ImageRenderer Integration
+    private static func testEndToEndCaptureOverlayAnnotationCompositing() {
+        let mockProvider = MockScreenCaptureProvider()
+        let manager = ScreenCaptureManager(provider: mockProvider)
+        guard let captured = manager.captureMainScreen() else {
+            TestHarness.recordFail("Overlay E2E", reason: "Failed to capture mock main screen")
+            return
+        }
+
+        let settings = AppSettings()
+        let overlayWindow = CaptureOverlayWindow(capturedScreen: captured, appSettings: settings)
+        guard let contentView = overlayWindow.contentViewRef else {
+            TestHarness.recordFail("Overlay E2E", reason: "contentViewRef is nil")
+            return
+        }
+
+        // Establish 300x200 selection region
+        contentView.selectionRect = CGRect(x: 200, y: 200, width: 300, height: 200)
+        TestHarness.assertEqual(contentView.toolbarsViewModel.selectionRect, CGRect(x: 200, y: 200, width: 300, height: 200), "Toolbars viewModel synchronized with selectionRect")
+
+        // Select Rectangle tool via FloatingToolbarsViewModel
+        contentView.toolbarsViewModel.selectTool(.rectangle)
+        TestHarness.assertEqual(contentView.annotationEngine.activeTool, .rectangle, "Selecting tool on toolbar updates overlay AnnotationEngine.activeTool")
+
+        // Draw rectangle inside selection
+        contentView.annotationEngine.startDrag(at: CGPoint(x: 220, y: 230), colorHex: "#FF3B30", strokeWidth: 4.0)
+        contentView.annotationEngine.updateDrag(to: CGPoint(x: 320, y: 310))
+        let drawnObj = contentView.annotationEngine.endDrag(at: CGPoint(x: 320, y: 310))
+        TestHarness.assertNotNil(drawnObj, "Drew rectangle annotation inside overlay")
+        TestHarness.assertTrue(contentView.toolbarsViewModel.canUndo, "Toolbar canUndo updated to true after drawing")
+
+        // Recolor selected object via toolbar color selection callback
+        contentView.toolbarsViewModel.selectColor("#007AFF")
+        TestHarness.assertEqual(contentView.annotationEngine.selectedObject?.colorHex, "#007AFF", "Toolbar color selection recolors selected annotation object in-place")
+
+        // Render final composited selection image at 2x Retina (300x200 pt -> 600x400 px)
+        let composited = contentView.renderFinalSelectionImage()
+        TestHarness.assertNotNil(composited, "Overlay renderFinalSelectionImage produced composited CGImage")
+        TestHarness.assertEqual(composited?.width, 600, "Composited Retina @2x width is 600px")
+        TestHarness.assertEqual(composited?.height, 400, "Composited Retina @2x height is 400px")
     }
 
     // Helper: Synthetic CGImage Creator

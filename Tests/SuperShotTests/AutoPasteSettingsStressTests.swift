@@ -575,12 +575,11 @@ public struct AutoPasteSettingsStressTests {
 
         // 1. SettingsView body evaluation across all tabs
         for tab in SettingsTab.allCases {
-            var dismissed = false
             let view = SettingsView(
                 appSettings: settings,
                 storageManager: storage,
                 initialTab: tab,
-                onClose: { dismissed = true }
+                onClose: {}
             )
             _ = view.body
             TestHarness.recordPass("SettingsView successfully evaluated body for tab '\(tab.rawValue)'")
@@ -604,11 +603,10 @@ public struct AutoPasteSettingsStressTests {
         TestHarness.recordPass("AboutSettingsTab body evaluated cleanly")
 
         // 3. SettingsWindowController initialization and window frame checks
-        var windowDismissed = false
         let controller = SettingsWindowController(
             appSettings: settings,
             storageManager: storage,
-            onDismiss: { windowDismissed = true }
+            onDismiss: {}
         )
         guard let win = controller.window else {
             TestHarness.recordFail("SettingsWindowController window is nil", reason: "Window failed to allocate")

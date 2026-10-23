@@ -12,10 +12,12 @@ public protocol CaptureOverlayWindowDelegate: AnyObject {
 public class CaptureOverlayWindow: NSPanel {
     public weak var captureDelegate: CaptureOverlayWindowDelegate?
     public let capturedScreen: CapturedScreen
+    public let appSettings: AppSettings
     public private(set) var contentViewRef: CaptureOverlayContentView?
 
-    public init(capturedScreen: CapturedScreen) {
+    public init(capturedScreen: CapturedScreen, appSettings: AppSettings = AppSettings()) {
         self.capturedScreen = capturedScreen
+        self.appSettings = appSettings
         let frame = capturedScreen.displayInfo.cocoaFrame
 
         super.init(
@@ -36,6 +38,7 @@ public class CaptureOverlayWindow: NSPanel {
         let view = CaptureOverlayContentView(
             frame: NSRect(origin: .zero, size: frame.size),
             capturedScreen: capturedScreen,
+            appSettings: appSettings,
             windowDelegate: self
         )
         self.contentView = view
@@ -46,6 +49,10 @@ public class CaptureOverlayWindow: NSPanel {
     public override var canBecomeMain: Bool { true }
 
     public override func keyDown(with event: NSEvent) {
+        if let view = contentViewRef, view.handleOverlayKeyDown(with: event) {
+            return
+        }
+
         // Esc: Cancel capture
         if event.keyCode == 53 {
             captureDelegate?.overlayDidCancel()
