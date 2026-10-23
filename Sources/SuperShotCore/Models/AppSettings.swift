@@ -32,6 +32,7 @@ public struct AppSettingsSnapshot: Codable, Equatable, Sendable {
     public var scrollHotKeyModifiers: UInt32
     public var automaticallyCheckForUpdates: Bool
     public var lastUpdateCheckDate: Date?
+    public var updateCheckIntervalDays: Int
 
     public static let `default` = AppSettingsSnapshot(
         activeColorHex: "#FF3B30",
@@ -52,8 +53,77 @@ public struct AppSettingsSnapshot: Codable, Equatable, Sendable {
         scrollHotKeyKeyCode: 1,      // kVK_ANSI_S
         scrollHotKeyModifiers: 2560, // optionKey | shiftKey
         automaticallyCheckForUpdates: true,
-        lastUpdateCheckDate: nil
+        lastUpdateCheckDate: nil,
+        updateCheckIntervalDays: 1
     )
+
+    public init(
+        activeColorHex: String,
+        activeStrokeWidth: Double,
+        activeFontSize: Double,
+        presets: [ColorPreset],
+        autoSaveEnabled: Bool,
+        autoSaveDirectoryPath: String,
+        saveFormat: ImageSaveFormat,
+        jpegQuality: Double,
+        maxScrollHeightPx: Int,
+        capacity: Int,
+        launchAtLogin: Bool,
+        language: String,
+        autoPasteOnSelection: Bool,
+        regionHotKeyKeyCode: UInt32,
+        regionHotKeyModifiers: UInt32,
+        scrollHotKeyKeyCode: UInt32,
+        scrollHotKeyModifiers: UInt32,
+        automaticallyCheckForUpdates: Bool,
+        lastUpdateCheckDate: Date?,
+        updateCheckIntervalDays: Int = 1
+    ) {
+        self.activeColorHex = activeColorHex
+        self.activeStrokeWidth = activeStrokeWidth
+        self.activeFontSize = activeFontSize
+        self.presets = presets
+        self.autoSaveEnabled = autoSaveEnabled
+        self.autoSaveDirectoryPath = autoSaveDirectoryPath
+        self.saveFormat = saveFormat
+        self.jpegQuality = jpegQuality
+        self.maxScrollHeightPx = maxScrollHeightPx
+        self.capacity = capacity
+        self.launchAtLogin = launchAtLogin
+        self.language = language
+        self.autoPasteOnSelection = autoPasteOnSelection
+        self.regionHotKeyKeyCode = regionHotKeyKeyCode
+        self.regionHotKeyModifiers = regionHotKeyModifiers
+        self.scrollHotKeyKeyCode = scrollHotKeyKeyCode
+        self.scrollHotKeyModifiers = scrollHotKeyModifiers
+        self.automaticallyCheckForUpdates = automaticallyCheckForUpdates
+        self.lastUpdateCheckDate = lastUpdateCheckDate
+        self.updateCheckIntervalDays = updateCheckIntervalDays
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        activeColorHex = try container.decode(String.self, forKey: .activeColorHex)
+        activeStrokeWidth = try container.decode(Double.self, forKey: .activeStrokeWidth)
+        activeFontSize = try container.decode(Double.self, forKey: .activeFontSize)
+        presets = try container.decode([ColorPreset].self, forKey: .presets)
+        autoSaveEnabled = try container.decode(Bool.self, forKey: .autoSaveEnabled)
+        autoSaveDirectoryPath = try container.decode(String.self, forKey: .autoSaveDirectoryPath)
+        saveFormat = try container.decode(ImageSaveFormat.self, forKey: .saveFormat)
+        jpegQuality = try container.decode(Double.self, forKey: .jpegQuality)
+        maxScrollHeightPx = try container.decode(Int.self, forKey: .maxScrollHeightPx)
+        capacity = try container.decode(Int.self, forKey: .capacity)
+        launchAtLogin = try container.decode(Bool.self, forKey: .launchAtLogin)
+        language = try container.decode(String.self, forKey: .language)
+        autoPasteOnSelection = try container.decode(Bool.self, forKey: .autoPasteOnSelection)
+        regionHotKeyKeyCode = try container.decode(UInt32.self, forKey: .regionHotKeyKeyCode)
+        regionHotKeyModifiers = try container.decode(UInt32.self, forKey: .regionHotKeyModifiers)
+        scrollHotKeyKeyCode = try container.decode(UInt32.self, forKey: .scrollHotKeyKeyCode)
+        scrollHotKeyModifiers = try container.decode(UInt32.self, forKey: .scrollHotKeyModifiers)
+        automaticallyCheckForUpdates = try container.decode(Bool.self, forKey: .automaticallyCheckForUpdates)
+        lastUpdateCheckDate = try container.decodeIfPresent(Date.self, forKey: .lastUpdateCheckDate)
+        updateCheckIntervalDays = try container.decodeIfPresent(Int.self, forKey: .updateCheckIntervalDays) ?? 1
+    }
 }
 
 /// Observable preferences store managing user configuration and JSON persistence.
@@ -137,6 +207,13 @@ public final class AppSettings: ObservableObject {
     @Published public var lastUpdateCheckDate: Date? {
         didSet { scheduleAutoSave() }
     }
+    @Published public var updateCheckIntervalDays: Int {
+        didSet {
+            let clamped = max(1, min(updateCheckIntervalDays, 30))
+            if updateCheckIntervalDays != clamped { updateCheckIntervalDays = clamped }
+            scheduleAutoSave()
+        }
+    }
 
     public let settingsURL: URL
     private let fileQueue = DispatchQueue(label: "com.supershot.settings.fileio", qos: .utility)
@@ -179,6 +256,7 @@ public final class AppSettings: ObservableObject {
         self.scrollHotKeyModifiers = snapshot.scrollHotKeyModifiers
         self.automaticallyCheckForUpdates = snapshot.automaticallyCheckForUpdates
         self.lastUpdateCheckDate = snapshot.lastUpdateCheckDate
+        self.updateCheckIntervalDays = max(1, min(snapshot.updateCheckIntervalDays, 30))
     }
 
     // MARK: - Presets Management
@@ -238,7 +316,8 @@ public final class AppSettings: ObservableObject {
             scrollHotKeyKeyCode: scrollHotKeyKeyCode,
             scrollHotKeyModifiers: scrollHotKeyModifiers,
             automaticallyCheckForUpdates: automaticallyCheckForUpdates,
-            lastUpdateCheckDate: lastUpdateCheckDate
+            lastUpdateCheckDate: lastUpdateCheckDate,
+            updateCheckIntervalDays: updateCheckIntervalDays
         )
     }
 

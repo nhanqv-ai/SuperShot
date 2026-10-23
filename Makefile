@@ -33,7 +33,7 @@ TARGET_ARM64 = arm64-apple-macos13.0
 TARGET_X86_64 = x86_64-apple-macos13.0
 HOST_ARCH = $(shell uname -m)
 TARGET_HOST = $(HOST_ARCH)-apple-macos13.0
-VERSION ?= $(shell /usr/libexec/PlistBuddy -c "Print :CFBundleShortVersionString" Sources/SuperShot/App/Info.plist 2>/dev/null || echo "1.0.0")
+VERSION = 1.0.4
 PACKAGE_ZIP = SuperShot-v$(VERSION).zip
 
 # Source file discovery

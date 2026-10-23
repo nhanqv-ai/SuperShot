@@ -57,6 +57,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         let mainShotView = MainShotView(
             storageManager: storageManager,
             appSettings: appSettings,
+            updateManager: UpdateManager.shared,
             autoPasteService: autoPasteService,
             previousAppTracker: previousAppTracker,
             onDismiss: { [weak self] in

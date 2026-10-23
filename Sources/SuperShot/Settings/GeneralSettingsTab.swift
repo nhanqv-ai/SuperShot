@@ -61,6 +61,31 @@ public struct GeneralSettingsTab: View {
             ))
             .toggleStyle(.checkbox)
             .font(.system(size: 12))
+            .pointingHandCursor()
+
+            Toggle(LocalizationManager.shared.tr(.automaticallyCheckForUpdates), isOn: $appSettings.automaticallyCheckForUpdates)
+                .toggleStyle(.checkbox)
+                .font(.system(size: 12))
+                .pointingHandCursor()
+
+            if appSettings.automaticallyCheckForUpdates {
+                HStack(spacing: 8) {
+                    Text(LocalizationManager.shared.tr(.updateCheckIntervalLabel))
+                        .font(.system(size: 11.5))
+                        .foregroundColor(.secondary)
+                        .padding(.leading, 20)
+
+                    Picker("", selection: $appSettings.updateCheckIntervalDays) {
+                        Text(LocalizationManager.shared.tr(.intervalDaily)).tag(1)
+                        Text(LocalizationManager.shared.tr(.intervalWeekly)).tag(7)
+                        Text(LocalizationManager.shared.tr(.intervalMonthly)).tag(30)
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.menu)
+                    .frame(width: 140)
+                    .pointingHandCursor()
+                }
+            }
 
             HStack(spacing: 8) {
                 Text(LocalizationManager.shared.tr(.languageLabel))
@@ -81,6 +106,7 @@ public struct GeneralSettingsTab: View {
                 .labelsHidden()
                 .pickerStyle(.menu)
                 .frame(width: 180)
+                .pointingHandCursor()
             }
         }
         .padding(12)
@@ -116,6 +142,7 @@ public struct GeneralSettingsTab: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                    .pointingHandCursor()
                 } else {
                     Text(localizationManager.tr(.permissionGranted))
                         .font(.system(size: 11))
@@ -146,6 +173,7 @@ public struct GeneralSettingsTab: View {
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
+                    .pointingHandCursor()
                 } else {
                     Text(localizationManager.tr(.permissionGranted))
                         .font(.system(size: 11))

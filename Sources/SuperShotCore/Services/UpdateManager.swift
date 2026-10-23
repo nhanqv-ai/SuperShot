@@ -177,7 +177,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     private var _customVersion: String? = nil
     public var currentVersion: String {
         get {
-            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.3")
+            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.4")
         }
         set {
             _customVersion = newValue
@@ -202,6 +202,10 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     private let lock = NSLock()
 
     // MARK: - Computed Properties
+
+    public var hasUpdateAvailable: Bool {
+        hasPendingUpdate
+    }
 
     public var isBusy: Bool {
         switch status {
@@ -306,6 +310,15 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     }
 
     // MARK: - Checking for Updates
+
+    @discardableResult
+    public func checkForUpdates(userInitiated: Bool = true) async throws -> ReleaseInfo? {
+        try await withCheckedThrowingContinuation { continuation in
+            self.checkForUpdates(userInitiated: userInitiated) { result in
+                continuation.resume(with: result)
+            }
+        }
+    }
 
     public func checkForUpdates(userInitiated: Bool = false, completion: ((Result<ReleaseInfo?, Error>) -> Void)? = nil) {
         if case .downloading = status {
@@ -487,7 +500,9 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
 
         let now = Date()
         if let lastCheck = appSettings.lastUpdateCheckDate {
-            if now.timeIntervalSince(lastCheck) < 86400 {
+            let intervalDays = max(1, appSettings.updateCheckIntervalDays)
+            let intervalSeconds = Double(intervalDays * 86400)
+            if now.timeIntervalSince(lastCheck) < intervalSeconds {
                 return
             }
         }
@@ -637,6 +652,15 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    @discardableResult
+    public func downloadAndInstall(release: ReleaseInfo, targetURL: URL? = nil) async throws -> URL {
+        try await withCheckedThrowingContinuation { continuation in
+            self.startDownloadAndInstall(release: release, targetURL: targetURL) { result in
+                continuation.resume(with: result)
             }
         }
     }

@@ -274,6 +274,17 @@ public enum L10nKey: Sendable {
     case upToDate
     case downloadUpdate
     case installAndRestart
+    case automaticallyCheckForUpdates
+    case updateCheckIntervalLabel
+    case intervalDaily
+    case intervalWeekly
+    case intervalMonthly
+    case updateNow
+    case later
+    case releaseNotes
+    case updateReadyRestart
+    case restart
+    case downloadingUpdate
 
     public func localized(for lang: AppLanguage) -> String {
         switch self {
@@ -2041,6 +2052,149 @@ public enum L10nKey: Sendable {
             case .traditionalChinese: return "安裝並重啟"
             case .korean: return "설치 후 재시작"
             default: return "Install and Restart"
+            }
+
+        case .automaticallyCheckForUpdates:
+            switch lang {
+            case .vietnamese: return "Tự động kiểm tra bản cập nhật"
+            case .german: return "Automatisch nach Updates suchen"
+            case .french: return "Rechercher automatiquement les mises à jour"
+            case .spanish: return "Buscar actualizaciones automáticamente"
+            case .japanese: return "アップデートを自動的に確認"
+            case .simplifiedChinese: return "自动检查更新"
+            case .traditionalChinese: return "自動檢查更新"
+            case .korean: return "자동으로 업데이트 확인"
+            default: return "Automatically check for updates"
+            }
+
+        case .updateCheckIntervalLabel:
+            switch lang {
+            case .vietnamese: return "Tần suất kiểm tra:"
+            case .german: return "Prüfintervall:"
+            case .french: return "Fréquence de vérification :"
+            case .spanish: return "Frecuencia de comprobación:"
+            case .japanese: return "確認頻度:"
+            case .simplifiedChinese: return "检查频率："
+            case .traditionalChinese: return "檢查頻率："
+            case .korean: return "확인 주기:"
+            default: return "Check frequency:"
+            }
+
+        case .intervalDaily:
+            switch lang {
+            case .vietnamese: return "Hàng ngày"
+            case .german: return "Täglich"
+            case .french: return "Quotidien"
+            case .spanish: return "Diario"
+            case .japanese: return "毎日"
+            case .simplifiedChinese: return "每天"
+            case .traditionalChinese: return "每天"
+            case .korean: return "매일"
+            default: return "Daily"
+            }
+
+        case .intervalWeekly:
+            switch lang {
+            case .vietnamese: return "Hàng tuần"
+            case .german: return "Wöchentlich"
+            case .french: return "Hebdomadaire"
+            case .spanish: return "Semanal"
+            case .japanese: return "毎週"
+            case .simplifiedChinese: return "每周"
+            case .traditionalChinese: return "每週"
+            case .korean: return "매주"
+            default: return "Weekly"
+            }
+
+        case .intervalMonthly:
+            switch lang {
+            case .vietnamese: return "Hàng tháng"
+            case .german: return "Monatlich"
+            case .french: return "Mensuel"
+            case .spanish: return "Mensual"
+            case .japanese: return "毎月"
+            case .simplifiedChinese: return "每月"
+            case .traditionalChinese: return "每月"
+            case .korean: return "매월"
+            default: return "Monthly"
+            }
+
+        case .updateNow:
+            switch lang {
+            case .vietnamese: return "Cập nhật ngay"
+            case .german: return "Jetzt aktualisieren"
+            case .french: return "Mettre à jour"
+            case .spanish: return "Actualizar ahora"
+            case .japanese: return "今すぐアップデート"
+            case .simplifiedChinese: return "立即更新"
+            case .traditionalChinese: return "立即更新"
+            case .korean: return "지금 업데이트"
+            default: return "Update Now"
+            }
+
+        case .later:
+            switch lang {
+            case .vietnamese: return "Để sau"
+            case .german: return "Später"
+            case .french: return "Plus tard"
+            case .spanish: return "Más tarde"
+            case .japanese: return "後で"
+            case .simplifiedChinese: return "稍后"
+            case .traditionalChinese: return "稍後"
+            case .korean: return "나중에"
+            default: return "Later"
+            }
+
+        case .releaseNotes:
+            switch lang {
+            case .vietnamese: return "Chi tiết phát hành"
+            case .german: return "Versionshinweise"
+            case .french: return "Notes de version"
+            case .spanish: return "Notas de la versión"
+            case .japanese: return "リリースノート"
+            case .simplifiedChinese: return "发行说明"
+            case .traditionalChinese: return "版本說明"
+            case .korean: return "릴리즈 노트"
+            default: return "Release Notes"
+            }
+
+        case .updateReadyRestart:
+            switch lang {
+            case .vietnamese: return "Bản cập nhật đã sẵn sàng, khởi động lại ngay"
+            case .german: return "Update bereit, jetzt neu starten"
+            case .french: return "Mise à jour prête, redémarrer maintenant"
+            case .spanish: return "Actualización lista, reiniciar ahora"
+            case .japanese: return "アップデートの準備が完了しました。今すぐ再起動"
+            case .simplifiedChinese: return "更新已就绪，立即重启"
+            case .traditionalChinese: return "更新已就緒，立即重啟"
+            case .korean: return "업데이트 준비 완료, 지금 재시작"
+            default: return "Update ready, restart now"
+            }
+
+        case .restart:
+            switch lang {
+            case .vietnamese: return "Khởi động lại"
+            case .german: return "Neu starten"
+            case .french: return "Redémarrer"
+            case .spanish: return "Reiniciar"
+            case .japanese: return "再起動"
+            case .simplifiedChinese: return "重启"
+            case .traditionalChinese: return "重啟"
+            case .korean: return "재시작"
+            default: return "Restart"
+            }
+
+        case .downloadingUpdate:
+            switch lang {
+            case .vietnamese: return "Đang tải bản cập nhật..."
+            case .german: return "Update wird geladen..."
+            case .french: return "Téléchargement de la mise à jour..."
+            case .spanish: return "Descargando actualización..."
+            case .japanese: return "アップデートをダウンロード中..."
+            case .simplifiedChinese: return "正在下载更新..."
+            case .traditionalChinese: return "正在下載更新..."
+            case .korean: return "업데이트 다운로드 중..."
+            default: return "Downloading update..."
             }
         }
     }

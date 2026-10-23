@@ -54,6 +54,7 @@ public struct CaptureSaveSettingsTab: View {
                             chooseDirectory()
                         }
                         .controlSize(.small)
+                        .pointingHandCursor()
                     }
 
                     HStack {
@@ -200,6 +201,7 @@ public struct CaptureSaveSettingsTab: View {
                     }
                 }
                 .controlSize(.small)
+                .pointingHandCursor()
                 .disabled(appSettings.presets.count >= AppSettings.maxPresetsCount || newPresetHex.trimmingCharacters(in: .whitespaces).isEmpty)
 
                 Spacer()
@@ -208,6 +210,7 @@ public struct CaptureSaveSettingsTab: View {
                     showingResetPresetsConfirmation = true
                 }
                 .controlSize(.small)
+                .pointingHandCursor()
                 .confirmationDialog(
                     LocalizationManager.shared.tr(.resetPresets),
                     isPresented: $showingResetPresetsConfirmation,

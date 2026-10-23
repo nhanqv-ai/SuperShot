@@ -256,6 +256,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
         verticalToolbarHost?.frame = resolved.vertical
         horizontalToolbarHost?.frame = resolved.horizontal
+        toolbarsViewModel.verticalToolbarFrame = resolved.vertical
         updateToolbarVisibility()
     }
 

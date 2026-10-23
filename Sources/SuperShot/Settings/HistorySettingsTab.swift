@@ -98,6 +98,7 @@ public struct HistorySettingsTab: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .pointingHandCursor()
                 .confirmationDialog(
                     LocalizationManager.shared.tr(.clearUnpinnedConfirmTitle),
                     isPresented: $showingClearConfirmation,
@@ -121,6 +122,7 @@ public struct HistorySettingsTab: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .pointingHandCursor()
             }
             .padding(.top, 4)
         }

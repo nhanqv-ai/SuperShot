@@ -15,6 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.4"><img src="https://img.shields.io/badge/version-v1.0.4-blue.svg?style=flat-square" alt="Version v1.0.4"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -116,6 +117,13 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
+### What's New in v1.0.4
+
+- **In-Popover Update Notification Banner**: Real-time notification banner in `MainShotView` when updates are available with one-click direct download and update flow.
+- **Customizable Update Check Frequency**: New interval options in General Settings (Daily, Weekly, Monthly) with background check automation.
+- **Enhanced Cursor & Scrolling Ergonomics**: Polished context-aware cursor feedback (`pointingHand` across all interactive buttons), space-key scrolling capture controls, and dynamic popover edge alignment.
+- **100% Zero-Emoji Compliance**: Pure SF Symbols iconography and native macOS typography across all 9 supported languages.
+
 ### System Requirements
 
 - macOS 13.0 (Ventura), macOS 14.6+ (Sonoma), or newer
@@ -124,7 +132,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.3.zip` from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.4.zip` from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Unzip and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -266,6 +274,13 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
+### Điểm mới trong v1.0.4
+
+- **Thanh thông báo cập nhật trực tiếp trong Popover**: Hiển thị thông báo cập nhật phiên bản mới ngay trong `MainShotView` cùng luồng tải xuống và cài đặt tiện lợi.
+- **Tùy chỉnh tần suất kiểm tra cập nhật**: Thêm tùy chọn chu kỳ (Hàng ngày, Hàng tuần, Hàng tháng) trong Cài đặt Chung.
+- **Tinh chỉnh trải nghiệm con trỏ & cuộn chụp**: Con trỏ ngữ cảnh `pointingHand` mượt mà trên tất cả các nút tương tác, điều khiển chụp cuộn với phím Space và tự động căn chỉnh cạnh popover.
+- **Chuẩn xác 0-emoji tuyệt đối**: 100% biểu tượng SF Symbols và bố cục giao diện chuẩn macOS trên tất cả 9 ngôn ngữ.
+
 ### Yêu cầu hệ thống
 
 - macOS 13.0 (Ventura), macOS 14.6+ (Sonoma) trở lên
@@ -274,7 +289,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.3.zip` tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.4.zip` tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Giải nén và kéo file `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

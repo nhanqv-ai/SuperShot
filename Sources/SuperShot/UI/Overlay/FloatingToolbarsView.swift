@@ -131,6 +131,14 @@ public final class FloatingToolbarsViewModel: ObservableObject {
     @Published public var isColorPalettePresented: Bool = false
     @Published public var isStrokeWidthPresented: Bool = false
     @Published public var selectionRect: CGRect = .zero
+    @Published public var verticalToolbarFrame: CGRect = .zero
+
+    public var popoverArrowEdge: Edge {
+        let vFrame = verticalToolbarFrame
+        guard vFrame != .zero else { return .leading }
+        let screenMidX = NSScreen.main?.visibleFrame.midX ?? 720.0
+        return (vFrame.minX < screenMidX ? .trailing : .leading)
+    }
 
     public let appSettings: AppSettings
     public var onCopyRequested: (() -> Void)?
@@ -207,7 +215,7 @@ public struct VerticalAnnotationToolbarView: View {
             .buttonStyle(PlainButtonStyle())
             .pointingHandCursor()
             .help("\(LocalizationManager.shared.tr(.strokeWidth)): \(Int(appSettings.activeStrokeWidth))pt / \(LocalizationManager.shared.tr(.fontSize)): \(Int(appSettings.activeFontSize))pt")
-            .popover(isPresented: $viewModel.isStrokeWidthPresented, arrowEdge: .leading) {
+            .popover(isPresented: $viewModel.isStrokeWidthPresented, arrowEdge: viewModel.popoverArrowEdge) {
                 StrokeWidthPopoverView(
                     appSettings: appSettings,
                     onStrokeWidthChanged: { viewModel.onStrokeWidthSelected?(CGFloat($0)) },
@@ -231,7 +239,7 @@ public struct VerticalAnnotationToolbarView: View {
             .buttonStyle(PlainButtonStyle())
             .pointingHandCursor()
             .help(LocalizationManager.shared.tr(.colorPalette))
-            .popover(isPresented: $viewModel.isColorPalettePresented, arrowEdge: .leading) {
+            .popover(isPresented: $viewModel.isColorPalettePresented, arrowEdge: viewModel.popoverArrowEdge) {
                 ColorPalettePopoverView(
                     appSettings: appSettings,
                     onColorChanged: { hex in
@@ -276,23 +284,27 @@ public struct VerticalAnnotationToolbarView: View {
 
 public struct HorizontalActionToolbarView: View {
     @ObservedObject public var viewModel: FloatingToolbarsViewModel
+    public var showScrollCapture: Bool
     @ObservedObject private var localizationManager = LocalizationManager.shared
 
-    public init(viewModel: FloatingToolbarsViewModel) {
+    public init(viewModel: FloatingToolbarsViewModel, showScrollCapture: Bool = true) {
         self.viewModel = viewModel
+        self.showScrollCapture = showScrollCapture
     }
 
     public var body: some View {
         HStack(spacing: 6) {
-            ActionButton(
-                icon: "arrow.up.and.down.text.horizontal",
-                tooltip: "\(LocalizationManager.shared.tr(.actionScrollCapture)) (Space)",
-                tint: .blue
-            ) {
-                viewModel.triggerScrollCapture()
-            }
+            if showScrollCapture {
+                ActionButton(
+                    icon: "arrow.up.and.down.text.horizontal",
+                    tooltip: "\(LocalizationManager.shared.tr(.actionScrollCapture)) (Space)",
+                    tint: .blue
+                ) {
+                    viewModel.triggerScrollCapture()
+                }
 
-            ToolbarVerticalDivider()
+                ToolbarVerticalDivider()
+            }
 
             ActionButton(
                 icon: "doc.on.doc",
@@ -669,7 +681,8 @@ extension View {
 public struct ToolbarKeyShortcutHandler {
     public static func handleKeyEvent(
         event: NSEvent,
-        viewModel: FloatingToolbarsViewModel
+        viewModel: FloatingToolbarsViewModel,
+        allowScrollCapture: Bool = true
     ) -> Bool {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let keyCode = event.keyCode
@@ -687,7 +700,7 @@ public struct ToolbarKeyShortcutHandler {
         }
 
         // 3. Space (Scroll Capture / Pause)
-        if keyCode == 49 && flags.isEmpty {
+        if allowScrollCapture && keyCode == 49 && flags.isEmpty {
             viewModel.triggerScrollCapture()
             return true
         }
