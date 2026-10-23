@@ -88,6 +88,7 @@ public struct ColorPalettePopoverView: View {
                         .cornerRadius(4)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .pointingHandCursor()
                 .help(LocalizationManager.shared.tr(.eyedropperTooltip))
 
                 // Save Preset Button (+)
@@ -101,6 +102,7 @@ public struct ColorPalettePopoverView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .disabled(!canAddPreset)
+                .pointingHandCursor(isEnabled: canAddPreset)
                 .help(canAddPreset ? LocalizationManager.shared.tr(.addPreset) : LocalizationManager.shared.tr(.maxPresetsReached))
             }
 
@@ -227,6 +229,7 @@ public struct PresetSwatchButton: View {
             .frame(width: 26, height: 26)
         }
         .buttonStyle(PlainButtonStyle())
+        .pointingHandCursor()
         .help("\(preset.name) (\(preset.hex))")
         .contextMenu {
             Button(LocalizationManager.shared.tr(.deletePreset)) {

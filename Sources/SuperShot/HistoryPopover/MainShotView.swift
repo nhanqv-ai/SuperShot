@@ -137,6 +137,7 @@ public struct MainShotView: View {
                     .padding(4)
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .help(localizationManager.tr(.menuCapture) + " (Option+S)")
 
             // Quick Scrolling Capture Button
@@ -150,6 +151,7 @@ public struct MainShotView: View {
                     .padding(4)
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .help(localizationManager.tr(.menuScrollingCapture) + " (Option+Shift+S)")
 
             // Settings Button
@@ -163,6 +165,7 @@ public struct MainShotView: View {
                     .padding(4)
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .help(localizationManager.tr(.menuPreferences))
 
             // Dismiss Button
@@ -173,6 +176,7 @@ public struct MainShotView: View {
                     .padding(4)
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
             .help("Dismiss")
         }
         .padding(.horizontal, 14)
@@ -314,6 +318,7 @@ public struct MainShotView: View {
                 )
             }
             .buttonStyle(.plain)
+            .pointingHandCursor()
         }
         .padding(.horizontal, 4)
         .padding(.top, pinnedItems.isEmpty ? 4 : 8)

@@ -676,11 +676,13 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     public override func mouseDown(with event: NSEvent) {
         commitActiveTextEditing()
         let point = convert(event.locationInWindow, from: nil)
+        guard !isPointOverFloatingUI(point) else { return }
 
         // 1. Selection Box Grab Handles always take priority for resizing the region
         if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
             let anchor = SelectionBoxGeometry.anchorPoint(for: handle, in: selectionRect)
             dragMode = .resizing(handle: handle, anchorPoint: anchor)
+            updateCanvasCursor(at: point)
             return
         }
 
@@ -691,6 +693,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                let hitObj = annotationEngine.selectObject(at: point),
                hitObj.tool == .text {
                 startInlineTextEditing(for: hitObj)
+                updateCanvasCursor(at: point)
                 needsDisplay = true
                 return
             }
@@ -704,6 +707,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                     strokeWidth: CGFloat(appSettings.activeStrokeWidth),
                     fontSize: CGFloat(appSettings.activeFontSize)
                 )
+                updateCanvasCursor(at: point)
                 needsDisplay = true
                 return
             }
@@ -718,6 +722,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                     strokeWidth: CGFloat(appSettings.activeStrokeWidth),
                     fontSize: CGFloat(appSettings.activeFontSize)
                 )
+                updateCanvasCursor(at: point)
                 needsDisplay = true
                 return
             }
@@ -731,6 +736,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                     strokeWidth: CGFloat(appSettings.activeStrokeWidth),
                     fontSize: CGFloat(appSettings.activeFontSize)
                 )
+                updateCanvasCursor(at: point)
                 needsDisplay = true
                 return
             }
@@ -738,6 +744,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             // Otherwise, move the entire selection box
             annotationEngine.deselectAll()
             dragMode = .moving(startPoint: point, originalRect: selectionRect)
+            updateCanvasCursor(at: point)
             return
         }
 
@@ -745,6 +752,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         annotationEngine.deselectAll()
         dragMode = .creating(startPoint: point)
         selectionRect = CGRect(origin: point, size: CGSize(width: 1, height: 1))
+        updateCanvasCursor(at: point)
     }
 
     public override func mouseDragged(with event: NSEvent) {
@@ -799,6 +807,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                 selectionRect = CGRect(x: clampedX1, y: selectionRect.origin.y, width: max(1.0, clampedX2 - clampedX1), height: selectionRect.height)
             }
         }
+        updateCanvasCursor(at: currentPoint)
     }
 
     public override func mouseUp(with event: NSEvent) {
@@ -811,7 +820,84 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         }
         dragMode = .none
         updateToolbarPositions()
+        updateCanvasCursor(at: point)
         needsDisplay = true
+    }
+
+    /// Returns true when the given view point lies over the floating toolbars or when a toolbar popover is open.
+    public func isPointOverFloatingUI(_ point: CGPoint) -> Bool {
+        if toolbarsViewModel.isColorPalettePresented || toolbarsViewModel.isStrokeWidthPresented {
+            return true
+        }
+        if let vHost = verticalToolbarHost, !vHost.isHidden, vHost.frame.insetBy(dx: -4, dy: -4).contains(point) {
+            return true
+        }
+        if let hHost = horizontalToolbarHost, !hHost.isHidden, hHost.frame.insetBy(dx: -4, dy: -4).contains(point) {
+            return true
+        }
+        return false
+    }
+
+    /// Resolves the appropriate AppKit cursor for the given point on the capture overlay canvas.
+    /// Returns nil when the point is over a floating toolbar or popover so button cursors are preserved.
+    public func resolveCanvasCursor(at point: CGPoint) -> NSCursor? {
+        if isPointOverFloatingUI(point) {
+            return nil
+        }
+        if let tf = activeTextField, tf.frame.contains(point) {
+            return .iBeam
+        }
+
+        // 1. Active drag state cursor
+        switch dragMode {
+        case .moving:
+            return .closedHand
+        case .resizing(let handle, _):
+            return handle.cursor
+        case .annotating:
+            if let aHandle = annotationEngine.activeResizeHandle {
+                return aHandle.cursor(isFlipped: false)
+            }
+            if annotationEngine.isDraggingExistingObject {
+                return .closedHand
+            }
+            return annotationEngine.activeTool == .text ? .iBeam : .crosshair
+        case .creating:
+            return .crosshair
+        case .none:
+            break
+        }
+
+        // 2. Hover state over selection box handles
+        if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
+            return handle.cursor
+        }
+
+        // 3. Hover state inside selection box
+        if selectionRect.contains(point) {
+            if let sel = annotationEngine.selectedObject, let aHandle = sel.handle(at: point) {
+                return aHandle.cursor(isFlipped: false)
+            }
+            switch annotationEngine.activeTool {
+            case .select:
+                return .openHand
+            case .text:
+                return .iBeam
+            case .rectangle, .ellipse, .arrow, .line, .pen, .highlighter, .blur:
+                return .crosshair
+            }
+        }
+
+        // 4. Outside selection box
+        return .crosshair
+    }
+
+    private func updateCanvasCursor(at point: CGPoint) {
+        if let resolved = resolveCanvasCursor(at: point) {
+            resolved.set()
+        } else if NSCursor.current != NSCursor.pointingHand {
+            NSCursor.arrow.set()
+        }
     }
 
     public override func mouseMoved(with event: NSEvent) {
@@ -820,19 +906,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         if selectionRect.isEmpty {
             needsDisplay = true
         }
-        if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
-            handle.cursor.set()
-        } else if selectionRect.contains(point) {
-            if annotationEngine.activeTool == .select {
-                NSCursor.openHand.set()
-            } else if annotationEngine.activeTool == .text {
-                NSCursor.iBeam.set()
-            } else {
-                NSCursor.crosshair.set()
-            }
-        } else {
-            NSCursor.crosshair.set()
-        }
+        updateCanvasCursor(at: point)
     }
 
     // MARK: - Inline Text Editing
