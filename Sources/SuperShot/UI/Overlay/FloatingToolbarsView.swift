@@ -148,6 +148,7 @@ public final class FloatingToolbarsViewModel: ObservableObject {
     public var onCancelRequested: (() -> Void)?
     public var onUndoRequested: (() -> Void)?
     public var onRedoRequested: (() -> Void)?
+    public var onDuplicateRequested: (() -> Void)?
     public var onToolChanged: ((AnnotationToolType) -> Void)?
     public var onColorSelected: ((String) -> Void)?
     public var onStrokeWidthSelected: ((CGFloat) -> Void)?
@@ -174,6 +175,7 @@ public final class FloatingToolbarsViewModel: ObservableObject {
     public func triggerCancel() { onCancelRequested?() }
     public func triggerUndo() { if canUndo { onUndoRequested?() } }
     public func triggerRedo() { if canRedo { onRedoRequested?() } }
+    public func triggerDuplicate() { onDuplicateRequested?() }
 }
 
 // MARK: - Vertical Annotation Toolbar View
@@ -726,6 +728,12 @@ public struct ToolbarKeyShortcutHandler {
         // 7. Command + Z (Undo)
         if flags == .command && keyCode == 6 {
             viewModel.triggerUndo()
+            return true
+        }
+
+        // Command + D (Duplicate Selected Object)
+        if flags == .command && (keyCode == 2 || event.charactersIgnoringModifiers?.lowercased() == "d") {
+            viewModel.triggerDuplicate()
             return true
         }
 

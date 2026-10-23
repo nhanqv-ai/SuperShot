@@ -200,6 +200,14 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 76 | Automated Git PR & Merge | Feature branch, gh pr create, gh pr merge to main | M11 | ORIGINAL_REQUEST §R3 |
 | 77 | Universal 2 Package & Release | make clean, lint, test, adversarial, app, verify-app, package, gh release create v1.0.4 | M11 | ORIGINAL_REQUEST §R3 |
 | 78 | Public Repo Enforcement | Ensure nhanqv-ai/SuperShot visibility is PUBLIC | M11 | Follow-up 2026-10-23 |
+| 79 | Annotation Object Duplication | Cmd+D shortcut and toolbar duplicate button to clone selected vector annotation with offset | M13 | ORIGINAL_REQUEST §R2 |
+| 80 | Shift-Constrained Drawing | Shift-key modifier enforcing 1:1 square/circle aspect ratio and 45-degree line/arrow snapping | M13 | ORIGINAL_REQUEST §R2 |
+| 81 | Canvas Quick Zoom HUD | Floating zoom controls (Fit, 100%, 200%, Cmd+/- shortcuts) and status HUD on ScrollableCanvasView | M13 | ORIGINAL_REQUEST §R2 |
+| 82 | Canvas & Popover Ergonomics | Enhanced keyboard navigation, drag selection bounds clamping, and pointingHand feedback | M13 | ORIGINAL_REQUEST §R2 |
+| 83 | Version Bump to v1.0.5 | Update Info.plist, AboutSettingsTab, Makefile, PROJECT.md, README.md | M14 | ORIGINAL_REQUEST §R3 |
+| 84 | Automated Git PR & Merge | Feature branch feat/v1.0.5-ux-canvas-polish, gh pr create, gh pr merge to main | M14 | ORIGINAL_REQUEST §R3 |
+| 85 | Universal 2 Package & Release | make clean, lint, test, adversarial, app, verify-app, package, gh release create v1.0.5 | M14 | ORIGINAL_REQUEST §R3 |
+| 86 | Public Repo Enforcement | Ensure nhanqv-ai/SuperShot visibility remains PUBLIC with release tag v1.0.5 verified | M14 | ORIGINAL_REQUEST §R3 |
 
 ## Milestones
 
@@ -216,6 +224,9 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M8 | Automated Release Pipeline | Merge PR #3 to main, package Universal 2, publish public GH release v1.0.3 | M7.1 | DONE |
 | M10 | In-App Update Banner & Frequency Polish | UpdateManager async wrappers, MainShotView update banner with gear badge, update check frequency picker in GeneralSettingsTab, ergonomics polish (popover dynamic edge, scrollable canvas, pointingHandCursor), comprehensive unit tests (0 emojis) | M8, M7.1 | DONE |
 | M11 | Automated Release Pipeline v1.0.4 | Version bump to v1.0.4, branch, PR, merge, clean build/verify, GitHub release v1.0.4, verify PUBLIC | M10 | DONE |
+| M12 | Live GUI Testing & UX Audit | Run LiveGUIDriver across 5 surfaces, capture snapshots, evaluate interactive UX & ergonomics | none | DONE |
+| M13 | Proactive UX & Feature Polish | Implement Cmd+D duplication, Shift-constrained shapes/lines, zoom HUD controls, ergonomics, tests | M12 | DONE |
+| M14 | Automated Release Pipeline v1.0.5 | Bump to v1.0.5, PR, merge, clean Universal 2 build, package, GitHub release, public repo verification | M13 | DONE |
 
 ## Interface Contracts
 

@@ -467,6 +467,13 @@ public final class ScrollableAnnotationScrollView: NSScrollView {
         self.maxMagnification = 4.0
     }
 
+    public var onMagnificationChanged: ((CGFloat) -> Void)?
+    public override var magnification: CGFloat {
+        didSet {
+            onMagnificationChanged?(magnification)
+        }
+    }
+
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
     }
@@ -490,6 +497,92 @@ public final class ScrollableAnnotationScrollView: NSScrollView {
     }
 }
 
+// MARK: - Floating Quick Zoom HUD
+
+public final class ScrollableZoomViewModel: ObservableObject {
+    @Published public var magnification: CGFloat = 1.0
+    public var onZoomIn: (() -> Void)?
+    public var onZoomOut: (() -> Void)?
+    public var onActualSize: (() -> Void)?
+    public var onFitWidth: (() -> Void)?
+
+    public init(magnification: CGFloat = 1.0) {
+        self.magnification = magnification
+    }
+}
+
+public struct ScrollableZoomControlsView: View {
+    @ObservedObject public var viewModel: ScrollableZoomViewModel
+
+    public init(viewModel: ScrollableZoomViewModel) {
+        self.viewModel = viewModel
+    }
+
+    public var body: some View {
+        HStack(spacing: 4) {
+            Button(action: { viewModel.onZoomOut?() }) {
+                Image(systemName: "minus.magnifyingglass")
+                    .font(.system(size: 11, weight: .medium))
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help("Zoom Out (Cmd -)")
+
+            Button(action: { viewModel.onActualSize?() }) {
+                Text("\(Int(round(viewModel.magnification * 100)))%")
+                    .font(.system(size: 11, weight: .semibold).monospacedDigit())
+                    .frame(minWidth: 42)
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help("Actual Size 100% (Cmd 0)")
+
+            Button(action: { viewModel.onZoomIn?() }) {
+                Image(systemName: "plus.magnifyingglass")
+                    .font(.system(size: 11, weight: .medium))
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help("Zoom In (Cmd +)")
+
+            Divider()
+                .frame(height: 14)
+                .padding(.horizontal, 2)
+
+            Button(action: { viewModel.onFitWidth?() }) {
+                Image(systemName: "arrow.left.and.right.to.lines")
+                    .font(.system(size: 11, weight: .medium))
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help("Fit to Width (Cmd 9)")
+
+            Button(action: { viewModel.onActualSize?() }) {
+                Image(systemName: "1.magnifyingglass")
+                    .font(.system(size: 11, weight: .medium))
+                    .frame(width: 24, height: 24)
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .help("Actual Size 100% (Cmd 0)")
+        }
+        .padding(.horizontal, 6)
+        .padding(.vertical, 4)
+        .background(
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .fill(.regularMaterial)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 8, style: .continuous)
+                        .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 1)
+                )
+                .shadow(color: Color.black.opacity(0.18), radius: 6, x: 0, y: 3)
+        )
+    }
+}
+
 // MARK: - Scrollable Canvas View (Host Container with Toolbar)
 
 public final class ScrollableCanvasView: NSView {
@@ -498,6 +591,8 @@ public final class ScrollableCanvasView: NSView {
     public let engine: AnnotationEngine
     public let appSettings: AppSettings
     public let toolbarsViewModel: FloatingToolbarsViewModel
+    public let zoomViewModel: ScrollableZoomViewModel
+    public let zoomHUD: NSHostingView<ScrollableZoomControlsView>
 
     public var onCopyRequested: (() -> Void)?
     public var onSaveRequested: (() -> Void)?
@@ -519,6 +614,11 @@ public final class ScrollableCanvasView: NSView {
         let sView = ScrollableAnnotationScrollView(documentCanvasView: docView)
         self.scrollView = sView
 
+        let zModel = ScrollableZoomViewModel(magnification: sView.magnification)
+        self.zoomViewModel = zModel
+        let zHUD = NSHostingView(rootView: ScrollableZoomControlsView(viewModel: zModel))
+        self.zoomHUD = zHUD
+
         super.init(frame: .zero)
 
         sView.translatesAutoresizingMaskIntoConstraints = false
@@ -528,10 +628,28 @@ public final class ScrollableCanvasView: NSView {
         let hToolbar = NSHostingView(rootView: HorizontalActionToolbarView(viewModel: toolbarsViewModel, showScrollCapture: false))
         vToolbar.translatesAutoresizingMaskIntoConstraints = false
         hToolbar.translatesAutoresizingMaskIntoConstraints = false
+        zHUD.translatesAutoresizingMaskIntoConstraints = false
         addSubview(vToolbar)
         addSubview(hToolbar)
+        addSubview(zHUD)
 
-        docView.isPointOverFloatingToolbar = { [weak self, weak vToolbar, weak hToolbar] winPt in
+        sView.onMagnificationChanged = { [weak zModel] mag in
+            zModel?.magnification = mag
+        }
+        zModel.onZoomIn = { [weak sView] in
+            sView?.zoomIn()
+        }
+        zModel.onZoomOut = { [weak sView] in
+            sView?.zoomOut()
+        }
+        zModel.onActualSize = { [weak sView] in
+            sView?.zoomToActualSize()
+        }
+        zModel.onFitWidth = { [weak sView] in
+            sView?.zoomToFitWidth()
+        }
+
+        docView.isPointOverFloatingToolbar = { [weak self, weak vToolbar, weak hToolbar, weak zHUD] winPt in
             guard let self = self else { return false }
             if self.toolbarsViewModel.isColorPalettePresented || self.toolbarsViewModel.isStrokeWidthPresented {
                 return true
@@ -541,6 +659,9 @@ public final class ScrollableCanvasView: NSView {
                 return true
             }
             if let h = hToolbar, !h.isHidden, h.frame.insetBy(dx: -4, dy: -4).contains(localPt) {
+                return true
+            }
+            if let z = zHUD, !z.isHidden, z.frame.insetBy(dx: -4, dy: -4).contains(localPt) {
                 return true
             }
             return false
@@ -556,7 +677,10 @@ public final class ScrollableCanvasView: NSView {
             vToolbar.topAnchor.constraint(equalTo: topAnchor, constant: 16),
 
             hToolbar.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-            hToolbar.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16)
+            hToolbar.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16),
+
+            zHUD.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
+            zHUD.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16)
         ])
 
         setupToolbarBindings()
@@ -628,6 +752,15 @@ public final class ScrollableCanvasView: NSView {
             self?.documentView.commitActiveTextEditing()
             self?.engine.redo()
             self?.documentView.needsDisplay = true
+        }
+
+        toolbarsViewModel.onDuplicateRequested = { [weak self] in
+            guard let self = self else { return }
+            self.documentView.commitActiveTextEditing()
+            if self.engine.selectedObjectID != nil {
+                self.engine.duplicateSelected(within: self.documentView.bounds)
+                self.documentView.needsDisplay = true
+            }
         }
 
         toolbarsViewModel.onCopyRequested = { [weak self] in
@@ -799,22 +932,38 @@ public final class ScrollableAnnotationWindow: NSWindow {
             return
         }
 
+        // Cmd+D: Duplicate Selected Annotation
+        if flags == .command && (keyCode == 2 || event.charactersIgnoringModifiers?.lowercased() == "d"),
+           canvasView.engine.selectedObjectID != nil {
+            canvasView.engine.duplicateSelected(within: canvasView.documentView.bounds)
+            canvasView.documentView.needsDisplay = true
+            return
+        }
+
         if ToolbarKeyShortcutHandler.handleKeyEvent(event: event, viewModel: canvasView.toolbarsViewModel, allowScrollCapture: false) {
             return
         }
 
-        // Zoom shortcuts: Cmd++ (keyCode 24), Cmd+- (keyCode 27), Cmd+0 (keyCode 29)
-        if flags == .command && keyCode == 24 {
-            canvasView.scrollView.zoomIn()
-            return
-        }
-        if flags == .command && keyCode == 27 {
-            canvasView.scrollView.zoomOut()
-            return
-        }
-        if flags == .command && keyCode == 29 {
-            canvasView.scrollView.zoomToActualSize()
-            return
+        // Zoom shortcuts: Cmd + / Cmd = / Cmd Shift = / Keypad +; Cmd - / Keypad -; Cmd 0 / Keypad 0; Cmd 9 / Keypad 9
+        let isCmd = flags.contains(.command)
+        if isCmd {
+            let chars = event.charactersIgnoringModifiers ?? ""
+            if chars == "+" || chars == "=" || keyCode == 24 || keyCode == 69 {
+                canvasView.scrollView.zoomIn()
+                return
+            }
+            if chars == "-" || keyCode == 27 || keyCode == 78 {
+                canvasView.scrollView.zoomOut()
+                return
+            }
+            if chars == "0" || keyCode == 29 || keyCode == 82 {
+                canvasView.scrollView.zoomToActualSize()
+                return
+            }
+            if chars == "9" || keyCode == 25 || keyCode == 92 {
+                canvasView.scrollView.zoomToFitWidth()
+                return
+            }
         }
 
         super.keyDown(with: event)

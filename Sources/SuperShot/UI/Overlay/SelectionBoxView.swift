@@ -162,6 +162,15 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             self?.needsDisplay = true
         }
 
+        toolbarsViewModel.onDuplicateRequested = { [weak self] in
+            guard let self = self else { return }
+            self.commitActiveTextEditing()
+            if self.annotationEngine.selectedObjectID != nil {
+                self.annotationEngine.duplicateSelected(within: self.selectionRect)
+                self.needsDisplay = true
+            }
+        }
+
         toolbarsViewModel.onCopyRequested = { [weak self] in
             guard let self = self, !self.selectionRect.isEmpty else { return }
             self.commitActiveTextEditing()
@@ -667,6 +676,15 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             return false
         }
 
+        // Cmd+D: Duplicate selected vector annotation object
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags == .command && (event.keyCode == 2 || event.charactersIgnoringModifiers?.lowercased() == "d"),
+           annotationEngine.selectedObjectID != nil {
+            annotationEngine.duplicateSelected(within: selectionRect)
+            needsDisplay = true
+            return true
+        }
+
         // Delete / Backspace removes selected vector annotation object
         if (event.keyCode == 51 || event.keyCode == 117), annotationEngine.selectedObjectID != nil {
             annotationEngine.deleteSelected()
@@ -722,6 +740,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     public override func mouseDown(with event: NSEvent) {
         commitActiveTextEditing()
         let point = convert(event.locationInWindow, from: nil)
+        currentMousePoint = point
         guard !isPointOverFloatingUI(point) else { return }
 
         // 1. Selection Box Grab Handles always take priority for resizing the region
@@ -803,6 +822,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
     public override func mouseDragged(with event: NSEvent) {
         let currentPoint = convert(event.locationInWindow, from: nil)
+        currentMousePoint = currentPoint
 
         switch dragMode {
         case .none:
@@ -858,6 +878,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
     public override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        currentMousePoint = point
         if dragMode == .annotating {
             let committed = annotationEngine.endDrag(at: point)
             if let obj = committed, obj.tool == .text {
@@ -868,6 +889,21 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         updateToolbarPositions()
         updateCanvasCursor(at: point)
         needsDisplay = true
+    }
+
+    public override func flagsChanged(with event: NSEvent) {
+        super.flagsChanged(with: event)
+        if dragMode == .annotating, let lastPt = currentMousePoint {
+            let clampedPoint = CGPoint(
+                x: max(selectionRect.minX, min(lastPt.x, selectionRect.maxX)),
+                y: max(selectionRect.minY, min(lastPt.y, selectionRect.maxY))
+            )
+            annotationEngine.updateDrag(
+                to: clampedPoint,
+                shiftKeyPressed: event.modifierFlags.contains(.shift)
+            )
+            needsDisplay = true
+        }
     }
 
     /// Returns true when the given view point lies over the floating toolbars or when a toolbar popover is open.

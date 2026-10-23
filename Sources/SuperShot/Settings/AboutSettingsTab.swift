@@ -59,7 +59,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.4"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.5"
                 Text(LocalizationManager.shared.tr(.versionLabel(version)))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
@@ -118,44 +118,54 @@ public struct AboutSettingsTab: View {
 
             Divider()
 
-            HStack {
-                Button(action: {
-                    updateManager.checkForUpdates(userInitiated: true)
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.triangle.2.circlepath")
-                        Text(LocalizationManager.shared.tr(.menuCheckUpdates))
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Button(action: {
+                        updateManager.checkForUpdates(userInitiated: true)
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.triangle.2.circlepath")
+                            Text(LocalizationManager.shared.tr(.menuCheckUpdates))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .disabled(updateManager.isBusy)
+                    .pointingHandCursor()
+
+                    Spacer(minLength: 8)
+
+                    Button(action: { showingResetAllConfirmation = true }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "arrow.counterclockwise")
+                            Text(LocalizationManager.shared.tr(.resetAllDefaults))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .pointingHandCursor()
+                    .confirmationDialog(
+                        LocalizationManager.shared.tr(.resetAllConfirmTitle),
+                        isPresented: $showingResetAllConfirmation,
+                        titleVisibility: .visible
+                    ) {
+                        Button(LocalizationManager.shared.tr(.resetAllDefaults), role: .destructive) {
+                            resetAllDefaults()
+                        }
+                        Button(LocalizationManager.shared.tr(.actionCancel), role: .cancel) {}
+                    } message: {
+                        Text(LocalizationManager.shared.tr(.resetAllConfirmMessage))
                     }
                 }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .disabled(updateManager.isBusy)
-                .pointingHandCursor()
 
-                updateStatusView
-
-                Spacer()
-
-                Button(action: { showingResetAllConfirmation = true }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.counterclockwise")
-                        Text(LocalizationManager.shared.tr(.resetAllDefaults))
+                if case .idle = updateManager.status {
+                    // Idle state needs no extra status row
+                } else {
+                    HStack(spacing: 6) {
+                        updateStatusView
+                        Spacer()
                     }
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .pointingHandCursor()
-                .confirmationDialog(
-                    LocalizationManager.shared.tr(.resetAllConfirmTitle),
-                    isPresented: $showingResetAllConfirmation,
-                    titleVisibility: .visible
-                ) {
-                    Button(LocalizationManager.shared.tr(.resetAllDefaults), role: .destructive) {
-                        resetAllDefaults()
-                    }
-                    Button(LocalizationManager.shared.tr(.actionCancel), role: .cancel) {}
-                } message: {
-                    Text(LocalizationManager.shared.tr(.resetAllConfirmMessage))
+                    .padding(.top, 2)
                 }
             }
             .padding(.horizontal, 14)

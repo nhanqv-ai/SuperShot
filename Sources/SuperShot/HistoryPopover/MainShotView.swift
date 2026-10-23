@@ -596,32 +596,105 @@ public struct MainShotView: View {
                 guard let eventWin = event.window, eventWin === host, host.isKeyWindow else { return event }
             }
 
-            // Escape
+            let isSearchFocused = (hostWindow?.firstResponder is NSTextView)
+            let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+
+            // 1. Escape: Clear search query first if populated, otherwise dismiss popover
             if event.keyCode == 53 {
+                if !searchText.isEmpty {
+                    searchText = ""
+                    return nil
+                }
+                ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onDismiss?()
                 return nil
             }
 
-            // Down Arrow (125) - Circular cycling
+            // 2. Spacebar (49): Toggle Quick Look hover preview when search field is not focused
+            if event.keyCode == 49 && !isSearchFocused && flags.isEmpty {
+                if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
+                    let item = visibleItems[idx]
+                    if ThumbnailHoverPreviewPanel.shared.isVisible {
+                        ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                    } else {
+                        ThumbnailHoverPreviewPanel.shared.show(for: item)
+                    }
+                    return nil
+                }
+            }
+
+            // 3. Down Arrow (125) - Circular cycling with live preview update
             if event.keyCode == 125 {
-                selectedIndex = ShortcutNavigator.stepDown(currentIndex: selectedIndex, visibleCount: visibleItems.count)
+                let newIdx = ShortcutNavigator.stepDown(currentIndex: selectedIndex, visibleCount: visibleItems.count)
+                selectedIndex = newIdx
+                if let idx = newIdx, idx >= 0 && idx < visibleItems.count {
+                    let item = visibleItems[idx]
+                    if ThumbnailHoverPreviewPanel.shared.isVisible {
+                        ThumbnailHoverPreviewPanel.shared.show(for: item)
+                    }
+                }
                 return nil
             }
 
-            // Up Arrow (126) - Circular cycling
+            // 4. Up Arrow (126) - Circular cycling with live preview update
             if event.keyCode == 126 {
-                selectedIndex = ShortcutNavigator.stepUp(currentIndex: selectedIndex, visibleCount: visibleItems.count)
+                let newIdx = ShortcutNavigator.stepUp(currentIndex: selectedIndex, visibleCount: visibleItems.count)
+                selectedIndex = newIdx
+                if let idx = newIdx, idx >= 0 && idx < visibleItems.count {
+                    let item = visibleItems[idx]
+                    if ThumbnailHoverPreviewPanel.shared.isVisible {
+                        ThumbnailHoverPreviewPanel.shared.show(for: item)
+                    }
+                }
                 return nil
             }
 
-            // Return (36) or Keypad Enter (76)
+            // 5. Return (36) or Keypad Enter (76)
             if event.keyCode == 36 || event.keyCode == 76 {
                 handleReturnKey()
                 return nil
             }
 
-            // 1..9 shortcuts
-            let isSearchFocused = (hostWindow?.firstResponder is NSTextView)
+            // 6. Delete (51) / Forward Delete (117): Remove selected history item
+            if (event.keyCode == 51 || event.keyCode == 117) && (!isSearchFocused || flags.contains(.command)) {
+                if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
+                    let item = visibleItems[idx]
+                    ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                    storageManager.deleteItem(id: item.id)
+                    if visibleItems.count > 1 {
+                        selectedIndex = min(idx, visibleItems.count - 2)
+                    } else {
+                        selectedIndex = nil
+                    }
+                    return nil
+                }
+            }
+
+            // 7. Cmd+P: Toggle Pin on selected item
+            if flags == .command && (event.keyCode == 35 || event.charactersIgnoringModifiers?.lowercased() == "p") {
+                if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
+                    storageManager.togglePin(id: visibleItems[idx].id)
+                    return nil
+                }
+            }
+
+            // 8. Cmd+S: Save selected item to file
+            if flags == .command && (event.keyCode == 1 || event.charactersIgnoringModifiers?.lowercased() == "s") {
+                if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
+                    saveItem(visibleItems[idx])
+                    return nil
+                }
+            }
+
+            // 9. Cmd+C: Copy selected item to clipboard without auto-paste
+            if flags == .command && (event.keyCode == 8 || event.charactersIgnoringModifiers?.lowercased() == "c") {
+                if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
+                    copyItem(visibleItems[idx])
+                    return nil
+                }
+            }
+
+            // 10. 1..9 shortcuts
             if let digit = ShortcutNavigator.parseShortcut(from: event, searchFieldHasFocus: isSearchFocused) {
                 if let target = ShortcutNavigator.targetItem(forShortcut: digit, in: visibleItems) {
                     selectItem(target)

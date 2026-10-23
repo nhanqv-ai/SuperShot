@@ -2,6 +2,7 @@ import Foundation
 import CoreGraphics
 import AppKit
 import SuperShotCore
+import SuperShot
 
 /// Unit and integration tests for AnnotationEngine and ImageRenderer vector operations:
 /// Creating, hit-testing/selecting, moving, resizing, recoloring, editing text,
@@ -393,21 +394,36 @@ public struct AnnotationEngineTests {
 
         // 8. ImageRenderer Rasterization
         testImageRendererRasterization()
+
+        // 9. M13: Annotation Object Duplication
+        testAnnotationObjectDuplicationPropertiesAndOffset()
+        testAnnotationObjectDuplicationUndoRedo()
+        testAnnotationObjectDuplicationBoundaryClamping()
+
+        // 10. M13: Shift-Constrained Angle Snapping & Resizing
+        testShiftConstrainedAngleSnappingAllOctants()
+        testShiftConstrainedHandleResizeFixedAnchor()
+
+        // 11. M13: Zoom Step Calculations & Clamping
+        testScrollableZoomStepCalculationsAndClamping()
+
+        // 12. M13: MainShotView Keyboard Shortcuts & Navigation
+        testMainShotViewKeyboardShortcuts()
+    }
+
+    private static func makeTestCGImage(width: Int = 400, height: Int = 300) -> CGImage {
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        guard let ctx = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width * 4, space: colorSpace, bitmapInfo: bitmapInfo) else {
+            fatalError("Failed to allocate test context")
+        }
+        ctx.setFillColor(gray: 0.9, alpha: 1.0)
+        ctx.fill(CGRect(x: 0, y: 0, width: width, height: height))
+        return ctx.makeImage()!
     }
 
     private static func testImageRendererRasterization() {
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
-        guard let ctx = CGContext(data: nil, width: 400, height: 300, bitsPerComponent: 8, bytesPerRow: 400 * 4, space: colorSpace, bitmapInfo: bitmapInfo) else {
-            TestHarness.recordFail("ImageRenderer Test", reason: "Failed to create base test context")
-            return
-        }
-        ctx.setFillColor(gray: 0.9, alpha: 1.0)
-        ctx.fill(CGRect(x: 0, y: 0, width: 400, height: 300))
-        guard let baseCGImage = ctx.makeImage() else {
-            TestHarness.recordFail("ImageRenderer Test", reason: "Failed to make test CGImage")
-            return
-        }
+        let baseCGImage = makeTestCGImage(width: 400, height: 300)
 
         let annotations = [
             AnnotationObject(tool: .rectangle, bounds: CGRect(x: 10, y: 10, width: 80, height: 50), colorHex: "#FF3B30", strokeWidth: 3.0),
@@ -431,5 +447,401 @@ public struct AnnotationEngineTests {
         TestHarness.assertNotNil(croppedRendered, "ImageRenderer produced non-nil cropped & composited CGImage")
         TestHarness.assertEqual(croppedRendered?.width, 200, "Cropped Retina @2x width is 200px (100pt * 2)")
         TestHarness.assertEqual(croppedRendered?.height, 160, "Cropped Retina @2x height is 160px (80pt * 2)")
+    }
+
+    private static func testAnnotationObjectDuplicationPropertiesAndOffset() {
+        let engine = AnnotationEngine()
+        TestHarness.assertNil(engine.duplicateSelected(), "No selection returns nil on duplication")
+
+        // 1. Rectangle duplication
+        let rect = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 100, y: 100, width: 200, height: 150),
+            colorHex: "#FF3B30",
+            strokeWidth: 4.0
+        )
+        engine.addObject(rect)
+        engine.selectedObjectID = rect.id
+
+        let dupRect = engine.duplicateSelected(offset: CGPoint(x: 16, y: 16))
+        TestHarness.assertNotNil(dupRect, "Duplicated rectangle is non-nil")
+        TestHarness.assertTrue(dupRect?.id != rect.id, "Duplicated rectangle has distinct UUID")
+        TestHarness.assertEqual(dupRect?.bounds.origin.x, 116.0, "Duplicated rect origin x offset by +16")
+        TestHarness.assertEqual(dupRect?.bounds.origin.y, 116.0, "Duplicated rect origin y offset by +16")
+        TestHarness.assertEqual(dupRect?.bounds.width, 200.0, "Duplicated rect width preserved")
+        TestHarness.assertEqual(dupRect?.bounds.height, 150.0, "Duplicated rect height preserved")
+        TestHarness.assertEqual(dupRect?.colorHex, "#FF3B30", "Duplicated rect color preserved")
+        TestHarness.assertEqual(dupRect?.strokeWidth, 4.0, "Duplicated rect strokeWidth preserved")
+        TestHarness.assertEqual(dupRect?.tool, .rectangle, "Duplicated rect tool preserved")
+        TestHarness.assertTrue(dupRect?.isSelected == true, "Duplicated rect marked as selected")
+        TestHarness.assertEqual(engine.selectedObjectID, dupRect?.id, "Engine selectedObjectID transferred to duplicate")
+        TestHarness.assertEqual(engine.objects.count, 2, "Engine now contains 2 objects")
+
+        // 2. Arrow path duplication
+        let arrow = AnnotationObject(
+            tool: .arrow,
+            points: [CGPoint(x: 50, y: 50), CGPoint(x: 200, y: 150)],
+            colorHex: "#007AFF"
+        )
+        engine.addObject(arrow)
+        engine.selectedObjectID = arrow.id
+
+        let dupArrow = engine.duplicateSelected(offset: CGPoint(x: 16, y: 16))
+        TestHarness.assertNotNil(dupArrow, "Duplicated arrow is non-nil")
+        TestHarness.assertEqual(dupArrow?.points.count, 2, "Duplicated arrow has 2 points")
+        TestHarness.assertEqual(dupArrow?.points[0].x, 66.0, "Duplicated arrow start x is 66")
+        TestHarness.assertEqual(dupArrow?.points[0].y, 66.0, "Duplicated arrow start y is 66")
+        TestHarness.assertEqual(dupArrow?.points[1].x, 216.0, "Duplicated arrow end x is 216")
+        TestHarness.assertEqual(dupArrow?.points[1].y, 166.0, "Duplicated arrow end y is 166")
+
+        // 3. Text and Blur duplication
+        let textObj = AnnotationObject(
+            tool: .text,
+            bounds: CGRect(x: 50, y: 50, width: 120, height: 40),
+            fontSize: 22.0,
+            text: "Hello World"
+        )
+        engine.addObject(textObj)
+        engine.selectedObjectID = textObj.id
+        let dupText = engine.duplicateSelected()
+        TestHarness.assertEqual(dupText?.text, "Hello World", "Duplicated text string preserved")
+        TestHarness.assertEqual(dupText?.fontSize, 22.0, "Duplicated text fontSize preserved")
+
+        let blurObj = AnnotationObject(
+            tool: .blur,
+            bounds: CGRect(x: 80, y: 80, width: 100, height: 60),
+            blurRadius: 14.0
+        )
+        engine.addObject(blurObj)
+        engine.selectedObjectID = blurObj.id
+        let dupBlur = engine.duplicateSelected()
+        TestHarness.assertEqual(dupBlur?.blurRadius, 14.0, "Duplicated blur radius preserved")
+    }
+
+    private static func testAnnotationObjectDuplicationUndoRedo() {
+        let engine = AnnotationEngine()
+        let rect = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 50, y: 50, width: 100, height: 80)
+        )
+        engine.addObject(rect)
+        TestHarness.assertEqual(engine.objects.count, 1, "Engine initialized with 1 object")
+
+        engine.selectedObjectID = rect.id
+        let dup = engine.duplicateSelected()
+        TestHarness.assertEqual(engine.objects.count, 2, "Duplication added second object")
+        TestHarness.assertEqual(engine.selectedObjectID, dup?.id, "Selection on duplicate")
+
+        // Undo removes duplicate and clears its selection
+        engine.undo()
+        TestHarness.assertEqual(engine.objects.count, 1, "Undo removed duplicated object")
+        TestHarness.assertEqual(engine.objects.first?.id, rect.id, "Original object remains intact")
+
+        // Redo restores duplicate
+        engine.redo()
+        TestHarness.assertEqual(engine.objects.count, 2, "Redo restored duplicated object")
+        TestHarness.assertEqual(engine.objects[1].id, dup?.id, "Restored object has identical UUID")
+
+        // Multi-level cascading duplication
+        let dup2 = engine.duplicateSelected(offset: CGPoint(x: 16, y: 16))
+        let dup3 = engine.duplicateSelected(offset: CGPoint(x: 16, y: 16))
+        TestHarness.assertEqual(engine.objects.count, 4, "Cascading duplications produced 4 objects")
+
+        engine.undo() // reverts dup3
+        engine.undo() // reverts dup2
+        TestHarness.assertEqual(engine.objects.count, 2, "Undoing twice reverts to 2 objects")
+        engine.redo() // restores dup2
+        TestHarness.assertEqual(engine.objects.count, 3, "Redoing restores dup2")
+        TestHarness.assertEqual(engine.objects.last?.id, dup2?.id, "Restored dup2 matches")
+    }
+
+    private static func testAnnotationObjectDuplicationBoundaryClamping() {
+        let engine = AnnotationEngine()
+        let boundary = CGRect(x: 0, y: 0, width: 500, height: 400)
+
+        // Near bottom-right edge: candidate bounds exceed boundary, offset should reverse (-16, -16)
+        let nearEdge = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 450, y: 350, width: 40, height: 40)
+        )
+        engine.addObject(nearEdge)
+        engine.selectedObjectID = nearEdge.id
+
+        let dup = engine.duplicateSelected(offset: CGPoint(x: 16, y: 16), within: boundary)
+        TestHarness.assertNotNil(dup, "Duplicate produced near edge")
+        TestHarness.assertEqual(dup?.bounds.origin.x, 434.0, "Duplicate reversed x offset to 434")
+        TestHarness.assertEqual(dup?.bounds.origin.y, 334.0, "Duplicate reversed y offset to 334")
+        TestHarness.assertTrue(boundary.contains(dup!.bounds), "Duplicate fits entirely within boundary")
+
+        // Object flush with boundary: clamping keeps it inside
+        let flush = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 470, y: 100, width: 25, height: 30)
+        )
+        engine.addObject(flush)
+        engine.selectedObjectID = flush.id
+
+        let dupFlush = engine.duplicateSelected(offset: CGPoint(x: 16, y: 16), within: boundary)
+        TestHarness.assertNotNil(dupFlush, "Flush duplicate produced")
+        TestHarness.assertTrue(dupFlush!.bounds.maxX <= boundary.maxX, "Flush duplicate maxX clamped <= 500")
+
+        // Defect Remediation: Negative offsets and boundary breaches across minX, minY, maxX, maxY
+        // 1. Negative offset breaching minX (< 0): reversal (+20, +0) fits inside boundary
+        let nearMinX = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 10, y: 100, width: 40, height: 40)
+        )
+        engine.addObject(nearMinX)
+        engine.selectedObjectID = nearMinX.id
+        let dupMinX = engine.duplicateSelected(offset: CGPoint(x: -20, y: 0), within: boundary)
+        TestHarness.assertNotNil(dupMinX, "Negative offset minX duplicate produced")
+        TestHarness.assertEqual(dupMinX?.bounds.origin.x, 30.0, "Reversed negative x offset from 10 to 30")
+        TestHarness.assertTrue(dupMinX!.bounds.minX >= boundary.minX, "dupMinX minX >= boundary minX")
+
+        // 2. Negative offset breaching minY (< 0): reversal (0, +20) fits inside boundary
+        let nearMinY = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 100, y: 10, width: 40, height: 40)
+        )
+        engine.addObject(nearMinY)
+        engine.selectedObjectID = nearMinY.id
+        let dupMinY = engine.duplicateSelected(offset: CGPoint(x: 0, y: -20), within: boundary)
+        TestHarness.assertNotNil(dupMinY, "Negative offset minY duplicate produced")
+        TestHarness.assertEqual(dupMinY?.bounds.origin.y, 30.0, "Reversed negative y offset from 10 to 30")
+        TestHarness.assertTrue(dupMinY!.bounds.minY >= boundary.minY, "dupMinY minY >= boundary minY")
+
+        // 3. Negative offset breaching both minX and minY with reversal
+        let nearOrigin = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 10, y: 10, width: 40, height: 40)
+        )
+        engine.addObject(nearOrigin)
+        engine.selectedObjectID = nearOrigin.id
+        let dupOrigin = engine.duplicateSelected(offset: CGPoint(x: -20, y: -20), within: boundary)
+        TestHarness.assertNotNil(dupOrigin, "Negative offset origin duplicate produced")
+        TestHarness.assertEqual(dupOrigin?.bounds.origin.x, 30.0, "Reversed negative offset x to 30")
+        TestHarness.assertEqual(dupOrigin?.bounds.origin.y, 30.0, "Reversed negative offset y to 30")
+        TestHarness.assertTrue(boundary.contains(dupOrigin!.bounds), "dupOrigin contained within boundary")
+
+        // 4. Clamping when both forward and reverse are out of bounds (large object)
+        let largeBoundary = CGRect(x: 0, y: 0, width: 200, height: 200)
+        let largeObj = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 5, y: 5, width: 190, height: 190)
+        )
+        engine.addObject(largeObj)
+        engine.selectedObjectID = largeObj.id
+        // Forward (+16, +16) pushes maxX to 211 > 200, reverse (-16, -16) pushes minX to -11 < 0
+        let dupLargeClamped = engine.duplicateSelected(offset: CGPoint(x: 16, y: 16), within: largeBoundary)
+        TestHarness.assertNotNil(dupLargeClamped, "Large object clamped duplicate produced")
+        TestHarness.assertEqual(dupLargeClamped?.bounds, CGRect(x: 10, y: 10, width: 190, height: 190), "Large object clamped to bounds.maxX - width and bounds.maxY - height")
+
+        // Negative offset on large object clamped to minX and minY
+        let dupLargeNegClamped = engine.duplicateSelected(offset: CGPoint(x: -16, y: -16), within: largeBoundary)
+        TestHarness.assertNotNil(dupLargeNegClamped, "Large object negative clamped duplicate produced")
+        TestHarness.assertEqual(dupLargeNegClamped?.bounds, CGRect(x: 0, y: 0, width: 190, height: 190), "Large object clamped to bounds.minX and bounds.minY")
+
+        // 5. 100 sequential duplications with negative offset stay within boundary
+        let seqEngine = AnnotationEngine(maxHistoryLimit: 200)
+        let seqSeed = AnnotationObject(tool: .rectangle, bounds: CGRect(x: 150, y: 150, width: 30, height: 30))
+        seqEngine.addObject(seqSeed)
+        seqEngine.selectedObjectID = seqSeed.id
+        var allInside = true
+        for _ in 1...100 {
+            guard let clone = seqEngine.duplicateSelected(offset: CGPoint(x: -16, y: -16), within: largeBoundary) else {
+                allInside = false
+                break
+            }
+            if clone.bounds.minX < largeBoundary.minX || clone.bounds.minY < largeBoundary.minY ||
+               clone.bounds.maxX > largeBoundary.maxX || clone.bounds.maxY > largeBoundary.maxY {
+                allInside = false
+                break
+            }
+        }
+        TestHarness.assertTrue(allInside, "100 sequential negative-offset duplications remain inside boundary")
+    }
+
+    private static func testShiftConstrainedAngleSnappingAllOctants() {
+        let center = CGPoint(x: 100, y: 100)
+        let tolerance: CGFloat = 0.05
+
+        // Defensive interval guard test: interval <= 0 returns target unchanged
+        let testTarget = CGPoint(x: 150, y: 120)
+        let zeroInterval = AnnotationObject.snapAngle(from: center, to: testTarget, interval: 0)
+        TestHarness.assertEqual(zeroInterval, testTarget, "snapAngle with interval 0 returns target")
+        let negInterval = AnnotationObject.snapAngle(from: center, to: testTarget, interval: -0.5)
+        TestHarness.assertEqual(negInterval, testTarget, "snapAngle with negative interval returns target")
+
+        // Octant 0: 0 degrees (East) - slight upward drift
+        let east = AnnotationObject.snapAngle(from: center, to: CGPoint(x: 200, y: 105))
+        TestHarness.assertEqual(round(east.x), 200.0, "0 deg snap x is 200")
+        TestHarness.assertEqual(round(east.y), 100.0, "0 deg snap y is 100")
+
+        // Octant 1: 45 degrees (South-East)
+        let se = AnnotationObject.snapAngle(from: center, to: CGPoint(x: 172, y: 168))
+        let seDx = abs(se.x - center.x)
+        let seDy = abs(se.y - center.y)
+        TestHarness.assertTrue(abs(seDx - seDy) < tolerance, "45 deg snap dx == dy")
+
+        // Octant 2: 90 degrees (South)
+        let south = AnnotationObject.snapAngle(from: center, to: CGPoint(x: 104, y: 200))
+        TestHarness.assertEqual(round(south.x), 100.0, "90 deg snap x is 100")
+        TestHarness.assertEqual(round(south.y), 200.0, "90 deg snap y is 200")
+
+        // Octant 3: 135 degrees (South-West)
+        let sw = AnnotationObject.snapAngle(from: center, to: CGPoint(x: 28, y: 172))
+        let swDx = abs(sw.x - center.x)
+        let swDy = abs(sw.y - center.y)
+        TestHarness.assertTrue(abs(swDx - swDy) < tolerance, "135 deg snap dx == dy")
+
+        // Octant 4: 180 degrees (West)
+        let west = AnnotationObject.snapAngle(from: center, to: CGPoint(x: 0, y: 104))
+        TestHarness.assertEqual(round(west.x), 0.0, "180 deg snap x is 0")
+        TestHarness.assertEqual(round(west.y), 100.0, "180 deg snap y is 100")
+
+        // Octant 5: 225 degrees (North-West)
+        let nw = AnnotationObject.snapAngle(from: center, to: CGPoint(x: 28, y: 28))
+        let nwDx = abs(nw.x - center.x)
+        let nwDy = abs(nw.y - center.y)
+        TestHarness.assertTrue(abs(nwDx - nwDy) < tolerance, "225 deg snap dx == dy")
+
+        // Octant 6: 270 degrees (North)
+        let north = AnnotationObject.snapAngle(from: center, to: CGPoint(x: 103, y: 0))
+        TestHarness.assertEqual(round(north.x), 100.0, "270 deg snap x is 100")
+        TestHarness.assertEqual(round(north.y), 0.0, "270 deg snap y is 0")
+
+        // Octant 7: 315 degrees (North-East)
+        let ne = AnnotationObject.snapAngle(from: center, to: CGPoint(x: 172, y: 28))
+        let neDx = abs(ne.x - center.x)
+        let neDy = abs(ne.y - center.y)
+        TestHarness.assertTrue(abs(neDx - neDy) < tolerance, "315 deg snap dx == dy")
+
+        // Length preservation
+        let target = CGPoint(x: 234.5, y: 167.8)
+        let snapped = AnnotationObject.snapAngle(from: center, to: target)
+        let originalLen = hypot(target.x - center.x, target.y - center.y)
+        let snappedLen = hypot(snapped.x - center.x, snapped.y - center.y)
+        TestHarness.assertTrue(abs(originalLen - snappedLen) < 0.001, "Hypotenuse length preserved within 0.001")
+
+        // Sub-pixel guard (< 1.0pt) returns target without crashing
+        let micro = AnnotationObject.snapAngle(from: center, to: CGPoint(x: 100.5, y: 100.4))
+        TestHarness.assertEqual(micro.x, 100.5, "Sub-pixel snap x preserved")
+        TestHarness.assertEqual(micro.y, 100.4, "Sub-pixel snap y preserved")
+    }
+
+    private static func testShiftConstrainedHandleResizeFixedAnchor() {
+        // 1. Box resize via bottomRight with Shift preserves topLeft anchor
+        var rect = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 100, y: 100, width: 200, height: 100)
+        )
+        // Drag bottomRight handle to (350, 250) -> rawDx = 250, rawDy = 150 -> side = 250
+        rect.resize(handle: .bottomRight, to: CGPoint(x: 350, y: 250), shiftConstrained: true)
+        TestHarness.assertEqual(rect.bounds.minX, 100.0, "BottomRight resize preserves minX (topLeft anchor)")
+        TestHarness.assertEqual(rect.bounds.minY, 100.0, "BottomRight resize preserves minY (topLeft anchor)")
+        TestHarness.assertEqual(rect.bounds.width, 250.0, "Shift-constrained box width is 250")
+        TestHarness.assertEqual(rect.bounds.height, 250.0, "Shift-constrained box height is 250")
+
+        // 2. Box resize via topLeft with Shift preserves bottomRight anchor
+        // Current bounds: (100, 100, 250, 250) -> bottomRight anchor is (350, 350)
+        // Drag topLeft handle to (50, 80) -> rawDx = -300, rawDy = -270 -> side = 300
+        rect.resize(handle: .topLeft, to: CGPoint(x: 50, y: 80), shiftConstrained: true)
+        TestHarness.assertEqual(rect.bounds.maxX, 350.0, "TopLeft resize preserves maxX (bottomRight anchor)")
+        TestHarness.assertEqual(rect.bounds.maxY, 350.0, "TopLeft resize preserves maxY (bottomRight anchor)")
+        TestHarness.assertEqual(rect.bounds.width, 300.0, "Shift-constrained box width is 300")
+        TestHarness.assertEqual(rect.bounds.height, 300.0, "Shift-constrained box height is 300")
+
+        // 3. Arrow line handle resize with Shift snaps angle relative to opposite endpoint
+        var arrow = AnnotationObject(
+            tool: .arrow,
+            points: [CGPoint(x: 100, y: 100), CGPoint(x: 200, y: 100)]
+        )
+        // Drag endPoint handle with slight angle to (200, 105)
+        arrow.resize(handle: .endPoint, to: CGPoint(x: 200, y: 105), shiftConstrained: true)
+        TestHarness.assertEqual(arrow.points[0], CGPoint(x: 100, y: 100), "StartPoint remains fixed at (100, 100)")
+        TestHarness.assertEqual(round(arrow.points[1].x), 200.0, "EndPoint snaps x to 200")
+        TestHarness.assertEqual(round(arrow.points[1].y), 100.0, "EndPoint snaps y to 100 (horizontal 0 deg)")
+    }
+
+    private static func testScrollableZoomStepCalculationsAndClamping() {
+        let dummyImage = makeTestCGImage(width: 400, height: 300)
+        let engine = AnnotationEngine()
+        let docView = ScrollableAnnotationDocumentView(baseImage: dummyImage, engine: engine)
+        let scrollView = ScrollableAnnotationScrollView(documentCanvasView: docView)
+
+        TestHarness.assertEqual(scrollView.magnification, 1.0, "Initial magnification is 1.0")
+
+        // Geometric step up (1.25x)
+        scrollView.zoomIn()
+        TestHarness.assertEqual(scrollView.magnification, 1.25, "zoomIn step is 1.25")
+        scrollView.zoomIn()
+        TestHarness.assertEqual(scrollView.magnification, 1.5625, "zoomIn step 2 is 1.5625")
+
+        // Geometric step down
+        scrollView.zoomOut()
+        TestHarness.assertEqual(scrollView.magnification, 1.25, "zoomOut step 1 is 1.25")
+        scrollView.zoomOut()
+        TestHarness.assertTrue(abs(scrollView.magnification - 1.0) < 1e-6, "Round-trip zoomIn/zoomOut returns to 1.0")
+
+        // Max ceiling clamping (4.0)
+        for _ in 0..<15 {
+            scrollView.zoomIn()
+        }
+        TestHarness.assertEqual(scrollView.magnification, 4.0, "zoomIn clamped strictly to max 4.0")
+
+        // Actual size reset
+        scrollView.zoomToActualSize()
+        TestHarness.assertEqual(scrollView.magnification, 1.0, "zoomToActualSize resets to 1.0")
+
+        // Min floor clamping (0.1)
+        for _ in 0..<20 {
+            scrollView.zoomOut()
+        }
+        TestHarness.assertEqual(scrollView.magnification, 0.1, "zoomOut clamped strictly to min 0.1")
+
+        // Zoom ViewModel HUD
+        let zModel = ScrollableZoomViewModel(magnification: 1.0)
+        TestHarness.assertEqual(zModel.magnification, 1.0, "Zoom ViewModel initialized to 1.0")
+        var zoomInTriggered = false
+        zModel.onZoomIn = { zoomInTriggered = true }
+        zModel.onZoomIn?()
+        TestHarness.assertTrue(zoomInTriggered, "Zoom ViewModel onZoomIn callback fired")
+    }
+
+    private static func testMainShotViewKeyboardShortcuts() {
+        // Circular keyboard navigation stepDown & stepUp
+        let visibleCount = 5
+        let downFromZero = ShortcutNavigator.stepDown(currentIndex: 0, visibleCount: visibleCount)
+        TestHarness.assertEqual(downFromZero, 1, "stepDown from 0 is 1")
+
+        let downFromEnd = ShortcutNavigator.stepDown(currentIndex: 4, visibleCount: visibleCount)
+        TestHarness.assertEqual(downFromEnd, 0, "stepDown from 4 wraps circular to 0")
+
+        let upFromZero = ShortcutNavigator.stepUp(currentIndex: 0, visibleCount: visibleCount)
+        TestHarness.assertEqual(upFromZero, 4, "stepUp from 0 wraps circular to 4")
+
+        let upFromNil = ShortcutNavigator.stepUp(currentIndex: nil, visibleCount: visibleCount)
+        TestHarness.assertEqual(upFromNil, 4, "stepUp from nil selects last item (4)")
+
+        let downFromNil = ShortcutNavigator.stepDown(currentIndex: nil, visibleCount: visibleCount)
+        TestHarness.assertEqual(downFromNil, 0, "stepDown from nil selects first item (0)")
+
+        // 1..9 quick mapping
+        let digitEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "3",
+            charactersIgnoringModifiers: "3",
+            isARepeat: false,
+            keyCode: 20
+        )
+        if let event = digitEvent {
+            let digit = ShortcutNavigator.parseShortcut(from: event, searchFieldHasFocus: false)
+            TestHarness.assertEqual(digit, 3, "Parsed digit 3 from key event")
+        }
     }
 }
