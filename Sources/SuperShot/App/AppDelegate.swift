@@ -162,18 +162,25 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         statusItemManager?.dismissPopover()
 
         let mouseLocation = NSEvent.mouseLocation
-        let display = ScreenCaptureManager.shared.provider.display(containing: mouseLocation)
-            ?? ScreenCaptureManager.shared.provider.availableDisplays().first
-        guard let targetDisplay = display else { return }
+        guard let capturedScreen = ScreenCaptureManager.shared.captureScreen(at: mouseLocation)
+                ?? ScreenCaptureManager.shared.captureMainScreen() else {
+            NSLog("SuperShot: Failed to capture screen bitmap for scrolling capture. Check Screen Recording permissions.")
+            return
+        }
 
-        // Start scrolling capture on active screen or center region
-        let defaultRect = CGRect(
-            x: targetDisplay.cocoaFrame.midX - 400,
-            y: targetDisplay.cocoaFrame.midY - 300,
-            width: 800,
-            height: 600
+        // Close any existing overlay so the user can drag-select the exact scrolling region first
+        activeOverlayWindow?.close()
+
+        let overlay = CaptureOverlayWindow(
+            capturedScreen: capturedScreen,
+            appSettings: appSettings,
+            prefersScrollingOnConfirm: true
         )
-        startScrollingCapture(selectionRect: defaultRect, display: targetDisplay)
+        overlay.captureDelegate = self
+        self.activeOverlayWindow = overlay
+
+        overlay.makeKeyAndOrderFront(nil)
+        NSApp.activate(ignoringOtherApps: true)
     }
 
     public func startScrollingCapture(selectionRect: CGRect, display: CaptureDisplayInfo) {
@@ -213,12 +220,15 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         panel.orderFront(nil)
         self.activeStitchedPreviewPanel = panel
 
+        // Re-activate the target application beneath the capture border so manual scroll wheel / trackpad events flow naturally
+        previousAppTracker.previousApp?.activate(options: [])
+
         ScrollingCaptureManager.shared.configuration.maxScrollHeightPx = appSettings.maxScrollHeightPx
         ScrollingCaptureManager.shared.delegate = panel
         _ = ScrollingCaptureManager.shared.startSession(
             selectionRect: selectionRect,
             displayInfo: display,
-            mode: .auto
+            mode: .manual
         )
     }
 

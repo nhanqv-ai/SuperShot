@@ -732,6 +732,10 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         }
 
         if !selectionRect.isEmpty {
+            if (event.keyCode == 36 || event.keyCode == 76) && flags.isEmpty && (windowDelegate?.prefersScrollingOnConfirm == true) {
+                toolbarsViewModel.triggerScrollCapture()
+                return true
+            }
             return ToolbarKeyShortcutHandler.handleKeyEvent(event: event, viewModel: toolbarsViewModel)
         }
         return false

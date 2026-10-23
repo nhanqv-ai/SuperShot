@@ -59,7 +59,7 @@ public struct ScrollingProgress: Sendable, Equatable {
         currentWidthPx: Int = 0,
         currentHeightPx: Int = 0,
         totalScrollDeltaPx: Int = 0,
-        mode: ScrollingCaptureMode = .auto,
+        mode: ScrollingCaptureMode = .manual,
         isAtBottom: Bool = false,
         isMaxHeightReached: Bool = false
     ) {
@@ -285,7 +285,7 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
     public func startSession(
         selectionRect: CGRect,
         displayInfo: CaptureDisplayInfo,
-        mode: ScrollingCaptureMode = .auto
+        mode: ScrollingCaptureMode = .manual
     ) -> Bool {
         stateLock.lock()
         defer { stateLock.unlock() }
