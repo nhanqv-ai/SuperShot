@@ -41,6 +41,8 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     public var currentMousePoint: CGPoint?
     private var trackingAreaRef: NSTrackingArea?
     private var cancellables = Set<AnyCancellable>()
+    private var toolHUDText: String? = nil
+    private var toolHUDTimer: Timer? = nil
 
     public init(
         frame: NSRect,
@@ -124,6 +126,9 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             guard let self = self else { return }
             self.commitActiveTextEditing()
             self.annotationEngine.activeTool = Self.mapTool(toolType)
+            let pt = self.currentMousePoint ?? (self.window.map { self.convert($0.mouseLocationOutsideOfEventStream, from: nil) }) ?? CGPoint(x: self.bounds.midX, y: self.bounds.midY)
+            self.updateCanvasCursor(at: pt)
+            self.showToolSelectionHUD(tool: toolType)
         }
 
         toolbarsViewModel.onColorSelected = { [weak self] hex in
@@ -370,6 +375,11 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             drawDimensionBadge(in: context)
         }
         context.restoreGState()
+
+        // Step 6: Tool selection feedback HUD indicator
+        if let hudText = toolHUDText {
+            drawToolFeedbackHUD(text: hudText, in: context)
+        }
     }
 
     private func drawAnnotations(in context: CGContext) {
@@ -651,6 +661,52 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         ))
     }
 
+    private func showToolSelectionHUD(tool: AnnotationToolType) {
+        toolHUDText = "\(tool.localizedName) (\(tool.mnemonicKey))"
+        needsDisplay = true
+        toolHUDTimer?.invalidate()
+        toolHUDTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: false) { [weak self] _ in
+            self?.toolHUDText = nil
+            self?.needsDisplay = true
+        }
+    }
+
+    private func drawToolFeedbackHUD(text: String, in context: CGContext) {
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
+            .foregroundColor: NSColor.white
+        ]
+        let str = NSAttributedString(string: text, attributes: attrs)
+        let textSize = str.size()
+        let padX: CGFloat = 14.0
+        let padY: CGFloat = 6.0
+        let pillW = textSize.width + padX * 2
+        let pillH = textSize.height + padY * 2
+        let pillRect = CGRect(
+            x: bounds.midX - pillW / 2.0,
+            y: bounds.maxY - pillH - 72.0,
+            width: pillW,
+            height: pillH
+        )
+
+        let pillPath = NSBezierPath(roundedRect: pillRect, xRadius: pillH / 2.0, yRadius: pillH / 2.0)
+        NSColor.black.withAlphaComponent(0.80).setFill()
+        pillPath.fill()
+
+        let borderPath = NSBezierPath(roundedRect: pillRect, xRadius: pillH / 2.0, yRadius: pillH / 2.0)
+        NSColor.white.withAlphaComponent(0.25).setStroke()
+        borderPath.lineWidth = 1.0
+        borderPath.stroke()
+
+        let textRect = CGRect(
+            x: pillRect.midX - textSize.width / 2.0,
+            y: pillRect.midY - textSize.height / 2.0,
+            width: textSize.width,
+            height: textSize.height
+        )
+        str.draw(in: textRect)
+    }
+
     private func drawCrosshairGuides(at point: CGPoint, in context: CGContext) {
         context.saveGState()
         context.setStrokeColor(NSColor.white.withAlphaComponent(0.35).cgColor)
@@ -668,12 +724,26 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     // MARK: - Mouse & Keyboard Interaction
 
     public func handleOverlayKeyDown(with event: NSEvent) -> Bool {
+        // Tier 1: Commit active inline text editing on Esc
         if activeTextField != nil {
             if event.keyCode == 53 || event.keyCode == 36 || event.keyCode == 76 {
                 commitActiveTextEditing()
                 return true
             }
             return false
+        }
+
+        // Tier 2: Escape deselects active vector object if any object is selected
+        if event.keyCode == 53 && annotationEngine.selectedObjectID != nil {
+            annotationEngine.deselectAll()
+            needsDisplay = true
+            return true
+        }
+
+        // Tier 3: Escape reverts active drawing tool to .select if another tool is active
+        if event.keyCode == 53 && toolbarsViewModel.activeTool != .select {
+            toolbarsViewModel.selectTool(.select)
+            return true
         }
 
         // Cmd+D: Duplicate selected vector annotation object

@@ -79,7 +79,7 @@ public struct CaptureSaveSettingsTab: View {
                     }
 
                     HStack(spacing: 4) {
-                        Text("Filename Preview:")
+                        Text(localizationManager.tr(.filenamePreviewLabel))
                             .font(.system(size: 10.5))
                             .foregroundColor(.secondary)
                         Text(sampleFilename())

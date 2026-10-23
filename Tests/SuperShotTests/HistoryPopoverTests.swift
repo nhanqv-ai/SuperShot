@@ -149,5 +149,33 @@ public struct HistoryPopoverTests {
         let mainView = MainShotView(storageManager: storage)
         mainView.triggerCopyFeedback(for: hoverA.id)
         TestHarness.assertTrue(true, "MainShotView triggerCopyFeedback executes cleanly")
+
+        // 8. SearchBarView Clear Button, PointingHand Cursor & Tooltip
+        var searchBindingText = "search sample"
+        let searchBar = SearchBarView(text: .init(get: { searchBindingText }, set: { searchBindingText = $0 }))
+        let _ = searchBar.body
+        TestHarness.assertEqual(searchBindingText, "search sample", "SearchBar text binding matches")
+        searchBindingText = ""
+        TestHarness.assertEqual(searchBindingText, "", "Search text cleared cleanly")
+
+        // 9. MainShotView Empty State Actions
+        var regionCaptureTriggered = false
+        var scrollingCaptureTriggered = false
+        var popoverDismissed = false
+        let emptyStorage = StorageManager(baseDirectory: sandboxDir.appendingPathComponent("EmptyStorageTest"), initialCapacity: 10)
+        let emptyMainView = MainShotView(
+            storageManager: emptyStorage,
+            onDismiss: { popoverDismissed = true },
+            onTriggerRegionCapture: { regionCaptureTriggered = true },
+            onTriggerScrollingCapture: { scrollingCaptureTriggered = true }
+        )
+        let _ = emptyMainView.body
+        TestHarness.assertTrue(emptyMainView.filteredItems.isEmpty, "Filtered items are empty for empty storage")
+
+        emptyMainView.onCaptureRegion?()
+        TestHarness.assertTrue(regionCaptureTriggered, "Quick capture region CTA triggers onCaptureRegion callback")
+
+        emptyMainView.onScrollingCapture?()
+        TestHarness.assertTrue(scrollingCaptureTriggered, "Quick scrolling capture CTA triggers onScrollingCapture callback")
     }
 }

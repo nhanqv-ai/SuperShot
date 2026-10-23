@@ -286,6 +286,18 @@ public enum L10nKey: Sendable {
     case restart
     case downloadingUpdate
 
+    // Polish & Onboarding (v1.0.9)
+    case permissionsSectionTitle
+    case filenamePreviewLabel
+    case clearSearchTooltip
+    case clearSearchButton
+    case quickCaptureRegion
+    case quickCaptureScroll
+    case welcomeTitle
+    case welcomeSubtitle
+    case getStartedButton
+    case welcomeGuideButton
+
     public func localized(for lang: AppLanguage) -> String {
         switch self {
         case .appTitle:
@@ -1945,7 +1957,17 @@ public enum L10nKey: Sendable {
             }
 
         case .licenseLabel:
-            return "License: MIT"
+            switch lang {
+            case .vietnamese: return "Giấy phép:"
+            case .german: return "Lizenz:"
+            case .french: return "Licence :"
+            case .spanish: return "Licencia:"
+            case .japanese: return "ライセンス:"
+            case .simplifiedChinese: return "许可证:"
+            case .traditionalChinese: return "授權:"
+            case .korean: return "라이선스:"
+            default: return "License:"
+            }
 
         case .authorLabel:
             return "SuperShot Contributors"
@@ -2195,6 +2217,136 @@ public enum L10nKey: Sendable {
             case .traditionalChinese: return "正在下載更新..."
             case .korean: return "업데이트 다운로드 중..."
             default: return "Downloading update..."
+            }
+
+        case .permissionsSectionTitle:
+            switch lang {
+            case .vietnamese: return "Quyền truy cập hệ thống"
+            case .german: return "Berechtigungen"
+            case .french: return "Autorisations"
+            case .spanish: return "Permisos"
+            case .japanese: return "システムアクセス許可"
+            case .simplifiedChinese: return "系统权限"
+            case .traditionalChinese: return "系統權限"
+            case .korean: return "시스템 권한"
+            default: return "Permissions"
+            }
+
+        case .filenamePreviewLabel:
+            switch lang {
+            case .vietnamese: return "Xem trước tên tệp:"
+            case .german: return "Dateinamen-Vorschau:"
+            case .french: return "Aperçu du nom de fichier :"
+            case .spanish: return "Vista previa del nombre:"
+            case .japanese: return "ファイル名のプレビュー:"
+            case .simplifiedChinese: return "文件名预览:"
+            case .traditionalChinese: return "檔名預覽:"
+            case .korean: return "파일명 미리보기:"
+            default: return "Filename Preview:"
+            }
+
+        case .clearSearchTooltip:
+            switch lang {
+            case .vietnamese: return "Xóa truy vấn tìm kiếm"
+            case .german: return "Suchbegriff löschen"
+            case .french: return "Effacer la recherche"
+            case .spanish: return "Borrar búsqueda"
+            case .japanese: return "検索クエリを消去"
+            case .simplifiedChinese: return "清除搜索内容"
+            case .traditionalChinese: return "清除搜尋內容"
+            case .korean: return "검색어 지우기"
+            default: return "Clear search query"
+            }
+
+        case .clearSearchButton:
+            switch lang {
+            case .vietnamese: return "Xóa tìm kiếm"
+            case .german: return "Suche löschen"
+            case .french: return "Effacer la recherche"
+            case .spanish: return "Borrar búsqueda"
+            case .japanese: return "検索をクリア"
+            case .simplifiedChinese: return "清除搜索"
+            case .traditionalChinese: return "清除搜尋"
+            case .korean: return "검색 초기화"
+            default: return "Clear Search"
+            }
+
+        case .quickCaptureRegion:
+            switch lang {
+            case .vietnamese: return "Chụp vùng màn hình (⌥S)"
+            case .german: return "Bereich aufnehmen (⌥S)"
+            case .french: return "Capture de zone (⌥S)"
+            case .spanish: return "Captura de área (⌥S)"
+            case .japanese: return "範囲キャプチャ (⌥S)"
+            case .simplifiedChinese: return "区域截图 (⌥S)"
+            case .traditionalChinese: return "區域截圖 (⌥S)"
+            case .korean: return "영역 캡처 (⌥S)"
+            default: return "Area Capture (⌥S)"
+            }
+
+        case .quickCaptureScroll:
+            switch lang {
+            case .vietnamese: return "Chụp cuộn trang (⌥⇧S)"
+            case .german: return "Scrollende Aufnahme (⌥⇧S)"
+            case .french: return "Capture avec défilement (⌥⇧S)"
+            case .spanish: return "Captura con desplazamiento (⌥⇧S)"
+            case .japanese: return "スクロールキャプチャ (⌥⇧S)"
+            case .simplifiedChinese: return "滚动长截图 (⌥⇧S)"
+            case .traditionalChinese: return "滾動長截圖 (⌥⇧S)"
+            case .korean: return "스크롤 캡처 (⌥⇧S)"
+            default: return "Scrolling Capture (⌥⇧S)"
+            }
+
+        case .welcomeTitle:
+            switch lang {
+            case .vietnamese: return "Chào mừng đến với SuperShot"
+            case .german: return "Willkommen bei SuperShot"
+            case .french: return "Bienvenue dans SuperShot"
+            case .spanish: return "Bienvenido a SuperShot"
+            case .japanese: return "SuperShot へようこそ"
+            case .simplifiedChinese: return "欢迎使用 SuperShot"
+            case .traditionalChinese: return "歡迎使用 SuperShot"
+            case .korean: return "SuperShot에 오신 것을 환영합니다"
+            default: return "Welcome to SuperShot"
+            }
+
+        case .welcomeSubtitle:
+            switch lang {
+            case .vietnamese: return "Chụp màn hình chuyên nghiệp, chụp cuộn trang và chú thích vector trực quan."
+            case .german: return "Professionelle Bildschirmaufnahmen, Scroll-Stitching und Vektor-Anmerkungen."
+            case .french: return "Capture d'écran professionnelle, assemblage par défilement et annotations vectorielles."
+            case .spanish: return "Captura de pantalla profesional, unión por desplazamiento y anotaciones vectoriales."
+            case .japanese: return "プロフェッショナルな画面キャプチャ、スクロール結合、ベクター注釈ツール。"
+            case .simplifiedChinese: return "专业的屏幕截图、滚动拼接长截图与即时矢量标注工具。"
+            case .traditionalChinese: return "專業的螢幕截圖、滾動拼接長截圖與即時向量標註工具。"
+            case .korean: return "전문적인 화면 캡처, 스크롤 결합 및 실시간 벡터 주석 도구."
+            default: return "Professional screen capture, scrolling stitching, and in-place vector annotation."
+            }
+
+        case .getStartedButton:
+            switch lang {
+            case .vietnamese: return "Bắt đầu"
+            case .german: return "Loslegen"
+            case .french: return "Commencer"
+            case .spanish: return "Empezar"
+            case .japanese: return "始める"
+            case .simplifiedChinese: return "开始使用"
+            case .traditionalChinese: return "開始使用"
+            case .korean: return "시작하기"
+            default: return "Get Started"
+            }
+
+        case .welcomeGuideButton:
+            switch lang {
+            case .vietnamese: return "Chào mừng & Hướng dẫn nhanh"
+            case .german: return "Willkommen & Schnellanleitung"
+            case .french: return "Bienvenue et guide rapide"
+            case .spanish: return "Bienvenida y guía rápida"
+            case .japanese: return "ようこそ＆クイックガイド"
+            case .simplifiedChinese: return "欢迎与快速指南"
+            case .traditionalChinese: return "歡迎與快速指南"
+            case .korean: return "환영 및 빠른 가이드"
+            default: return "Welcome & Quick Guide"
             }
         }
     }

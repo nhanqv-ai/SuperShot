@@ -26,6 +26,7 @@ public struct FloatingToolbarsTests {
         testPresetUpdateAtCapacity16()
         testEndToEndCaptureOverlayAnnotationCompositing()
         testContextAwareCursorResolution()
+        testHierarchicalEscapeKeyAndToolHUD()
     }
 
     // 1. Tool Mapping & Counts
@@ -490,6 +491,82 @@ public struct FloatingToolbarsTests {
         // 7) Point inside selection in .rectangle drawing mode -> crosshair
         contentView.toolbarsViewModel.selectTool(.rectangle)
         TestHarness.assertTrue(contentView.resolveCanvasCursor(at: insidePoint) === NSCursor.crosshair, "Inside selection in .rectangle mode resolves to crosshair")
+    }
+
+    // 16. Hierarchical 4-Tier Escape Key & Tool Selection Feedback HUD
+    private static func testHierarchicalEscapeKeyAndToolHUD() {
+        let mockProvider = MockScreenCaptureProvider()
+        let manager = ScreenCaptureManager(provider: mockProvider)
+        guard let captured = manager.captureMainScreen() else {
+            TestHarness.recordFail("4-Tier Escape", reason: "Failed to capture mock screen")
+            return
+        }
+        let overlayWindow = CaptureOverlayWindow(capturedScreen: captured, appSettings: AppSettings())
+        guard let contentView = overlayWindow.contentViewRef else {
+            TestHarness.recordFail("4-Tier Escape", reason: "contentViewRef is nil")
+            return
+        }
+
+        let sel = CGRect(x: 200, y: 200, width: 400, height: 300)
+        contentView.selectionRect = sel
+
+        let escEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: overlayWindow.windowNumber,
+            context: nil,
+            characters: "\u{1B}",
+            charactersIgnoringModifiers: "\u{1B}",
+            isARepeat: false,
+            keyCode: 53
+        )!
+
+        // --- Tier 3 Test: Tool is .rectangle, no object selected.
+        // Pressing Esc reverts active tool to .select and does NOT cancel the overlay.
+        contentView.toolbarsViewModel.selectTool(.rectangle)
+        TestHarness.assertEqual(contentView.toolbarsViewModel.activeTool, .rectangle, "Active tool is .rectangle")
+        let handledTier3 = contentView.handleOverlayKeyDown(with: escEvent)
+        TestHarness.assertTrue(handledTier3, "Tier 3 Escape handled")
+        TestHarness.assertEqual(contentView.toolbarsViewModel.activeTool, .select, "Escape reverted tool from .rectangle to .select")
+
+        // --- Tier 2 Test: An annotation object is selected.
+        // Pressing Esc deselects the object and does NOT cancel the overlay.
+        let rectObj = AnnotationObject(
+            tool: .rectangle,
+            points: [CGPoint(x: 250, y: 250), CGPoint(x: 350, y: 350)],
+            bounds: CGRect(x: 250, y: 250, width: 100, height: 100),
+            colorHex: "#FF3B30",
+            strokeWidth: 3.0,
+            fontSize: 16.0
+        )
+        contentView.annotationEngine.addObject(rectObj)
+        contentView.annotationEngine.selectObject(at: CGPoint(x: 250, y: 250))
+        TestHarness.assertTrue(contentView.annotationEngine.selectedObjectID != nil, "Object is selected")
+
+        let handledTier2 = contentView.handleOverlayKeyDown(with: escEvent)
+        TestHarness.assertTrue(handledTier2, "Tier 2 Escape handled")
+        TestHarness.assertTrue(contentView.annotationEngine.selectedObjectID == nil, "Escape deselected active annotation object")
+
+        // --- Tier 4 Test: At tool .select with no selection, Esc triggers cancel.
+        var cancelTriggered = false
+        contentView.toolbarsViewModel.onCancelRequested = { cancelTriggered = true }
+        let handledTier4 = contentView.handleOverlayKeyDown(with: escEvent)
+        TestHarness.assertTrue(handledTier4, "Tier 4 Escape handled")
+        TestHarness.assertTrue(cancelTriggered, "Escape at .select with no selection triggers cancel")
+
+        // Test cursor synchronization on tool selection
+        contentView.toolbarsViewModel.selectTool(.text)
+        let insidePt = CGPoint(x: 300, y: 300)
+        contentView.currentMousePoint = insidePt
+        contentView.toolbarsViewModel.selectTool(.rectangle)
+        let cursorRect = contentView.resolveCanvasCursor(at: insidePt)
+        TestHarness.assertTrue(cursorRect === NSCursor.crosshair, "Cursor synchronizes to crosshair for rectangle tool")
+
+        contentView.toolbarsViewModel.selectTool(.select)
+        let cursorSelect = contentView.resolveCanvasCursor(at: insidePt)
+        TestHarness.assertTrue(cursorSelect === NSCursor.openHand, "Cursor synchronizes to openHand for select tool")
     }
 
     // Helper: Synthetic CGImage Creator

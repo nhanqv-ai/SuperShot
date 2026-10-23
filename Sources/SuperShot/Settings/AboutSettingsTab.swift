@@ -59,7 +59,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.8"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.9"
                 Text(LocalizationManager.shared.tr(.versionLabel(version)))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
@@ -84,7 +84,7 @@ public struct AboutSettingsTab: View {
                 }
 
                 HStack {
-                    Text(localizationManager.effectiveLanguage == .vietnamese ? "Giấy phép:" : "License:")
+                    Text(localizationManager.tr(.licenseLabel))
                         .font(.system(size: 11.5))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -120,6 +120,18 @@ public struct AboutSettingsTab: View {
 
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 8) {
+                    Button(action: {
+                        WelcomeWindowController.shared.showWelcomeWindow()
+                    }) {
+                        HStack(spacing: 4) {
+                            Image(systemName: "book.pages")
+                            Text(LocalizationManager.shared.tr(.welcomeGuideButton))
+                        }
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                    .pointingHandCursor()
+
                     Button(action: {
                         updateManager.checkForUpdates(userInitiated: true)
                     }) {

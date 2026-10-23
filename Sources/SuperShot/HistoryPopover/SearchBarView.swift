@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import SuperShotCore
 
 /// SearchBarView provides an instant search text field with an auto-focus guarantee
 /// upon presentation in MainShotView.
@@ -42,7 +43,8 @@ public struct SearchBarView: View {
                         .foregroundColor(.secondary)
                 }
                 .buttonStyle(.plain)
-                .help("Clear search query")
+                .pointingHandCursor()
+                .help(LocalizationManager.shared.tr(.clearSearchTooltip))
             }
         }
         .padding(.horizontal, 10)

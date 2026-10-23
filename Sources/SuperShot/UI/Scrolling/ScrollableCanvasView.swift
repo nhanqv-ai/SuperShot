@@ -20,12 +20,15 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     public var currentStrokeWidth: CGFloat = 3.0
     public var currentFontSize: CGFloat = 18.0
 
+    public var hasActiveTextEditing: Bool { activeTextField != nil }
     private var activeTextField: NSTextField?
     private var editingObjectID: UUID?
     private var trackingAreaRef: NSTrackingArea?
     private var isDraggingOnCanvas: Bool = false
     public var isPointOverFloatingToolbar: ((CGPoint) -> Bool)?
     private var cancellables = Set<AnyCancellable>()
+    private var toolHUDText: String? = nil
+    private var toolHUDTimer: Timer? = nil
 
     public init(baseImage: CGImage, engine: AnnotationEngine, scale: CGFloat = 2.0) {
         self.baseImage = baseImage
@@ -112,6 +115,62 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         }
     }
 
+    public func updateCanvasCursor(at docPoint: CGPoint? = nil) {
+        let winPt = window?.mouseLocationOutsideOfEventStream ?? .zero
+        let pt = docPoint ?? convert(winPt, from: nil)
+        if let resolved = resolveCanvasCursor(at: pt, windowPoint: winPt) {
+            resolved.set()
+        } else if NSCursor.current != NSCursor.pointingHand {
+            NSCursor.arrow.set()
+        }
+    }
+
+    public func showToolSelectionHUD(tool: AnnotationToolType) {
+        toolHUDText = "\(tool.localizedName) (\(tool.mnemonicKey))"
+        needsDisplay = true
+        toolHUDTimer?.invalidate()
+        toolHUDTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: false) { [weak self] _ in
+            self?.toolHUDText = nil
+            self?.needsDisplay = true
+        }
+    }
+
+    private func drawToolFeedbackHUD(text: String, in visibleRect: CGRect, context: CGContext) {
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 12, weight: .semibold),
+            .foregroundColor: NSColor.white
+        ]
+        let str = NSAttributedString(string: text, attributes: attrs)
+        let textSize = str.size()
+        let padX: CGFloat = 14.0
+        let padY: CGFloat = 6.0
+        let pillW = textSize.width + padX * 2
+        let pillH = textSize.height + padY * 2
+        let pillRect = CGRect(
+            x: visibleRect.midX - pillW / 2.0,
+            y: visibleRect.minY + 24.0,
+            width: pillW,
+            height: pillH
+        )
+
+        let pillPath = NSBezierPath(roundedRect: pillRect, xRadius: pillH / 2.0, yRadius: pillH / 2.0)
+        NSColor.black.withAlphaComponent(0.80).setFill()
+        pillPath.fill()
+
+        let borderPath = NSBezierPath(roundedRect: pillRect, xRadius: pillH / 2.0, yRadius: pillH / 2.0)
+        NSColor.white.withAlphaComponent(0.25).setStroke()
+        borderPath.lineWidth = 1.0
+        borderPath.stroke()
+
+        let textRect = CGRect(
+            x: pillRect.midX - textSize.width / 2.0,
+            y: pillRect.midY - textSize.height / 2.0,
+            width: textSize.width,
+            height: textSize.height
+        )
+        str.draw(in: textRect)
+    }
+
     // MARK: - Viewport Drawing
 
     public override func draw(_ dirtyRect: NSRect) {
@@ -147,6 +206,12 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         // 5. Draw Selection Outlines & Grab Handles
         if let selected = engine.selectedObject, selected.bounds.intersects(dirtyRect) {
             drawSelectionHighlight(for: selected, context: context)
+        }
+
+        // 6. Draw Tool Selection Feedback HUD
+        if let hudText = toolHUDText {
+            let visRect = enclosingScrollView?.documentVisibleRect ?? bounds
+            drawToolFeedbackHUD(text: hudText, in: visRect, context: context)
         }
     }
 
@@ -487,7 +552,13 @@ public final class ScrollableAnnotationScrollView: NSScrollView {
     }
 
     public func zoomToActualSize() {
-        magnification = 1.0
+        guard let _ = documentCanvasView else {
+            magnification = 1.0
+            return
+        }
+        let visibleRect = documentVisibleRect
+        let centerPoint = NSPoint(x: visibleRect.midX, y: visibleRect.midY)
+        setMagnification(1.0, centeredAt: centerPoint)
     }
 
     public func zoomToFitWidth() {
@@ -527,7 +598,7 @@ public struct ScrollableZoomControlsView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Zoom Out (Cmd -)")
+            .help("Zoom Out (⌘-)")
 
             Button(action: { viewModel.onActualSize?() }) {
                 Text("\(Int(round(viewModel.magnification * 100)))%")
@@ -536,7 +607,7 @@ public struct ScrollableZoomControlsView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Actual Size 100% (Cmd 0)")
+            .help("Actual Size 100% (⌘0)")
 
             Button(action: { viewModel.onZoomIn?() }) {
                 Image(systemName: "plus.magnifyingglass")
@@ -545,7 +616,7 @@ public struct ScrollableZoomControlsView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Zoom In (Cmd +)")
+            .help("Zoom In (⌘+)")
 
             Divider()
                 .frame(height: 14)
@@ -558,7 +629,7 @@ public struct ScrollableZoomControlsView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Fit to Width (Cmd 9)")
+            .help("Fit to Width (⌘9)")
 
             Button(action: { viewModel.onActualSize?() }) {
                 Image(systemName: "1.magnifyingglass")
@@ -567,7 +638,7 @@ public struct ScrollableZoomControlsView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Actual Size 100% (Cmd 0)")
+            .help("Actual Size 100% (⌘0)")
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
@@ -713,6 +784,8 @@ public final class ScrollableCanvasView: NSView {
             case .text: self.engine.activeTool = .text
             case .blur: self.engine.activeTool = .blur
             }
+            self.documentView.updateCanvasCursor()
+            self.documentView.showToolSelectionHUD(tool: toolType)
         }
 
         toolbarsViewModel.onColorSelected = { [weak self] hex in
@@ -902,8 +975,25 @@ public final class ScrollableAnnotationWindow: NSWindow {
             return
         }
 
-        // Esc: Close window
+        // Esc: Hierarchical 4-Tier Escape Key
         if keyCode == 53 {
+            // Tier 1: Commit active inline text editing on Esc
+            if canvasView.documentView.hasActiveTextEditing {
+                canvasView.documentView.commitActiveTextEditing()
+                return
+            }
+            // Tier 2: Deselect active vector object if any object is selected
+            if canvasView.engine.selectedObjectID != nil {
+                canvasView.engine.deselectAll()
+                canvasView.documentView.needsDisplay = true
+                return
+            }
+            // Tier 3: Revert active drawing tool to .select if another tool is active
+            if canvasView.toolbarsViewModel.activeTool != .select {
+                canvasView.toolbarsViewModel.selectTool(.select)
+                return
+            }
+            // Tier 4: Dismiss / close window
             close()
             return
         }

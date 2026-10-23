@@ -150,5 +150,31 @@ public struct SettingsViewTests {
         controller.window?.keyDown(with: cmd2Event)
         TestHarness.assertEqual(receivedTab, .captureSave, "Cmd+2 event selects .captureSave tab via notification")
         NotificationCenter.default.removeObserver(observer)
+
+        // 9. WelcomeWindowView & WelcomeWindowController Verification
+        var welcomeDismissed = false
+        let welcomeView = WelcomeView(onDismiss: { welcomeDismissed = true })
+        let _ = welcomeView.body
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.9", "WelcomeView version string is v1.0.9")
+        welcomeView.onDismiss?()
+        TestHarness.assertTrue(welcomeDismissed, "WelcomeView onDismiss executes cleanly")
+
+        let welcomeController = WelcomeWindowController.shared
+        TestHarness.assertNotNil(welcomeController.window, "WelcomeWindowController window instantiated")
+        TestHarness.assertEqual(welcomeController.window?.contentRect(forFrameRect: welcomeController.window!.frame).width, 520, "Welcome window width is 520 pt")
+        TestHarness.assertEqual(welcomeController.window?.contentRect(forFrameRect: welcomeController.window!.frame).height, 460, "Welcome window height is 460 pt")
+
+        // 10. Localization Hygiene Verification across Settings Tabs
+        let locMgr = LocalizationManager.shared
+        TestHarness.assertEqual(locMgr.tr(.permissionsSectionTitle), "Permissions", "permissionsSectionTitle in English")
+        TestHarness.assertEqual(locMgr.tr(.licenseLabel), "License:", "licenseLabel in English")
+        TestHarness.assertEqual(locMgr.tr(.filenamePreviewLabel), "Filename Preview:", "filenamePreviewLabel in English")
+        TestHarness.assertEqual(locMgr.tr(.clearSearchButton), "Clear Search", "clearSearchButton in English")
+        TestHarness.assertEqual(locMgr.tr(.clearSearchTooltip), "Clear search query", "clearSearchTooltip in English")
+        TestHarness.assertEqual(locMgr.tr(.quickCaptureRegion), "Area Capture (⌥S)", "quickCaptureRegion in English")
+        TestHarness.assertEqual(locMgr.tr(.quickCaptureScroll), "Scrolling Capture (⌥⇧S)", "quickCaptureScroll in English")
+        TestHarness.assertEqual(locMgr.tr(.welcomeTitle), "Welcome to SuperShot", "welcomeTitle in English")
+        TestHarness.assertEqual(locMgr.tr(.getStartedButton), "Get Started", "getStartedButton in English")
+        TestHarness.assertEqual(locMgr.tr(.welcomeGuideButton), "Welcome & Quick Guide", "welcomeGuideButton in English")
     }
 }
