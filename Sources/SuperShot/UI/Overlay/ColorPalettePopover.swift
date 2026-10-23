@@ -114,7 +114,7 @@ public struct ColorPalettePopoverView: View {
             }
         }
         .padding(12)
-        .frame(width: 272)
+        .frame(width: 280)
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             hexInputText = appSettings.activeColorHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))

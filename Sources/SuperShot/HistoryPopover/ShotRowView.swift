@@ -114,7 +114,7 @@ public struct ShotRowView: View {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onSave?(item)
             }
-            Button(item.isPinned ? "Unpin" : "Pin") {
+            Button(localizationManager.tr(item.isPinned ? .unpinButton : .pinButton)) {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onTogglePin?(item)
             }
@@ -187,7 +187,7 @@ public struct ShotRowView: View {
                 }
                 .buttonStyle(.plain)
                 .pointingHandCursor()
-                .help(item.isPinned ? "Unpin" : "Pin")
+                .help(localizationManager.tr(item.isPinned ? .unpinButton : .pinButton))
 
                 // Delete Button
                 Button(action: {

@@ -615,7 +615,7 @@ public struct AutoPasteSettingsStressTests {
         let preferredSize = win.contentViewController?.preferredContentSize ?? .zero
         TestHarness.assertEqual(preferredSize.width, 520, "Settings window content preferred width is 520 pt")
         TestHarness.assertEqual(preferredSize.height, 530, "Settings window content preferred height is 530 pt")
-        TestHarness.assertEqual(win.title, "SuperShot Preferences", "Settings window title matches")
+        TestHarness.assertEqual(win.title, LocalizationManager.shared.tr(.menuPreferences), "Settings window title matches localized preferences string")
         TestHarness.assertFalse(win.isReleasedWhenClosed, "Settings window is not released when closed")
 
         controller.showSettings()

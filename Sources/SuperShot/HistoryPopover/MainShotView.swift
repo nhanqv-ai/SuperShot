@@ -177,7 +177,7 @@ public struct MainShotView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Dismiss")
+            .help(localizationManager.tr(.dismissTooltip))
         }
         .padding(.horizontal, 14)
         .padding(.top, 10)

@@ -124,7 +124,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.0.zip` from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.3.zip` from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Unzip and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -274,7 +274,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.0.zip` tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.3.zip` tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Giải nén và kéo file `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

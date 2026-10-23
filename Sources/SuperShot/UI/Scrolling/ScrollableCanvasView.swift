@@ -787,8 +787,8 @@ public final class ScrollableAnnotationWindow: NSWindow {
             return
         }
 
-        // Cmd+C / Return: Copy to clipboard
-        if (flags == .command && keyCode == 8) || (keyCode == 36 && flags.isEmpty) {
+        // Cmd+C / Return / Keypad Enter: Copy to clipboard
+        if (flags == .command && keyCode == 8) || ((keyCode == 36 || keyCode == 76) && flags.isEmpty) {
             canvasView.toolbarsViewModel.triggerCopy()
             return
         }

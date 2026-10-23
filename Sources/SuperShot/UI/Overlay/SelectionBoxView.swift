@@ -411,12 +411,18 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
         let scale = capturedScreen.displayInfo.scaleFactor
         let windowH = bounds.height
-        let cropInPixels = CGRect(
+        let fullImgPixelRect = CGRect(x: 0, y: 0, width: capturedScreen.fullImage.width, height: capturedScreen.fullImage.height)
+        let rawCrop = CGRect(
             x: rect.minX * scale,
             y: (windowH - rect.maxY) * scale,
             width: rect.width * scale,
             height: rect.height * scale
         )
+        let cropInPixels = rawCrop.intersection(fullImgPixelRect)
+        guard cropInPixels.width >= 1, cropInPixels.height >= 1 else {
+            context.restoreGState()
+            return
+        }
 
         let blockSize: CGFloat = 12.0
         let smallW = max(1, Int(ceil(rect.width / blockSize)))
@@ -665,6 +671,45 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             annotationEngine.deleteSelected()
             needsDisplay = true
             return true
+        }
+
+        // Arrow keys (123: Left, 124: Right, 125: Down, 126: Up) nudging
+        let keyCode = event.keyCode
+        if keyCode >= 123 && keyCode <= 126 {
+            let step: CGFloat = event.modifierFlags.contains(.shift) ? 10.0 : 1.0
+            var dx: CGFloat = 0
+            var dy: CGFloat = 0
+            switch keyCode {
+            case 123: dx = -step // Left
+            case 124: dx = step  // Right
+            case 125: dy = -step // Down
+            case 126: dy = step  // Up
+            default: break
+            }
+
+            // If a vector annotation object is selected, nudge the object
+            if annotationEngine.selectedObjectID != nil {
+                annotationEngine.moveSelected(by: CGPoint(x: dx, y: dy))
+                needsDisplay = true
+                return true
+            }
+
+            // Otherwise nudge the entire selection box
+            if !selectionRect.isEmpty {
+                var newRect = selectionRect.offsetBy(dx: dx, dy: dy)
+                newRect.origin.x = max(bounds.minX, min(newRect.origin.x, bounds.maxX - newRect.width))
+                newRect.origin.y = max(bounds.minY, min(newRect.origin.y, bounds.maxY - newRect.height))
+                let actualDx = newRect.origin.x - selectionRect.origin.x
+                let actualDy = newRect.origin.y - selectionRect.origin.y
+                if actualDx != 0 || actualDy != 0 {
+                    for i in 0..<annotationEngine.objects.count {
+                        annotationEngine.objects[i].translate(by: CGPoint(x: actualDx, y: actualDy))
+                    }
+                    selectionRect = newRect
+                    needsDisplay = true
+                }
+                return true
+            }
         }
 
         if !selectionRect.isEmpty {
