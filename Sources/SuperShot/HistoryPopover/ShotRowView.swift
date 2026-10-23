@@ -14,6 +14,7 @@ public struct ShotRowView: View {
     public var onSave: ((ShotItem) -> Void)?
     public var onTogglePin: ((ShotItem) -> Void)?
     public var onDelete: ((ShotItem) -> Void)?
+    public var onHoverChange: ((ShotItem, Bool) -> Void)?
 
     @State private var isHovered: Bool = false
     @ObservedObject private var localizationManager = LocalizationManager.shared
@@ -27,7 +28,8 @@ public struct ShotRowView: View {
         onCopy: ((ShotItem) -> Void)? = nil,
         onSave: ((ShotItem) -> Void)? = nil,
         onTogglePin: ((ShotItem) -> Void)? = nil,
-        onDelete: ((ShotItem) -> Void)? = nil
+        onDelete: ((ShotItem) -> Void)? = nil,
+        onHoverChange: ((ShotItem, Bool) -> Void)? = nil
     ) {
         self.item = item
         self.storageManager = storageManager
@@ -38,6 +40,7 @@ public struct ShotRowView: View {
         self.onSave = onSave
         self.onTogglePin = onTogglePin
         self.onDelete = onDelete
+        self.onHoverChange = onHoverChange
     }
 
     public var body: some View {
@@ -99,10 +102,11 @@ public struct ShotRowView: View {
             withAnimation(.easeInOut(duration: 0.12)) {
                 isHovered = hovering
             }
+            onHoverChange?(item, hovering)
             if hovering {
                 ThumbnailHoverPreviewPanel.shared.show(for: item)
             } else {
-                ThumbnailHoverPreviewPanel.shared.hide()
+                ThumbnailHoverPreviewPanel.shared.hide(forItemId: item.id)
             }
         }
         .contextMenu {
@@ -245,15 +249,18 @@ public struct ShotRowView: View {
     }
 }
 
-/// Thumbnail view supporting in-memory cached loading.
+/// Thumbnail view supporting synchronous in-memory cached loading.
 public struct ShotThumbnailView: View {
     public let item: ShotItem
     public let storageManager: StorageManager?
-    @State private var loadedImage: NSImage?
 
     public init(item: ShotItem, storageManager: StorageManager? = nil) {
         self.item = item
         self.storageManager = storageManager
+    }
+
+    private var thumbnailImage: NSImage? {
+        Self.resolveThumbnail(for: item, storageManager: storageManager)
     }
 
     public var body: some View {
@@ -261,13 +268,14 @@ public struct ShotThumbnailView: View {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .fill(Color.secondary.opacity(0.1))
 
-            if let img = loadedImage {
+            if let img = thumbnailImage {
                 Image(nsImage: img)
                     .resizable()
-                    .aspectRatio(contentMode: .fill)
+                    .aspectRatio(contentMode: .fit)
                     .frame(width: 32, height: 32)
                     .clipped()
                     .clipShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
+                    .id(item.id)
             } else {
                 Image(systemName: "photo")
                     .font(.system(size: 13, weight: .light))
@@ -279,19 +287,9 @@ public struct ShotThumbnailView: View {
             RoundedRectangle(cornerRadius: 4, style: .continuous)
                 .stroke(Color.primary.opacity(0.08), lineWidth: 0.5)
         )
-        .onAppear { loadThumbnail() }
-        .onChange(of: item.id) { _ in
-            loadedImage = nil
-            loadThumbnail()
-        }
     }
 
-    private func loadThumbnail() {
-        if let sm = storageManager, let cgImage = sm.loadThumbnailCGImage(for: item) {
-            self.loadedImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
-            return
-        }
-
+    public static func resolveThumbnail(for item: ShotItem, storageManager: StorageManager?) -> NSImage? {
         let thumbURL: URL
         if let sm = storageManager {
             thumbURL = sm.getThumbnailURL(for: item)
@@ -301,17 +299,26 @@ public struct ShotThumbnailView: View {
         }
 
         if let cached = ThumbnailImageCache.shared.image(for: thumbURL) {
-            self.loadedImage = cached
-            return
+            return cached
         }
 
-        DispatchQueue.global(qos: .userInitiated).async {
-            if let image = NSImage(contentsOf: thumbURL) {
-                ThumbnailImageCache.shared.setImage(image, for: thumbURL)
-                DispatchQueue.main.async {
-                    self.loadedImage = image
-                }
-            }
+        if let sm = storageManager, let cgImage = sm.loadThumbnailCGImage(for: item) {
+            let img = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+            ThumbnailImageCache.shared.setImage(img, for: thumbURL)
+            return img
         }
+
+        if let image = NSImage(contentsOf: thumbURL) {
+            ThumbnailImageCache.shared.setImage(image, for: thumbURL)
+            return image
+        }
+
+        if let sm = storageManager, let fullCG = sm.loadCGImage(for: item) {
+            let img = NSImage(cgImage: fullCG, size: NSSize(width: fullCG.width, height: fullCG.height))
+            ThumbnailImageCache.shared.setImage(img, for: thumbURL)
+            return img
+        }
+
+        return nil
     }
 }
