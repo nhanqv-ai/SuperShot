@@ -15,7 +15,7 @@ public struct WelcomeView: View {
 
     public var appVersionString: String {
         let bundleVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        return "v\(bundleVersion ?? "1.0.14")"
+        return "v\(bundleVersion ?? "1.0.15")"
     }
 
     public var body: some View {
@@ -191,8 +191,11 @@ public struct WelcomeView: View {
     // MARK: - Actions Section
     private var actionsSection: some View {
         HStack {
-            Button(localizationManager.tr(.closeButton)) {
+            Button(action: {
                 onDismiss?()
+            }) {
+                Text(localizationManager.tr(.closeButton))
+                    .contentShape(Rectangle())
             }
             .keyboardShortcut(.cancelAction)
             .buttonStyle(.plain)
@@ -209,6 +212,7 @@ public struct WelcomeView: View {
                     .padding(.vertical, 6)
                     .background(RoundedRectangle(cornerRadius: 6).fill(Color.accentColor))
                     .foregroundColor(.white)
+                    .contentShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
             .keyboardShortcut(.defaultAction)

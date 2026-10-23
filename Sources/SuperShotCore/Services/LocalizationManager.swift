@@ -1359,7 +1359,7 @@ public enum L10nKey: Sendable {
             switch lang {
             case .vietnamese: return "Chụp & Lưu"
             case .german: return "Aufnahme & Speichern"
-            case .french: return "Capture et enregistrement"
+            case .french: return "Capture & Sauvegarde"
             case .spanish: return "Captura y guardado"
             case .japanese: return "撮影と保存"
             case .simplifiedChinese: return "截屏与保存"
@@ -1373,12 +1373,12 @@ public enum L10nKey: Sendable {
             case .vietnamese: return "Quản lý dữ liệu"
             case .german: return "Verlauf"
             case .french: return "Historique"
-            case .spanish: return "Gestión del historial"
+            case .spanish: return "Historial"
             case .japanese: return "履歴管理"
             case .simplifiedChinese: return "历史管理"
             case .traditionalChinese: return "記錄管理"
             case .korean: return "기록 관리"
-            default: return "History Management"
+            default: return "History"
             }
 
         case .tabAbout:

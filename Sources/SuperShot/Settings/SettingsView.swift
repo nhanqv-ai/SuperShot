@@ -193,6 +193,7 @@ public struct SettingsTabButton: View {
                 Text(tab.localizedTitle)
                     .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
                     .lineLimit(1)
+                    .minimumScaleFactor(0.78)
             }
             .foregroundColor(isSelected ? .primary : (isHovered ? .primary.opacity(0.85) : .secondary))
             .frame(minWidth: 108, minHeight: 46)

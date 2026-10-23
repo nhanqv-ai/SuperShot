@@ -177,5 +177,20 @@ public struct HistoryPopoverTests {
 
         emptyMainView.onScrollingCapture?()
         TestHarness.assertTrue(scrollingCaptureTriggered, "Quick scrolling capture CTA triggers onScrollingCapture callback")
+
+        // 10. Slash (/) Shortcut & Focus Search Field Notification (v1.0.15)
+        var searchFocusNotificationReceived = false
+        let searchFocusObserver = NotificationCenter.default.addObserver(
+            forName: Notification.Name("SuperShotFocusSearchField"),
+            object: nil,
+            queue: .main
+        ) { _ in
+            searchFocusNotificationReceived = true
+        }
+
+        let mainViewForKeyboard = MainShotView(storageManager: storage)
+        mainViewForKeyboard.focusSearchField()
+        TestHarness.assertTrue(searchFocusNotificationReceived, "focusSearchField() posts SuperShotFocusSearchField notification")
+        NotificationCenter.default.removeObserver(searchFocusObserver)
     }
 }

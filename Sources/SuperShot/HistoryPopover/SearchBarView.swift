@@ -41,6 +41,8 @@ public struct SearchBarView: View {
                     Image(systemName: "xmark.circle.fill")
                         .font(.system(size: 13))
                         .foregroundColor(.secondary)
+                        .padding(3)
+                        .contentShape(Circle())
                 }
                 .buttonStyle(.plain)
                 .pointingHandCursor()
@@ -59,6 +61,9 @@ public struct SearchBarView: View {
         )
         .onAppear { requestFieldFocus() }
         .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            requestFieldFocus()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: Notification.Name("SuperShotFocusSearchField"))) { _ in
             requestFieldFocus()
         }
     }

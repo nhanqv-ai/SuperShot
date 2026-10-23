@@ -603,6 +603,7 @@ public struct ScrollableZoomControlsView: View {
                 Image(systemName: "minus.magnifyingglass")
                     .font(.system(size: 11, weight: .medium))
                     .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
@@ -611,7 +612,8 @@ public struct ScrollableZoomControlsView: View {
             Button(action: { viewModel.onActualSize?() }) {
                 Text("\(Int(round(viewModel.magnification * 100)))%")
                     .font(.system(size: 11, weight: .semibold).monospacedDigit())
-                    .frame(minWidth: 42)
+                    .frame(minWidth: 42, minHeight: 24)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
@@ -621,6 +623,7 @@ public struct ScrollableZoomControlsView: View {
                 Image(systemName: "plus.magnifyingglass")
                     .font(.system(size: 11, weight: .medium))
                     .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
@@ -634,6 +637,7 @@ public struct ScrollableZoomControlsView: View {
                 Image(systemName: "arrow.left.and.right.to.lines")
                     .font(.system(size: 11, weight: .medium))
                     .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
@@ -643,6 +647,7 @@ public struct ScrollableZoomControlsView: View {
                 Image(systemName: "1.magnifyingglass")
                     .font(.system(size: 11, weight: .medium))
                     .frame(width: 24, height: 24)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .pointingHandCursor()

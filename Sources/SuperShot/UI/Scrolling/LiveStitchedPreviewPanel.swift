@@ -476,6 +476,7 @@ public struct LiveStitchedPreviewContentView: View {
                         .frame(maxWidth: .infinity, minHeight: 26)
                         .background(Color.white.opacity(0.08))
                         .cornerRadius(5)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(PlainButtonStyle())
                 .pointingHandCursor()
@@ -490,6 +491,7 @@ public struct LiveStitchedPreviewContentView: View {
                         .frame(maxWidth: .infinity, minHeight: 26)
                         .background(Color.accentColor)
                         .cornerRadius(5)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(PlainButtonStyle())
                 .pointingHandCursor()
@@ -535,6 +537,7 @@ public struct ModePillButton: View {
                 .frame(maxWidth: .infinity, minHeight: 20)
                 .background(isSelected ? Color.accentColor.opacity(0.85) : Color.white.opacity(0.06))
                 .cornerRadius(4)
+                .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
         .pointingHandCursor()

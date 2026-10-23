@@ -86,6 +86,7 @@ public struct ColorPalettePopoverView: View {
                         .frame(width: 26, height: 26)
                         .background(Color.primary.opacity(0.08))
                         .cornerRadius(4)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(PlainButtonStyle())
                 .pointingHandCursor()
@@ -99,6 +100,7 @@ public struct ColorPalettePopoverView: View {
                         .frame(width: 26, height: 26)
                         .background(Color.primary.opacity(canAddPreset ? 0.08 : 0.03))
                         .cornerRadius(4)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(PlainButtonStyle())
                 .disabled(!canAddPreset)
@@ -227,6 +229,7 @@ public struct PresetSwatchButton: View {
                 }
             }
             .frame(width: 26, height: 26)
+            .contentShape(Circle())
         }
         .buttonStyle(PlainButtonStyle())
         .pointingHandCursor()

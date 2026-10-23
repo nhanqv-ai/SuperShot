@@ -176,6 +176,7 @@ public struct MainShotView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
                     .padding(4)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
@@ -190,6 +191,7 @@ public struct MainShotView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
                     .padding(4)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
@@ -225,6 +227,7 @@ public struct MainShotView: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.secondary)
                     .padding(4)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
@@ -319,6 +322,7 @@ public struct MainShotView: View {
                 }) {
                     Text(localizationManager.tr(.releaseNotes))
                         .font(.system(size: 10))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
@@ -329,6 +333,7 @@ public struct MainShotView: View {
                 }) {
                     Text(localizationManager.tr(.later))
                         .font(.system(size: 10))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
@@ -351,6 +356,7 @@ public struct MainShotView: View {
                     }) {
                         Text(localizationManager.tr(.releaseNotes))
                             .font(.system(size: 10))
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .foregroundColor(.secondary)
@@ -362,6 +368,7 @@ public struct MainShotView: View {
                 }) {
                     Text(localizationManager.tr(.later))
                         .font(.system(size: 10))
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
@@ -525,6 +532,7 @@ public struct MainShotView: View {
                     RoundedRectangle(cornerRadius: 4, style: .continuous)
                         .fill(Color(nsColor: .quaternaryLabelColor).opacity(0.6))
                 )
+                .contentShape(RoundedRectangle(cornerRadius: 4, style: .continuous))
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
@@ -564,6 +572,7 @@ public struct MainShotView: View {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(Color.accentColor.opacity(0.15))
                 )
+                .contentShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
@@ -602,6 +611,7 @@ public struct MainShotView: View {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(Color.accentColor.opacity(0.15))
                     )
+                    .contentShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
                 .pointingHandCursor()
@@ -621,6 +631,7 @@ public struct MainShotView: View {
                         RoundedRectangle(cornerRadius: 6)
                             .fill(Color.secondary.opacity(0.12))
                     )
+                    .contentShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
                 .pointingHandCursor()
@@ -713,6 +724,10 @@ public struct MainShotView: View {
         }
     }
 
+    public func focusSearchField() {
+        NotificationCenter.default.post(name: Notification.Name("SuperShotFocusSearchField"), object: nil)
+    }
+
     private func handleReturnKey() {
         if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
             selectItem(visibleItems[idx])
@@ -737,6 +752,12 @@ public struct MainShotView: View {
                 }
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onDismiss?()
+                return nil
+            }
+
+            // 1b. Slash (44 / "/"): Focus search field when navigating history items
+            if !isSearchFocused && flags.isEmpty && (event.keyCode == 44 || event.characters == "/" || event.charactersIgnoringModifiers == "/") {
+                NotificationCenter.default.post(name: Notification.Name("SuperShotFocusSearchField"), object: nil)
                 return nil
             }
 

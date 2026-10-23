@@ -242,7 +242,8 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M22 | UX Polish, 4-Tier Escape, Welcome Window & v1.0.9 | Search/empty state polish, 4-tier escape & tool HUD, zoom centering, WelcomeWindow, L10n hygiene, v1.0.9 bump | M21 | DONE |
 | M24 | Survey, Live GUI Audit & Pipeline Audit (v1.0.10) | Live GUI Driver execution, snapshot analysis, UX polish identification, release readiness | M22 | DONE |
 | M25 | UX Polish, Sizing Helper, Bracket Shortcuts & v1.0.10 Bump | Implement 6 proactive UX refinements, 9-language l10n, bump 6+1 version files to 1.0.10, tests | M24 | DONE |
-| M26 | Automated Release Pipeline v1.0.10 & Live App Relaunch | Git branch, PR create/merge, clean build, Universal 2 zip & dmg release, app relaunch | M25 | IN_PROGRESS |
+| M26 | Automated Release Pipeline v1.0.10 & Live App Relaunch | Git branch, PR create/merge, clean build, Universal 2 zip & dmg release, app relaunch | M25 | DONE |
+| M28 | Proactive UX Polish, Hit-Target Refinement & Version Bump to v1.0.15 | Settings tab truncation fix, explicit contentShape across buttons/pills, Cmd+A / Arrow nudge / '/' shortcuts, version bump to v1.0.15 | M26 | DONE |
 
 ## Interface Contracts
 
