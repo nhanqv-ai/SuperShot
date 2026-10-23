@@ -60,17 +60,16 @@ public struct BuildIntegrityTests {
     }
     
     private static func testLipoArchitectureVerificationLogic() {
-        // Simulates lipo -archs parsing: must contain both arm64 and x86_64
-        let validArchsOutput = "arm64 x86_64\n"
+        // Simulates lipo -archs parsing: must be pure native Apple Silicon (arm64) with no Intel (x86_64) slice
+        let validArchsOutput = "arm64\n"
         let archsList = validArchsOutput.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: .whitespaces)
-        let hasArm64 = archsList.contains("arm64")
-        let hasX86_64 = archsList.contains("x86_64")
-        TestHarness.assertTrue(hasArm64 && hasX86_64, "Universal 2 binary arch verification detects both arm64 and x86_64 slices")
+        let isPureArm64 = archsList.contains("arm64") && !archsList.contains("x86_64")
+        TestHarness.assertTrue(isPureArm64, "Native Apple Silicon binary arch verification confirms pure arm64 without legacy Intel x86_64 slice")
         
-        let invalidArchsOutput = "arm64\n"
-        let singleArchList = invalidArchsOutput.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: .whitespaces)
-        let failsSingle = singleArchList.contains("arm64") && singleArchList.contains("x86_64")
-        TestHarness.assertFalse(failsSingle, "Single-architecture binary correctly fails Universal 2 check")
+        let legacyArchsOutput = "arm64 x86_64\n"
+        let legacyArchList = legacyArchsOutput.trimmingCharacters(in: .whitespacesAndNewlines).components(separatedBy: .whitespaces)
+        let failsLegacyIntel = legacyArchList.contains("arm64") && !legacyArchList.contains("x86_64")
+        TestHarness.assertFalse(failsLegacyIntel, "Binary containing x86_64 Intel component is rejected by pure Apple Silicon check")
     }
     
     private static func testLSUIElementSpecification() {

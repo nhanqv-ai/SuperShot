@@ -211,7 +211,7 @@ public struct SettingsViewTests {
         var welcomeDismissed = false
         let welcomeView = WelcomeView(onDismiss: { welcomeDismissed = true })
         let _ = welcomeView.body
-        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.10", "WelcomeView version string is v1.0.10")
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.11", "WelcomeView version string is v1.0.11")
         welcomeView.onDismiss?()
         TestHarness.assertTrue(welcomeDismissed, "WelcomeView onDismiss executes cleanly")
 

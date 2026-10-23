@@ -9,7 +9,7 @@ set -euo pipefail
 # Step 3: Info.plist structure, LSUIElement=true, and bundle metadata keys
 # Step 4: PkgInfo 8-byte signature exact match (APPL????)
 # Step 5: Multi-resolution AppIcon.icns asset integrity
-# Step 6: Mach-O Universal 2 (arm64 + x86_64) architecture and runtime rpath linkage
+# Step 6: Mach-O Native Apple Silicon (arm64) architecture and runtime rpath linkage
 # Step 7: Inside-out ad-hoc code signature verification
 # Step 8: Isolated headless runtime launch and clean SIGTERM termination
 # ==============================================================================
@@ -151,22 +151,22 @@ if ! strings "$APP_ICON" | grep -E 'ic(04|05|07|08|09|10|11|12|13|14)' > /dev/nu
 fi
 echo "AppIcon.icns verified: valid multi-resolution Mac OS X icon ($ICON_SIZE bytes)"
 
-# --- Step 6: Mach-O Universal 2 (arm64 + x86_64) Architecture & Linkage Check ---
+# --- Step 6: Mach-O Native Apple Silicon (arm64) Architecture & Linkage Check ---
 echo ""
-echo "--- Step 6: Verifying Mach-O Binary Architecture & Linkage ---"
+echo "--- Step 6: Verifying Mach-O Native Apple Silicon (arm64) Architecture & Linkage ---"
 EXE_LIPO=$(lipo -info "$MACOS_BIN" 2>&1)
-if ! echo "$EXE_LIPO" | grep -q "arm64" || ! echo "$EXE_LIPO" | grep -q "x86_64"; then
-    echo "ERROR: Executable is not Universal 2 (missing arm64 or x86_64): $EXE_LIPO"
+if ! echo "$EXE_LIPO" | grep -q "arm64" || echo "$EXE_LIPO" | grep -q "x86_64"; then
+    echo "ERROR: Executable must be pure Apple Silicon (arm64) with no Intel (x86_64) component: $EXE_LIPO"
     exit 1
 fi
-echo "Mach-O Universal 2 executable architecture verified ($EXE_LIPO)."
+echo "Mach-O Native Apple Silicon (arm64) executable architecture verified ($EXE_LIPO)."
 
 DYLIB_LIPO=$(lipo -info "$FRAMEWORK_DYLIB" 2>&1)
-if ! echo "$DYLIB_LIPO" | grep -q "arm64" || ! echo "$DYLIB_LIPO" | grep -q "x86_64"; then
-    echo "ERROR: libSuperShotCore.dylib is not Universal 2 (missing arm64 or x86_64): $DYLIB_LIPO"
+if ! echo "$DYLIB_LIPO" | grep -q "arm64" || echo "$DYLIB_LIPO" | grep -q "x86_64"; then
+    echo "ERROR: libSuperShotCore.dylib must be pure Apple Silicon (arm64) with no Intel (x86_64) component: $DYLIB_LIPO"
     exit 1
 fi
-echo "Framework Mach-O Universal 2 architecture verified ($DYLIB_LIPO)."
+echo "Framework Mach-O Native Apple Silicon (arm64) architecture verified ($DYLIB_LIPO)."
 
 if ! otool -D "$FRAMEWORK_DYLIB" | grep -q "@rpath/libSuperShotCore.dylib"; then
     echo "ERROR: libSuperShotCore.dylib install name mismatch: $(otool -D "$FRAMEWORK_DYLIB")"
@@ -236,24 +236,6 @@ echo "SuperShot process (PID $APP_PID) initialized and running cleanly without d
 kill -TERM "$APP_PID" 2>/dev/null || kill "$APP_PID" 2>/dev/null
 wait "$APP_PID" 2>/dev/null || true
 echo "SuperShot process terminated cleanly on SIGTERM."
-
-if [ "$(uname -m)" = "arm64" ] && arch -x86_64 /usr/bin/true 2>/dev/null; then
-    echo "Verifying x86_64 architecture headless launch under Rosetta 2..."
-    arch -x86_64 "$MACOS_BIN" > "$ISOLATED_DIR/stdout_x86.log" 2> "$ISOLATED_DIR/stderr_x86.log" &
-    APP_PID_X86=$!
-    sleep 1.0
-    if ! kill -0 "$APP_PID_X86" 2>/dev/null; then
-        echo "ERROR: SuperShot x86_64 slice exited prematurely upon headless launch"
-        if [ -s "$ISOLATED_DIR/stderr_x86.log" ]; then
-            cat "$ISOLATED_DIR/stderr_x86.log"
-        fi
-        exit 1
-    fi
-    echo "SuperShot x86_64 process (PID $APP_PID_X86) initialized and running cleanly without dynamic link errors."
-    kill -TERM "$APP_PID_X86" 2>/dev/null || kill "$APP_PID_X86" 2>/dev/null
-    wait "$APP_PID_X86" 2>/dev/null || true
-    echo "SuperShot x86_64 process terminated cleanly on SIGTERM."
-fi
 
 cd "$PROJECT_ROOT"
 trap - EXIT
