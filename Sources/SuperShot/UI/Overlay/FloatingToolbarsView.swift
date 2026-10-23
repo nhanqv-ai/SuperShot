@@ -173,6 +173,7 @@ public final class FloatingToolbarsViewModel: ObservableObject {
 public struct VerticalAnnotationToolbarView: View {
     @ObservedObject public var viewModel: FloatingToolbarsViewModel
     @ObservedObject public var appSettings: AppSettings
+    @ObservedObject private var localizationManager = LocalizationManager.shared
 
     public init(viewModel: FloatingToolbarsViewModel, appSettings: AppSettings) {
         self.viewModel = viewModel
@@ -273,6 +274,7 @@ public struct VerticalAnnotationToolbarView: View {
 
 public struct HorizontalActionToolbarView: View {
     @ObservedObject public var viewModel: FloatingToolbarsViewModel
+    @ObservedObject private var localizationManager = LocalizationManager.shared
 
     public init(viewModel: FloatingToolbarsViewModel) {
         self.viewModel = viewModel
@@ -337,6 +339,7 @@ public struct HorizontalActionToolbarView: View {
 
 public struct StrokeWidthPopoverView: View {
     @ObservedObject public var appSettings: AppSettings
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     public let strokeWidthOptions: [Double] = [1.0, 2.0, 3.0, 5.0, 8.0, 12.0]
     public let fontSizeOptions: [Double] = [12.0, 14.0, 18.0, 24.0, 36.0, 48.0]
     public var onStrokeWidthChanged: ((Double) -> Void)?
@@ -404,6 +407,7 @@ public struct StrokeWidthPopoverView: View {
         }
         .padding(10)
         .frame(width: 210)
+        .background(Color(nsColor: .windowBackgroundColor))
     }
 }
 

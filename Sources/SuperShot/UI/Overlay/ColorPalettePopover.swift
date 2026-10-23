@@ -6,6 +6,7 @@ import SuperShotCore
 
 public struct ColorPalettePopoverView: View {
     @ObservedObject public var appSettings: AppSettings
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     @State private var hexInputText: String = ""
     @State private var isHexValid: Bool = true
     @State private var feedbackMessage: String?
@@ -112,6 +113,7 @@ public struct ColorPalettePopoverView: View {
         }
         .padding(12)
         .frame(width: 272)
+        .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
             hexInputText = appSettings.activeColorHex.trimmingCharacters(in: CharacterSet(charactersIn: "#"))
         }
@@ -190,6 +192,7 @@ public struct ColorPalettePopoverView: View {
 // MARK: - Individual Swatch Button with Context Menu
 
 public struct PresetSwatchButton: View {
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     public let preset: ColorPreset
     public let isSelected: Bool
     public let onSelect: () -> Void

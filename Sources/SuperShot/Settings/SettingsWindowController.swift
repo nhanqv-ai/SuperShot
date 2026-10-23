@@ -72,7 +72,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         fatalError("init(coder:) has not been implemented")
     }
 
-    public func setupContentView() {
+    public func setupContentView(initialTab: SettingsTab = .general) {
         guard let window = self.window else { return }
 
         let settingsView = SettingsView(
@@ -82,6 +82,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
             launchAtLoginManager: launchAtLoginManager,
             autoPasteService: autoPasteService,
             permissionManager: permissionManager,
+            initialTab: initialTab,
             onClose: { [weak self] in
                 self?.close()
             }
@@ -91,15 +92,16 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         window.contentViewController = hostingController
     }
 
-    public func showSettings() {
+    public func showSettings(tab: SettingsTab = .general) {
         guard Thread.isMainThread else {
             DispatchQueue.main.async { [weak self] in
-                self?.showSettings()
+                self?.showSettings(tab: tab)
             }
             return
         }
 
         onPresentationDismissalRequested?()
+        setupContentView(initialTab: tab)
 
         guard let window = self.window else { return }
 

@@ -214,6 +214,17 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
         button.performClick(nil)
     }
 
+    public func menuNeedsUpdate(_ menu: NSMenu) {
+        guard menu == contextMenu, menu.items.count >= 9 else { return }
+        menu.items[0].title = LocalizationManager.shared.tr(.menuCapture)
+        menu.items[1].title = LocalizationManager.shared.tr(.menuScrollingCapture)
+        menu.items[2].title = LocalizationManager.shared.tr(.menuShowHistory)
+        menu.items[3].title = LocalizationManager.shared.tr(.menuPreferences)
+        menu.items[5].title = LocalizationManager.shared.tr(.menuClearHistory)
+        menu.items[6].title = LocalizationManager.shared.tr(.menuCheckUpdates)
+        menu.items[8].title = LocalizationManager.shared.tr(.menuQuit)
+    }
+
     public func menuDidClose(_ menu: NSMenu) {
         if menu == contextMenu {
             statusItem.menu = nil

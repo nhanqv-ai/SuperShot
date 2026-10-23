@@ -5,12 +5,14 @@ import SuperShotCore
 
 public struct AboutSettingsTab: View {
     @ObservedObject public var appSettings: AppSettings
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     public var storageManager: StorageManager
     public var hotKeyManager: any HotKeyManaging
     public var launchAtLoginManager: any LaunchAtLoginManaging
 
     @State private var showingResetAllConfirmation: Bool = false
     @State private var isCheckingForUpdates: Bool = false
+    @State private var updateStatusMessage: String? = nil
 
     public init(
         appSettings: AppSettings,
@@ -56,7 +58,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.0"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.1"
                 Text(LocalizationManager.shared.tr(.versionLabel(version)))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
@@ -81,7 +83,7 @@ public struct AboutSettingsTab: View {
                 }
 
                 HStack {
-                    Text("License:")
+                    Text(localizationManager.effectiveLanguage == .vietnamese ? "Giấy phép:" : "License:")
                         .font(.system(size: 11.5))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -117,8 +119,10 @@ public struct AboutSettingsTab: View {
             HStack {
                 Button(action: {
                     isCheckingForUpdates = true
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+                    updateStatusMessage = nil
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
                         isCheckingForUpdates = false
+                        updateStatusMessage = LocalizationManager.shared.tr(.upToDate)
                     }
                 }) {
                     HStack(spacing: 4) {
@@ -134,6 +138,12 @@ public struct AboutSettingsTab: View {
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+
+                if let msg = updateStatusMessage {
+                    Text(msg)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.green)
+                }
 
                 Spacer()
 

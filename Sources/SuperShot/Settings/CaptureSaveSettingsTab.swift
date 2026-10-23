@@ -4,6 +4,7 @@ import SuperShotCore
 
 public struct CaptureSaveSettingsTab: View {
     @ObservedObject public var appSettings: AppSettings
+    @ObservedObject private var localizationManager = LocalizationManager.shared
 
     @State private var newPresetHex: String = ""
     @State private var showingHexError: Bool = false
@@ -31,6 +32,7 @@ public struct CaptureSaveSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.saveModePrompt)).tag(false)
                 Text(LocalizationManager.shared.tr(.saveModeAuto)).tag(true)
             }
+            .labelsHidden()
             .pickerStyle(.radioGroup)
 
             if appSettings.autoSaveEnabled {
@@ -63,6 +65,7 @@ public struct CaptureSaveSettingsTab: View {
                             Text(LocalizationManager.shared.tr(.formatPNG)).tag(ImageSaveFormat.png)
                             Text(LocalizationManager.shared.tr(.formatJPEG)).tag(ImageSaveFormat.jpeg)
                         }
+                        .labelsHidden()
                         .pickerStyle(.segmented)
                         .frame(width: 160)
 

@@ -38,6 +38,8 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     private var horizontalToolbarHost: NSHostingView<HorizontalActionToolbarView>?
     private var activeTextField: NSTextField?
     private var editingObjectID: UUID?
+    public var currentMousePoint: CGPoint?
+    private var trackingAreaRef: NSTrackingArea?
     private var cancellables = Set<AnyCancellable>()
 
     public init(
@@ -62,6 +64,21 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     }
 
     public override var acceptsFirstResponder: Bool { true }
+
+    public override func updateTrackingAreas() {
+        super.updateTrackingAreas()
+        if let existing = trackingAreaRef {
+            removeTrackingArea(existing)
+        }
+        let area = NSTrackingArea(
+            rect: bounds,
+            options: [.mouseMoved, .activeAlways, .inVisibleRect],
+            owner: self,
+            userInfo: nil
+        )
+        addTrackingArea(area)
+        trackingAreaRef = area
+    }
 
     // MARK: - Floating Toolbars Setup
 
@@ -303,6 +320,10 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
         if selectionRect.isEmpty {
             bounds.fill()
+            drawInstructionBanner(in: context)
+            if let mousePt = currentMousePoint {
+                drawCrosshairGuides(at: mousePt, in: context)
+            }
         } else {
             let dimPath = NSBezierPath(rect: bounds)
             dimPath.append(NSBezierPath(rect: selectionRect))
@@ -382,24 +403,72 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
     private func drawBlurAnnotation(obj: AnnotationObject, in context: CGContext) {
         context.saveGState()
+        let rect = obj.bounds.intersection(bounds)
+        guard rect.width > 1, rect.height > 1 else {
+            context.restoreGState()
+            return
+        }
+
+        let scale = capturedScreen.displayInfo.scaleFactor
+        let windowH = bounds.height
+        let cropInPixels = CGRect(
+            x: rect.minX * scale,
+            y: (windowH - rect.maxY) * scale,
+            width: rect.width * scale,
+            height: rect.height * scale
+        )
+
         let blockSize: CGFloat = 12.0
-        let cols = max(1, Int(ceil(obj.bounds.width / blockSize)))
-        let rows = max(1, Int(ceil(obj.bounds.height / blockSize)))
+        let smallW = max(1, Int(ceil(rect.width / blockSize)))
+        let smallH = max(1, Int(ceil(rect.height / blockSize)))
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+
+        if let cropped = capturedScreen.fullImage.cropping(to: cropInPixels),
+           let smallCtx = CGContext(
+               data: nil,
+               width: smallW,
+               height: smallH,
+               bitsPerComponent: 8,
+               bytesPerRow: smallW * 4,
+               space: colorSpace,
+               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+           ) {
+            smallCtx.interpolationQuality = .medium
+            smallCtx.draw(cropped, in: CGRect(x: 0, y: 0, width: smallW, height: smallH))
+            if let pixelated = smallCtx.makeImage() {
+                context.interpolationQuality = .none
+                context.draw(pixelated, in: rect)
+                context.setStrokeColor(NSColor.white.withAlphaComponent(0.35).cgColor)
+                context.setLineWidth(1.0)
+                context.setLineDash(phase: 0, lengths: [3, 3])
+                context.stroke(rect)
+                context.restoreGState()
+                return
+            }
+        }
+
+        // Fallback mosaic grid if cropping fails
+        let cols = max(1, Int(ceil(rect.width / blockSize)))
+        let rows = max(1, Int(ceil(rect.height / blockSize)))
         for r in 0..<rows {
             for c in 0..<cols {
-                let cellX = obj.bounds.minX + CGFloat(c) * blockSize
-                let cellY = obj.bounds.minY + CGFloat(r) * blockSize
+                let cellX = rect.minX + CGFloat(c) * blockSize
+                let cellY = rect.minY + CGFloat(r) * blockSize
                 let cell = CGRect(
                     x: cellX,
                     y: cellY,
-                    width: min(blockSize, obj.bounds.maxX - cellX),
-                    height: min(blockSize, obj.bounds.maxY - cellY)
+                    width: min(blockSize, rect.maxX - cellX),
+                    height: min(blockSize, rect.maxY - cellY)
                 )
                 let shade = ((r + c) % 2 == 0) ? 0.45 : 0.55
                 context.setFillColor(gray: shade, alpha: 0.90)
                 context.fill(cell)
             }
         }
+        context.setStrokeColor(NSColor.white.withAlphaComponent(0.35).cgColor)
+        context.setLineWidth(1.0)
+        context.setLineDash(phase: 0, lengths: [3, 3])
+        context.stroke(rect)
         context.restoreGState()
     }
 
@@ -442,7 +511,13 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
             let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: nsColor]
             let attrStr = NSAttributedString(string: obj.text, attributes: attrs)
-            attrStr.draw(in: CGRect(x: obj.bounds.minX, y: obj.bounds.minY, width: max(200, obj.bounds.width), height: max(obj.fontSize * 1.5, obj.bounds.height)))
+            let textSize = attrStr.size()
+            attrStr.draw(in: CGRect(
+                x: obj.bounds.minX,
+                y: obj.bounds.minY,
+                width: max(textSize.width + 12, obj.bounds.width),
+                height: max(textSize.height + 8, obj.bounds.height)
+            ))
         case .blur, .select:
             break
         }
@@ -523,6 +598,55 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             height: textSize.height
         )
         str.draw(in: textRect)
+    }
+
+    private func drawInstructionBanner(in context: CGContext) {
+        let instruction = LocalizationManager.shared.tr(.captureOverlayInstruction)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: NSFont.systemFont(ofSize: 13, weight: .medium),
+            .foregroundColor: NSColor.white
+        ]
+        let str = NSAttributedString(string: instruction, attributes: attrs)
+        let textSize = str.size()
+        let padX: CGFloat = 18.0
+        let padY: CGFloat = 9.0
+        let pillW = textSize.width + padX * 2
+        let pillH = textSize.height + padY * 2
+        let pillRect = CGRect(
+            x: bounds.midX - pillW / 2.0,
+            y: bounds.maxY - pillH - 42.0,
+            width: pillW,
+            height: pillH
+        )
+
+        let pillPath = NSBezierPath(roundedRect: pillRect, xRadius: pillH / 2.0, yRadius: pillH / 2.0)
+        NSColor.black.withAlphaComponent(0.72).setFill()
+        pillPath.fill()
+
+        NSColor.white.withAlphaComponent(0.22).setStroke()
+        pillPath.lineWidth = 1.0
+        pillPath.stroke()
+
+        str.draw(in: CGRect(
+            x: pillRect.minX + padX,
+            y: pillRect.minY + padY,
+            width: textSize.width,
+            height: textSize.height
+        ))
+    }
+
+    private func drawCrosshairGuides(at point: CGPoint, in context: CGContext) {
+        context.saveGState()
+        context.setStrokeColor(NSColor.white.withAlphaComponent(0.35).cgColor)
+        context.setLineWidth(1.0)
+        context.setLineDash(phase: 0, lengths: [4, 4])
+        context.strokeLineSegments(between: [
+            CGPoint(x: bounds.minX, y: point.y),
+            CGPoint(x: bounds.maxX, y: point.y),
+            CGPoint(x: point.x, y: bounds.minY),
+            CGPoint(x: point.x, y: bounds.maxY)
+        ])
+        context.restoreGState()
     }
 
     // MARK: - Mouse & Keyboard Interaction
@@ -692,6 +816,10 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
     public override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
+        currentMousePoint = point
+        if selectionRect.isEmpty {
+            needsDisplay = true
+        }
         if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
             handle.cursor.set()
         } else if selectionRect.contains(point) {
