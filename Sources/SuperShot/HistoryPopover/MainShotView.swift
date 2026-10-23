@@ -21,6 +21,9 @@ public struct MainShotView: View {
     @State private var shouldScrollToSelection: Bool = false
     @State private var localKeyMonitor: Any? = nil
     @State private var hostWindow: NSWindow? = nil
+    @State private var copiedItemId: UUID? = nil
+    @State private var showCopiedToast: Bool = false
+    @State private var copyFeedbackTask: Task<Void, Never>? = nil
 
     public init(
         storageManager: StorageManager,
@@ -73,14 +76,44 @@ public struct MainShotView: View {
 
     public var body: some View {
         ScrollViewReader { proxy in
-            VStack(spacing: 0) {
-                headerBar
-                searchBarSection
-                if updateManager.shouldShowBanner {
-                    updateBannerView
+            ZStack(alignment: .bottom) {
+                VStack(spacing: 0) {
+                    headerBar
+                    searchBarSection
+                    if updateManager.shouldShowBanner {
+                        updateBannerView
+                    }
+                    Divider().opacity(0.6)
+                    contentSection(scrollProxy: proxy)
                 }
-                Divider().opacity(0.6)
-                contentSection(scrollProxy: proxy)
+
+                if showCopiedToast {
+                    HStack(spacing: 6) {
+                        Image(systemName: "checkmark.circle.fill")
+                            .foregroundColor(.green)
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(localizationManager.tr(.copiedToClipboard))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color(nsColor: .windowBackgroundColor))
+                            .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 3)
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.green.opacity(0.4), lineWidth: 1)
+                    )
+                    .padding(.bottom, 12)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.85).combined(with: .opacity),
+                        removal: .opacity
+                    ))
+                    .zIndex(100)
+                }
             }
             .frame(width: 380, height: 560)
             .background(
@@ -384,6 +417,7 @@ public struct MainShotView: View {
                                 storageManager: storageManager,
                                 shortcutIndex: ShortcutNavigator.shortcutIndex(for: item, in: visibleItems),
                                 isSelected: item.id == selectedItemId,
+                                isRecentlyCopied: item.id == copiedItemId,
                                 onSelect: { selectItem($0) },
                                 onCopy: { copyItem($0) },
                                 onSave: { saveItem($0) },
@@ -409,6 +443,7 @@ public struct MainShotView: View {
                                 storageManager: storageManager,
                                 shortcutIndex: ShortcutNavigator.shortcutIndex(for: item, in: visibleItems),
                                 isSelected: item.id == selectedItemId,
+                                isRecentlyCopied: item.id == copiedItemId,
                                 onSelect: { selectItem($0) },
                                 onCopy: { copyItem($0) },
                                 onSave: { saveItem($0) },
@@ -564,6 +599,27 @@ public struct MainShotView: View {
         pb.setData(data, forType: .png)
         if let img = NSImage(data: data), let tiff = img.tiffRepresentation {
             pb.setData(tiff, forType: .tiff)
+        }
+
+        triggerCopyFeedback(for: item.id)
+    }
+
+    public func triggerCopyFeedback(for itemId: UUID) {
+        copyFeedbackTask?.cancel()
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            copiedItemId = itemId
+            showCopiedToast = true
+        }
+        copyFeedbackTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            if !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    if self.copiedItemId == itemId {
+                        self.copiedItemId = nil
+                    }
+                    self.showCopiedToast = false
+                }
+            }
         }
     }
 

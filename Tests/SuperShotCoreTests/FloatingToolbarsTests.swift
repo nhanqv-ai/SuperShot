@@ -41,6 +41,21 @@ public struct FloatingToolbarsTests {
         TestHarness.assertEqual(AnnotationToolType.highlighter.sfSymbol, "highlighter", "Highlighter tool sfSymbol is highlighter")
         TestHarness.assertEqual(AnnotationToolType.text.sfSymbol, "textformat", "Text tool sfSymbol is textformat")
         TestHarness.assertEqual(AnnotationToolType.blur.sfSymbol, "checkerboard.rectangle", "Blur tool sfSymbol is checkerboard.rectangle")
+
+        // Mnemonic Shortcuts & Shortcut Display format
+        TestHarness.assertEqual(AnnotationToolType.select.mnemonicKey, "V", "Select tool mnemonicKey is V")
+        TestHarness.assertEqual(AnnotationToolType.rectangle.mnemonicKey, "R", "Rectangle tool mnemonicKey is R")
+        TestHarness.assertEqual(AnnotationToolType.ellipse.mnemonicKey, "C", "Ellipse tool mnemonicKey is C")
+        TestHarness.assertEqual(AnnotationToolType.arrow.mnemonicKey, "A", "Arrow tool mnemonicKey is A")
+        TestHarness.assertEqual(AnnotationToolType.line.mnemonicKey, "L", "Line tool mnemonicKey is L")
+        TestHarness.assertEqual(AnnotationToolType.pen.mnemonicKey, "P", "Pen tool mnemonicKey is P")
+        TestHarness.assertEqual(AnnotationToolType.highlighter.mnemonicKey, "H", "Highlighter tool mnemonicKey is H")
+        TestHarness.assertEqual(AnnotationToolType.text.mnemonicKey, "T", "Text tool mnemonicKey is T")
+        TestHarness.assertEqual(AnnotationToolType.blur.mnemonicKey, "B", "Blur tool mnemonicKey is B")
+
+        TestHarness.assertEqual(AnnotationToolType.select.shortcutDisplay, "1 / V", "Select shortcut display is '1 / V'")
+        TestHarness.assertEqual(AnnotationToolType.rectangle.shortcutDisplay, "2 / R", "Rectangle shortcut display is '2 / R'")
+        TestHarness.assertEqual(AnnotationToolType.blur.shortcutDisplay, "9 / B", "Blur shortcut display is '9 / B'")
     }
 
     // 2. Edge-Aware Layout: Centered Box

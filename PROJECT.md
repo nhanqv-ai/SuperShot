@@ -227,6 +227,11 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M12 | Live GUI Testing & UX Audit | Run LiveGUIDriver across 5 surfaces, capture snapshots, evaluate interactive UX & ergonomics | none | DONE |
 | M13 | Proactive UX & Feature Polish | Implement Cmd+D duplication, Shift-constrained shapes/lines, zoom HUD controls, ergonomics, tests | M12 | DONE |
 | M14 | Automated Release Pipeline v1.0.5 | Bump to v1.0.5, PR, merge, clean Universal 2 build, package, GitHub release, public repo verification | M13 | DONE |
+| M15 | Synchronized Hover Preview (v1.0.6) | ThumbnailHoverPreviewViewModel, synchronous resolution, forItemId guard, PR #6 | M14 | DONE |
+| M16 | Region-First Manual Scrolling (v1.0.7) | Region-first selection box, manual scroll capture, global Esc/Enter hotkeys, PR #7 | M15 | DONE |
+| M17 | Live GUI Audit & Snapshot Verification | Full GUI driver verification across 5 surfaces | M16 | DONE |
+| M18 | Explorer UX & Pipeline Audit | Detailed UX proposals (M18.2) and Makefile dmg recipe & health (M18.3) | M17 | DONE |
+| M19 | Proactive UX & Feature Polish | Instant copy feedback, Settings 565pt & Cmd+1..4, mnemonic shortcuts, row button hover, make dmg | M18 | IN_PROGRESS |
 
 ## Interface Contracts
 

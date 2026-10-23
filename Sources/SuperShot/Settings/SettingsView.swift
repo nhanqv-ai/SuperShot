@@ -29,6 +29,19 @@ public enum SettingsTab: String, CaseIterable, Identifiable {
         case .about: return "info.circle"
         }
     }
+
+    public var shortcutNumber: Int {
+        switch self {
+        case .general: return 1
+        case .captureSave: return 2
+        case .history: return 3
+        case .about: return 4
+        }
+    }
+
+    public var shortcutHint: String {
+        "⌘\(shortcutNumber)"
+    }
 }
 
 public struct SettingsView: View {
@@ -71,8 +84,19 @@ public struct SettingsView: View {
             Divider()
             footerBar
         }
-        .frame(width: 520, height: 530)
+        .frame(width: 520, height: 565)
         .background(Color(nsColor: .windowBackgroundColor))
+        .onReceive(NotificationCenter.default.publisher(for: .settingsSelectTab)) { notification in
+            if let tab = notification.object as? SettingsTab {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    selectedTab = tab
+                }
+            } else if let index = notification.userInfo?["tabIndex"] as? Int, index >= 0 && index < SettingsTab.allCases.count {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    selectedTab = SettingsTab.allCases[index]
+                }
+            }
+        }
     }
 
     // Top tab selector with icon above label
@@ -102,6 +126,8 @@ public struct SettingsView: View {
                 }
                 .buttonStyle(.plain)
                 .pointingHandCursor()
+                .keyboardShortcut(KeyEquivalent(Character("\(tab.shortcutNumber)")), modifiers: .command)
+                .help("\(tab.localizedTitle) (\(tab.shortcutHint))")
             }
         }
         .padding(.horizontal, 16)
@@ -172,3 +198,9 @@ extension View {
         )
     }
 }
+
+// Settings Tab Navigation Notification
+extension NSNotification.Name {
+    public static let settingsSelectTab = NSNotification.Name("SuperShotSettingsSelectTab")
+}
+

@@ -33,7 +33,7 @@ public struct GeneralSettingsTab: View {
     }
 
     public var body: some View {
-        VStack(spacing: 10) {
+        VStack(spacing: 8) {
             systemStartupCard
             permissionsCard
             globalShortcutsCard
@@ -109,7 +109,7 @@ public struct GeneralSettingsTab: View {
                 .pointingHandCursor()
             }
         }
-        .padding(12)
+        .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
     }
@@ -181,7 +181,7 @@ public struct GeneralSettingsTab: View {
                 }
             }
         }
-        .padding(12)
+        .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
     }
@@ -238,7 +238,7 @@ public struct GeneralSettingsTab: View {
                 .help("Reset to Option+Shift+S")
             }
         }
-        .padding(12)
+        .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
     }
@@ -255,7 +255,7 @@ public struct GeneralSettingsTab: View {
                 .foregroundColor(.secondary)
                 .padding(.leading, 20)
         }
-        .padding(12)
+        .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
     }

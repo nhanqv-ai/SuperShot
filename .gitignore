@@ -19,6 +19,8 @@ DerivedData/
 *.app/
 *.dSYM/
 *.zip
+*.dmg
+scratch/
 .verifier_bin
 .adversarial_runner
 Contents/

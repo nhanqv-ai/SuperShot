@@ -120,5 +120,35 @@ public struct SettingsViewTests {
         let generalTab = GeneralSettingsTab(appSettings: settings)
         let _ = generalTab.body
         TestHarness.assertTrue(true, "GeneralSettingsTab body evaluates cleanly with auto-update toggle and interval picker")
+
+        // 7. Settings Window Frame Height & Tab Shortcuts
+        TestHarness.assertEqual(controller.window?.contentViewController?.preferredContentSize.height, 565, "Settings window preferred height is 565 pt")
+        TestHarness.assertEqual(SettingsTab.general.shortcutNumber, 1, "General tab shortcut is 1")
+        TestHarness.assertEqual(SettingsTab.captureSave.shortcutNumber, 2, "Capture & Save tab shortcut is 2")
+        TestHarness.assertEqual(SettingsTab.history.shortcutNumber, 3, "History tab shortcut is 3")
+        TestHarness.assertEqual(SettingsTab.about.shortcutNumber, 4, "About tab shortcut is 4")
+        TestHarness.assertEqual(SettingsTab.general.shortcutHint, "⌘1", "General tab shortcut hint is ⌘1")
+        TestHarness.assertEqual(SettingsTab.about.shortcutHint, "⌘4", "About tab shortcut hint is ⌘4")
+
+        // 8. Cmd+1..4 KeyDown Tab Navigation Notification
+        var receivedTab: SettingsTab? = nil
+        let observer = NotificationCenter.default.addObserver(forName: .settingsSelectTab, object: nil, queue: nil) { notif in
+            receivedTab = notif.object as? SettingsTab
+        }
+        let cmd2Event = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "2",
+            charactersIgnoringModifiers: "2",
+            isARepeat: false,
+            keyCode: 19
+        )!
+        controller.window?.keyDown(with: cmd2Event)
+        TestHarness.assertEqual(receivedTab, .captureSave, "Cmd+2 event selects .captureSave tab via notification")
+        NotificationCenter.default.removeObserver(observer)
     }
 }

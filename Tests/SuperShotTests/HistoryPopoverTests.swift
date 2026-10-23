@@ -123,5 +123,31 @@ public struct HistoryPopoverTests {
         TestHarness.assertEqual(panel.currentItemId, hoverC.id, "Panel currentItemId matches hoverC after re-show")
         TestHarness.assertEqual(Int(panel.viewModel.previewImage?.size.width ?? 0), 640, "Panel viewModel previewImage matches hoverC (640) after orderOut/orderFront")
         panel.hide(immediate: true)
+
+        // 7. Instant Copy Feedback Localization & RowActionButton
+        let loc = LocalizationManager.shared
+        loc.setLanguage(code: "en")
+        TestHarness.assertEqual(loc.tr(.copiedToClipboard), "Copied to Clipboard", "English copiedToClipboard string matches")
+        loc.setLanguage(code: "vi")
+        TestHarness.assertEqual(loc.tr(.copiedToClipboard), "Đã sao chép vào bộ nhớ tạm", "Vietnamese copiedToClipboard string matches")
+        loc.setLanguage(code: "en")
+
+        let actionBtn = RowActionButton(icon: "checkmark", tooltip: "Copied", defaultTint: .green, hoverTint: .green, customBackground: nil) {}
+        let _ = actionBtn.body
+        TestHarness.assertTrue(true, "RowActionButton body evaluates cleanly")
+
+        let copiedRow = ShotRowView(
+            item: hoverA,
+            storageManager: storage,
+            shortcutIndex: 1,
+            isSelected: false,
+            isRecentlyCopied: true
+        )
+        let _ = copiedRow.body
+        TestHarness.assertTrue(true, "ShotRowView evaluates cleanly with isRecentlyCopied = true")
+
+        let mainView = MainShotView(storageManager: storage)
+        mainView.triggerCopyFeedback(for: hoverA.id)
+        TestHarness.assertTrue(true, "MainShotView triggerCopyFeedback executes cleanly")
     }
 }

@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.7"><img src="https://img.shields.io/badge/version-v1.0.7-blue.svg?style=flat-square" alt="Version v1.0.7"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.8"><img src="https://img.shields.io/badge/version-v1.0.8-blue.svg?style=flat-square" alt="Version v1.0.8"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -119,6 +119,15 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
+### What's New in v1.0.8
+
+- **Instant "Copied to Clipboard" Visual Feedback**: Copying an item from the history popover (via copy button, `1..9` quick keys, or `Cmd+C`) now triggers an instant 1.2-second green checkmark animation on the row button and popover HUD using localized text (`LocalizationManager.shared.tr(.copiedToClipboard)`).
+- **Settings Window Layout & Sizing Polish**: Adjusted window height from 530 to 565 pt and tuned card spacing in `GeneralSettingsTab`, ensuring all 4 cards (including `autoPasteCard`) render completely unclipped without micro-scrolling in English and Vietnamese.
+- **Native Settings Tab Keyboard Navigation (`Cmd+1`..`Cmd+4`)**: Switch between General, Capture & Save, History, and About tabs effortlessly using native `Cmd+1`..`Cmd+4` keyboard shortcuts and discoverable tab tooltips.
+- **Mnemonic Letter Shortcuts & Native macOS Modifier Glyphs**: Vector annotation tools now support mnemonic single-letter shortcuts (`V`, `R`, `C`, `A`, `L`, `P`, `H`, `T`, `B`) displayed cleanly in tooltips (`1 / V`, `2 / R`), and action toolbars feature native macOS modifier glyphs (`⌘C / ↵`, `⌘S`, `⎋`, `␣`, `⌘Z`, `⇧⌘Z`).
+- **Interactive Action Button Hover Micro-Interactions**: History row action buttons (Copy, Save, Pin, Delete) now use interactive hover luminance feedback (`0.10` to `0.18` opacity), spring animation, and `pointingHand` cursor.
+- **Native Makefile DMG Target**: Added `make dmg` producing `SuperShot-v1.0.8.dmg` using `hdiutil` with an `/Applications` symlink for frictionless drag-and-drop installation.
+
 ### What's New in v1.0.7
 
 - **Region-First Manual Scrolling Capture & Global `Esc`/`Enter` Controls**: Triggering scrolling capture (`Option + Shift + S` or Menu/Popover button) now opens the interactive region selector first, starts directly in user-controlled **Manual Scroll** mode (never hijacking cursor movement), and installs global Carbon/NSEvent `Esc` (Cancel) and `Enter` (Finish) listeners so stopping capture works reliably from any active window.
@@ -136,8 +145,8 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.7.zip` from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
-2. Unzip and drag `SuperShot.app` into your `/Applications` folder.
+1. Download the latest `SuperShot-v1.0.8.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
 > [!NOTE]
@@ -280,6 +289,15 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
+### Điểm mới trong v1.0.8
+
+- **Phản hồi sao chép trực quan tức thì**: Khi sao chép một ảnh từ popover lịch sử (bằng nút sao chép, phím số `1..9` hoặc `Cmd+C`), ứng dụng hiển thị hiệu ứng dấu tích xanh lá kéo dài 1.2 giây trên nút hàng và biểu ngữ HUD popover với chuỗi ký tự bản địa hóa ("Đã sao chép vào bộ nhớ tạm").
+- **Tối ưu kích thước & bố cục cửa sổ Cài đặt**: Tăng chiều cao khung cửa sổ từ 530 lên 565 pt và tinh chỉnh khoảng cách các thẻ trong `GeneralSettingsTab`, đảm bảo cả 4 thẻ (bao gồm thẻ Tự động dán) hiển thị đầy đủ, không bị cắt mép dưới và không cần cuộn chuột trên cả tiếng Anh và tiếng Việt.
+- **Điều hướng tab Cài đặt bằng phím tắt chuẩn macOS (`Cmd+1`..`Cmd+4`)**: Chuyển đổi linh hoạt giữa các tab Cài đặt chung, Chụp & Lưu, Lịch sử và Thông tin bằng tổ hợp phím `Cmd+1`..`Cmd+4` kèm gợi ý phím tắt trên tooltip.
+- **Phím tắt chữ cái gợi nhớ & ký tự modifier macOS chuẩn**: Các công cụ chú thích véc-tơ hỗ trợ phím tắt chữ cái gợi nhớ (`V`, `R`, `C`, `A`, `L`, `P`, `H`, `T`, `B`) hiển thị trực quan trong tooltip (`1 / V`, `2 / R`), đồng thời thanh công cụ thao tác sử dụng ký tự modifier chuẩn macOS (`⌘C / ↵`, `⌘S`, `⎋`, `␣`, `⌘Z`, `⇧⌘Z`).
+- **Hiệu ứng rê chuột tương tác mượt mà trên nút thao tác**: Các nút chức năng trên hàng lịch sử (Sao chép, Lưu, Ghim, Xóa) được nâng cấp với độ sáng nền tương tác (tăng từ `0.10` lên `0.18` khi rê chuột), chuyển động lò xo mềm mại và con trỏ `pointingHand`.
+- **Mục tiêu Makefile DMG chuẩn macOS**: Thêm lệnh `make dmg` tạo file ảnh đĩa `SuperShot-v1.0.8.dmg` qua `hdiutil` với liên kết `/Applications` giúp kéo thả cài đặt nhanh chóng.
+
 ### Điểm mới trong v1.0.7
 
 - **Chụp cuộn chủ động (Manual Scroll) & Chọn vùng trước kèm phím `Esc`/`Enter` toàn cục**: Khi bấm `Option + Shift + S` (hoặc nút Chụp cuộn), ứng dụng mở màn hình kéo chọn vùng chụp trước, sau đó chuyển sang chế độ **Manual Scroll** (loại bỏ hoàn toàn Auto Scroll gây khóa trỏ chuột) và đăng ký phím `Esc` (Hủy) / `Enter` (Hoàn thành) toàn cục để dừng cuộn tức thì dù đang ở bất kỳ ứng dụng nào.
@@ -297,8 +315,8 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.7.zip` tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
-2. Giải nén và kéo file `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.8.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 
 > [!NOTE]
