@@ -212,7 +212,7 @@ public struct GeneralSettingsTab: View {
                 }
                 .buttonStyle(.borderless)
                 .pointingHandCursor()
-                .help("Reset to Option+S")
+                .help(LocalizationManager.shared.tr(.resetShortcutTooltip("Option+S")))
             }
 
             // Scrolling Capture Shortcut
@@ -235,7 +235,7 @@ public struct GeneralSettingsTab: View {
                 }
                 .buttonStyle(.borderless)
                 .pointingHandCursor()
-                .help("Reset to Option+Shift+S")
+                .help(LocalizationManager.shared.tr(.resetShortcutTooltip("Option+Shift+S")))
             }
         }
         .padding(11)

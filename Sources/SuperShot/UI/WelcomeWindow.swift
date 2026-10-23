@@ -15,7 +15,7 @@ public struct WelcomeView: View {
 
     public var appVersionString: String {
         let bundleVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        return "v\(bundleVersion ?? "1.0.9")"
+        return "v\(bundleVersion ?? "1.0.10")"
     }
 
     public var body: some View {
@@ -84,20 +84,20 @@ public struct WelcomeView: View {
         VStack(spacing: 8) {
             featureCard(
                 icon: "camera.viewfinder",
-                title: "In-Place Capture & Annotation (Option+S)",
-                description: "Freeze Retina display with 9 vector tools, 12px mosaic blur, color presets, and instant copy/save."
+                title: LocalizationManager.shared.tr(.welcomeFeature1Title),
+                description: LocalizationManager.shared.tr(.welcomeFeature1Desc)
             )
 
             featureCard(
                 icon: "arrow.up.and.down.text.horizontal",
-                title: "Scrolling Capture (Option+Shift+S)",
-                description: "Region-first manual scrolling with live stitched preview, sticky header deduplication, and tall canvas."
+                title: LocalizationManager.shared.tr(.welcomeFeature2Title),
+                description: LocalizationManager.shared.tr(.welcomeFeature2Desc)
             )
 
             featureCard(
                 icon: "clock.arrow.circlepath",
-                title: "History Popover & Auto-Paste",
-                description: "Menu bar history with hover zoom preview, full-text search, keyboard shortcuts, and direct auto-paste."
+                title: LocalizationManager.shared.tr(.welcomeFeature3Title),
+                description: LocalizationManager.shared.tr(.welcomeFeature3Desc)
             )
         }
     }

@@ -194,6 +194,20 @@ public final class FloatingToolbarsViewModel: ObservableObject {
     public func triggerUndo() { if canUndo { onUndoRequested?() } }
     public func triggerRedo() { if canRedo { onRedoRequested?() } }
     public func triggerDuplicate() { onDuplicateRequested?() }
+
+    public func decreaseStrokeWidth() {
+        let current = appSettings.activeStrokeWidth
+        let newWidth = max(1.0, current - 1.0)
+        appSettings.activeStrokeWidth = newWidth
+        onStrokeWidthSelected?(newWidth)
+    }
+
+    public func increaseStrokeWidth() {
+        let current = appSettings.activeStrokeWidth
+        let newWidth = min(16.0, current + 1.0)
+        appSettings.activeStrokeWidth = newWidth
+        onStrokeWidthSelected?(newWidth)
+    }
 }
 
 // MARK: - Vertical Annotation Toolbar View
@@ -784,6 +798,18 @@ public struct ToolbarKeyShortcutHandler {
             case "t": viewModel.selectTool(.text); return true
             case "b": viewModel.selectTool(.blur); return true
             default: break
+            }
+        }
+
+        // 10. Bracket shortcuts [ and ] (Stroke Width Adjustment)
+        if flags.isEmpty {
+            let chars = event.charactersIgnoringModifiers ?? ""
+            if keyCode == 33 || chars == "[" {
+                viewModel.decreaseStrokeWidth()
+                return true
+            } else if keyCode == 30 || chars == "]" {
+                viewModel.increaseStrokeWidth()
+                return true
             }
         }
 

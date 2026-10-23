@@ -115,10 +115,50 @@ public struct LocalizationTests {
         TestHarness.assertEqual(loc.tr(.quickCaptureRegion), "Chụp vùng màn hình (⌥S)", "Area Capture shortcut translated to Vietnamese")
         TestHarness.assertEqual(loc.tr(.quickCaptureScroll), "Chụp cuộn trang (⌥⇧S)", "Scrolling Capture shortcut translated to Vietnamese")
 
-        // 5. Zero emoji invariant check across all keys in all languages
+        // 5. v1.0.10 Localization keys coverage across 9 languages
+        let v1010Keys: [L10nKey] = [
+            .welcomeFeature1Title,
+            .welcomeFeature1Desc,
+            .welcomeFeature2Title,
+            .welcomeFeature2Desc,
+            .welcomeFeature3Title,
+            .welcomeFeature3Desc,
+            .zoomOutTooltip,
+            .zoomActualSizeTooltip,
+            .zoomInTooltip,
+            .zoomFitWidthTooltip,
+            .strokeWidthHUD(4),
+            .resetShortcutTooltip("Option+S"),
+            .previewCancelTooltip,
+            .previewDoneTooltip
+        ]
+        for key in v1010Keys {
+            for lang in AppLanguage.allCases {
+                let text = key.localized(for: lang)
+                TestHarness.assertFalse(text.isEmpty, "v1.0.10 Key \(key) has non-empty translation in \(lang.rawValue)")
+            }
+        }
+
+        loc.setLanguage(.english)
+        TestHarness.assertEqual(loc.tr(.welcomeFeature1Title), "In-Place Capture & Annotation (Option+S)", "Feature 1 title English")
+        TestHarness.assertEqual(loc.tr(.zoomOutTooltip), "Zoom Out (⌘-)", "Zoom out tooltip English")
+        TestHarness.assertEqual(loc.tr(.strokeWidthHUD(3)), "Stroke Width: 3 pt", "Stroke width HUD English")
+        TestHarness.assertEqual(loc.tr(.resetShortcutTooltip("Option+S")), "Reset to Option+S", "Reset shortcut tooltip English")
+        TestHarness.assertEqual(loc.tr(.previewCancelTooltip), "Cancel (Esc)", "Cancel tooltip English")
+        TestHarness.assertEqual(loc.tr(.previewDoneTooltip), "Done (Return / Enter)", "Done tooltip English")
+
+        loc.setLanguage(.vietnamese)
+        TestHarness.assertEqual(loc.tr(.welcomeFeature1Title), "Chụp vùng & Chú thích tại chỗ (Option+S)", "Feature 1 title Vietnamese")
+        TestHarness.assertEqual(loc.tr(.zoomOutTooltip), "Thu nhỏ (⌘-)", "Zoom out tooltip Vietnamese")
+        TestHarness.assertEqual(loc.tr(.strokeWidthHUD(3)), "Độ dày nét: 3 pt", "Stroke width HUD Vietnamese")
+        TestHarness.assertEqual(loc.tr(.resetShortcutTooltip("Option+S")), "Đặt lại về Option+S", "Reset shortcut tooltip Vietnamese")
+        TestHarness.assertEqual(loc.tr(.previewCancelTooltip), "Hủy (Esc)", "Cancel tooltip Vietnamese")
+        TestHarness.assertEqual(loc.tr(.previewDoneTooltip), "Hoàn thành (Return / Enter)", "Done tooltip Vietnamese")
+
+        // 6. Zero emoji invariant check across all keys in all languages
         validateZeroEmojisAcrossDictionary()
 
-        // 6. Reset to system
+        // 7. Reset to system
         loc.setLanguage(.system)
         TestHarness.assertEqual(loc.currentLanguage, .system, "Reset language to system")
     }
@@ -133,7 +173,14 @@ public struct LocalizationTests {
             .permissionsSectionTitle, .filenamePreviewLabel, .clearSearchTooltip,
             .clearSearchButton, .quickCaptureRegion, .quickCaptureScroll,
             .welcomeTitle, .welcomeSubtitle, .getStartedButton, .welcomeGuideButton,
-            .licenseLabel
+            .licenseLabel,
+            .welcomeFeature1Title, .welcomeFeature1Desc,
+            .welcomeFeature2Title, .welcomeFeature2Desc,
+            .welcomeFeature3Title, .welcomeFeature3Desc,
+            .zoomOutTooltip, .zoomActualSizeTooltip,
+            .zoomInTooltip, .zoomFitWidthTooltip,
+            .strokeWidthHUD(4), .resetShortcutTooltip("Option+S"),
+            .previewCancelTooltip, .previewDoneTooltip
         ]
 
         let emojiRanges: [ClosedRange<UInt32>] = [

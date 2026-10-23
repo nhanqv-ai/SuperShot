@@ -143,8 +143,9 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             guard let self = self else { return }
             if self.annotationEngine.selectedObjectID != nil {
                 self.annotationEngine.updateSelectedStrokeWidth(width)
-                self.needsDisplay = true
             }
+            self.showStrokeWidthHUD(width: Int(width))
+            self.needsDisplay = true
         }
 
         toolbarsViewModel.onFontSizeSelected = { [weak self] size in
@@ -597,19 +598,12 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     }
 
     private func drawDimensionBadge(in context: CGContext) {
-        let badgeFrame = ToolbarPositionCalculator.calculateDimensionBadgeFrame(
-            selectionRect: selectionRect,
-            screenBounds: bounds
-        )
         let text = SelectionBoxGeometry.formatDimensionBadge(
             width: selectionRect.width,
             height: selectionRect.height,
-            scaleFactor: capturedScreen.displayInfo.scaleFactor
+            scaleFactor: capturedScreen.displayInfo.scaleFactor,
+            includeAspectRatio: true
         )
-
-        let badgePath = NSBezierPath(roundedRect: badgeFrame, xRadius: 4.0, yRadius: 4.0)
-        NSColor.black.withAlphaComponent(0.75).setFill()
-        badgePath.fill()
 
         let attributes: [NSAttributedString.Key: Any] = [
             .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium),
@@ -617,6 +611,20 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         ]
         let str = NSAttributedString(string: text, attributes: attributes)
         let textSize = str.size()
+        let badgeSize = CGSize(
+            width: max(ToolbarPositionCalculator.badgeSize.width, textSize.width + 16.0),
+            height: 22.0
+        )
+        let badgeFrame = ToolbarPositionCalculator.calculateDimensionBadgeFrame(
+            selectionRect: selectionRect,
+            screenBounds: bounds,
+            badgeSize: badgeSize
+        )
+
+        let badgePath = NSBezierPath(roundedRect: badgeFrame, xRadius: 4.0, yRadius: 4.0)
+        NSColor.black.withAlphaComponent(0.75).setFill()
+        badgePath.fill()
+
         let textRect = CGRect(
             x: badgeFrame.midX - textSize.width / 2.0,
             y: badgeFrame.midY - textSize.height / 2.0,
@@ -661,14 +669,22 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         ))
     }
 
-    private func showToolSelectionHUD(tool: AnnotationToolType) {
-        toolHUDText = "\(tool.localizedName) (\(tool.mnemonicKey))"
+    public func showHUDNotification(text: String) {
+        toolHUDText = text
         needsDisplay = true
         toolHUDTimer?.invalidate()
         toolHUDTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: false) { [weak self] _ in
             self?.toolHUDText = nil
             self?.needsDisplay = true
         }
+    }
+
+    public func showStrokeWidthHUD(width: Int) {
+        showHUDNotification(text: LocalizationManager.shared.tr(.strokeWidthHUD(width)))
+    }
+
+    private func showToolSelectionHUD(tool: AnnotationToolType) {
+        showHUDNotification(text: "\(tool.localizedName) (\(tool.mnemonicKey))")
     }
 
     private func drawToolFeedbackHUD(text: String, in context: CGContext) {
@@ -912,7 +928,18 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             )
             needsDisplay = true
         case .creating(let startPoint):
-            selectionRect = SelectionBoxGeometry.normalizeRect(p1: startPoint, p2: currentPoint, bounds: bounds)
+            if event.modifierFlags.contains(.shift) {
+                let dx = currentPoint.x - startPoint.x
+                let dy = currentPoint.y - startPoint.y
+                let side = max(abs(dx), abs(dy))
+                let squarePoint = CGPoint(
+                    x: startPoint.x + (dx >= 0 ? side : -side),
+                    y: startPoint.y + (dy >= 0 ? side : -side)
+                )
+                selectionRect = SelectionBoxGeometry.normalizeRect(p1: startPoint, p2: squarePoint, bounds: bounds)
+            } else {
+                selectionRect = SelectionBoxGeometry.normalizeRect(p1: startPoint, p2: currentPoint, bounds: bounds)
+            }
         case .moving(let startPoint, let originalRect):
             let dx = currentPoint.x - startPoint.x
             let dy = currentPoint.y - startPoint.y
@@ -932,7 +959,18 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         case .resizing(let handle, let anchor):
             switch handle {
             case .topLeft, .topRight, .bottomLeft, .bottomRight:
-                selectionRect = SelectionBoxGeometry.normalizeRect(p1: anchor, p2: currentPoint, bounds: bounds)
+                if event.modifierFlags.contains(.shift) {
+                    let dx = currentPoint.x - anchor.x
+                    let dy = currentPoint.y - anchor.y
+                    let side = max(abs(dx), abs(dy))
+                    let squarePoint = CGPoint(
+                        x: anchor.x + (dx >= 0 ? side : -side),
+                        y: anchor.y + (dy >= 0 ? side : -side)
+                    )
+                    selectionRect = SelectionBoxGeometry.normalizeRect(p1: anchor, p2: squarePoint, bounds: bounds)
+                } else {
+                    selectionRect = SelectionBoxGeometry.normalizeRect(p1: anchor, p2: currentPoint, bounds: bounds)
+                }
             case .topCenter, .bottomCenter:
                 let y1 = min(anchor.y, currentPoint.y)
                 let y2 = max(anchor.y, currentPoint.y)

@@ -59,7 +59,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.9"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.10"
                 Text(LocalizationManager.shared.tr(.versionLabel(version)))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
@@ -145,8 +145,11 @@ public struct AboutSettingsTab: View {
                     .disabled(updateManager.isBusy)
                     .pointingHandCursor()
 
-                    Spacer(minLength: 8)
+                    Spacer()
+                }
 
+                HStack {
+                    Spacer()
                     Button(action: { showingResetAllConfirmation = true }) {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.counterclockwise")
@@ -168,6 +171,7 @@ public struct AboutSettingsTab: View {
                     } message: {
                         Text(LocalizationManager.shared.tr(.resetAllConfirmMessage))
                     }
+                    Spacer()
                 }
 
                 if case .idle = updateManager.status {

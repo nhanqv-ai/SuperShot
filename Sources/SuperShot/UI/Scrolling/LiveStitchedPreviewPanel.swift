@@ -479,7 +479,7 @@ public struct LiveStitchedPreviewContentView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .pointingHandCursor()
-                .help("Cancel (Esc)")
+                .help(localizationManager.tr(.previewCancelTooltip))
 
                 Button(action: { viewModel.finish() }) {
                     Text(localizationManager.tr(.doneButton))
@@ -493,7 +493,7 @@ public struct LiveStitchedPreviewContentView: View {
                 }
                 .buttonStyle(PlainButtonStyle())
                 .pointingHandCursor()
-                .help("Done (Return / Enter)")
+                .help(localizationManager.tr(.previewDoneTooltip))
             }
         }
         .padding(10)

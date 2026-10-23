@@ -298,6 +298,22 @@ public enum L10nKey: Sendable {
     case getStartedButton
     case welcomeGuideButton
 
+    // Feature Cards & UI Polish (v1.0.10)
+    case welcomeFeature1Title
+    case welcomeFeature1Desc
+    case welcomeFeature2Title
+    case welcomeFeature2Desc
+    case welcomeFeature3Title
+    case welcomeFeature3Desc
+    case zoomOutTooltip
+    case zoomActualSizeTooltip
+    case zoomInTooltip
+    case zoomFitWidthTooltip
+    case strokeWidthHUD(Int)
+    case resetShortcutTooltip(String)
+    case previewCancelTooltip
+    case previewDoneTooltip
+
     public func localized(for lang: AppLanguage) -> String {
         switch self {
         case .appTitle:
@@ -2347,6 +2363,188 @@ public enum L10nKey: Sendable {
             case .traditionalChinese: return "歡迎與快速指南"
             case .korean: return "환영 및 빠른 가이드"
             default: return "Welcome & Quick Guide"
+            }
+
+        case .welcomeFeature1Title:
+            switch lang {
+            case .vietnamese: return "Chụp vùng & Chú thích tại chỗ (Option+S)"
+            case .german: return "Direkte Aufnahme & Anmerkung (Option+S)"
+            case .french: return "Capture et annotation sur place (Option+S)"
+            case .spanish: return "Captura y anotación en el lugar (Option+S)"
+            case .japanese: return "その場でキャプチャ＆注釈 (Option+S)"
+            case .simplifiedChinese: return "即时区域截屏与标注 (Option+S)"
+            case .traditionalChinese: return "即時區域截圖與標註 (Option+S)"
+            case .korean: return "실시간 영역 캡처 및 주석 (Option+S)"
+            default: return "In-Place Capture & Annotation (Option+S)"
+            }
+
+        case .welcomeFeature1Desc:
+            switch lang {
+            case .vietnamese: return "Đóng băng màn hình Retina với 9 công cụ vector, làm mờ mosaic 12px, bảng màu và sao chép/lưu tức thì."
+            case .german: return "Retina-Display einfrieren mit 9 Vektorwerkzeugen, 12px Mosaikunschärfe, Farbpaletten und sofortigem Kopieren/Speichern."
+            case .french: return "Figez l'écran Retina avec 9 outils vectoriels, flou mosaïque 12px, préréglages de couleurs et copie/sauvegarde instantanée."
+            case .spanish: return "Congele la pantalla Retina con 9 herramientas vectoriales, desenfoque mosaico de 12px, ajustes de color y copia/guardado instantáneo."
+            case .japanese: return "9種類のベクターツール、12pxモザイクぼかし、カラープリセット、即時コピー/保存でRetina画面を静止。"
+            case .simplifiedChinese: return "冻结Retina屏幕，提供9种矢量工具、12px马赛克模糊、颜色预设及即时复制/保存。"
+            case .traditionalChinese: return "凍結Retina螢幕，提供9種向量工具、12px馬賽克模糊、顏色預設及即時複製/儲存。"
+            case .korean: return "9가지 벡터 도구, 12px 모자이크 블러, 색상 프리셋, 즉시 복사/저장으로 Retina 화면을 정지합니다."
+            default: return "Freeze Retina display with 9 vector tools, 12px mosaic blur, color presets, and instant copy/save."
+            }
+
+        case .welcomeFeature2Title:
+            switch lang {
+            case .vietnamese: return "Chụp cuộn trang (Option+Shift+S)"
+            case .german: return "Scroll-Aufnahme (Option+Shift+S)"
+            case .french: return "Capture par défilement (Option+Shift+S)"
+            case .spanish: return "Captura con desplazamiento (Option+Shift+S)"
+            case .japanese: return "スクロールキャプチャ (Option+Shift+S)"
+            case .simplifiedChinese: return "滚动长截屏 (Option+Shift+S)"
+            case .traditionalChinese: return "滾動長截圖 (Option+Shift+S)"
+            case .korean: return "스크롤 캡처 (Option+Shift+S)"
+            default: return "Scrolling Capture (Option+Shift+S)"
+            }
+
+        case .welcomeFeature2Desc:
+            switch lang {
+            case .vietnamese: return "Chụp cuộn thủ công theo vùng chọn, xem trước ảnh ghép trực tiếp, khử lặp thanh tiêu đề cố định và khung vẽ dài."
+            case .german: return "Bereichsbasiertes manuelles Scrollen mit Live-Vorschau, Header-Deduplizierung und hoher Leinwand."
+            case .french: return "Défilement manuel par région avec aperçu assemblé en direct, déduplication des en-têtes fixes et toile haute."
+            case .spanish: return "Desplazamiento manual por región con vista previa ensamblada en vivo, deduplicación de encabezados fijos y lienzo largo."
+            case .japanese: return "領域指定の手動スクロール、リアルタイム結合プレビュー、固定ヘッダー重複除外、縦長キャンバス。"
+            case .simplifiedChinese: return "区域优先手动滚动截屏，实时长图拼接预览，固定导航栏去重与长画布编辑。"
+            case .traditionalChinese: return "區域優先手動滾動截圖，即時長圖拼接預覽，固定導覽列去重與長畫布編輯。"
+            case .korean: return "영역 우선 수동 스크롤, 실시간 결합 미리보기, 고정 헤더 중복 제거 및 세로형 캔버스 지원."
+            default: return "Region-first manual scrolling with live stitched preview, sticky header deduplication, and tall canvas."
+            }
+
+        case .welcomeFeature3Title:
+            switch lang {
+            case .vietnamese: return "Lịch sử Popover & Tự động dán"
+            case .german: return "Verlauf-Popover & Automatisches Einfügen"
+            case .french: return "Popover d'historique et collage auto"
+            case .spanish: return "Popover de historial y pegado automático"
+            case .japanese: return "履歴ポップオーバー＆自動貼り付け"
+            case .simplifiedChinese: return "历史记录浮窗与自动粘贴"
+            case .traditionalChinese: return "歷史記錄浮窗與自動貼上"
+            case .korean: return "히스토리 팝오버 및 자동 붙여넣기"
+            default: return "History Popover & Auto-Paste"
+            }
+
+        case .welcomeFeature3Desc:
+            switch lang {
+            case .vietnamese: return "Lịch sử thanh menu với xem trước phóng to khi rê chuột, tìm kiếm toàn văn, phím tắt và tự động dán trực tiếp."
+            case .german: return "Menüleisten-Verlauf mit Hover-Zoom-Vorschau, Volltextsuche, Tastaturkürzeln und direktem Auto-Einfügen."
+            case .french: return "Historique de la barre des menus avec aperçu zoom au survol, recherche textuelle, raccourcis et collage direct."
+            case .spanish: return "Historial en la barre de menú con vista previa de zoom al pasar el cursor, búsqueda de texto completo, atajos y pegado directo."
+            case .japanese: return "ホバー拡大プレビュー、全文検索、キーボードショートカット、直接自動貼り付けを備えたメニューバー履歴。"
+            case .simplifiedChinese: return "菜单栏截屏历史，支持悬停放大预览、全文检索、快捷键与直接自动粘贴。"
+            case .traditionalChinese: return "選單列截圖歷史，支援懸停放大預覽、全文檢索、快捷鍵與直接自動貼上。"
+            case .korean: return "호버 확대 미리보기, 전체 텍스트 검색, 단축키 및 직접 자동 붙여넣기를 지원하는 메뉴 막대 히스토리."
+            default: return "Menu bar history with hover zoom preview, full-text search, keyboard shortcuts, and direct auto-paste."
+            }
+
+        case .zoomOutTooltip:
+            switch lang {
+            case .vietnamese: return "Thu nhỏ (⌘-)"
+            case .german: return "Verkleinern (⌘-)"
+            case .french: return "Zoom arrière (⌘-)"
+            case .spanish: return "Alejar (⌘-)"
+            case .japanese: return "縮小 (⌘-)"
+            case .simplifiedChinese: return "缩小 (⌘-)"
+            case .traditionalChinese: return "縮小 (⌘-)"
+            case .korean: return "축소 (⌘-)"
+            default: return "Zoom Out (⌘-)"
+            }
+
+        case .zoomActualSizeTooltip:
+            switch lang {
+            case .vietnamese: return "Kích thước thật 100% (⌘0)"
+            case .german: return "Tatsächliche Größe 100% (⌘0)"
+            case .french: return "Taille réelle 100 % (⌘0)"
+            case .spanish: return "Tamaño real 100% (⌘0)"
+            case .japanese: return "実際のサイズ 100% (⌘0)"
+            case .simplifiedChinese: return "实际大小 100% (⌘0)"
+            case .traditionalChinese: return "實際大小 100% (⌘0)"
+            case .korean: return "실제 크기 100% (⌘0)"
+            default: return "Actual Size 100% (⌘0)"
+            }
+
+        case .zoomInTooltip:
+            switch lang {
+            case .vietnamese: return "Phóng to (⌘+)"
+            case .german: return "Vergrößern (⌘+)"
+            case .french: return "Zoom avant (⌘+)"
+            case .spanish: return "Acercar (⌘+)"
+            case .japanese: return "拡大 (⌘+)"
+            case .simplifiedChinese: return "放大 (⌘+)"
+            case .traditionalChinese: return "放大 (⌘+)"
+            case .korean: return "확대 (⌘+)"
+            default: return "Zoom In (⌘+)"
+            }
+
+        case .zoomFitWidthTooltip:
+            switch lang {
+            case .vietnamese: return "Vừa chiều rộng (⌘9)"
+            case .german: return "An Breite anpassen (⌘9)"
+            case .french: return "Ajuster à la largeur (⌘9)"
+            case .spanish: return "Ajustar al ancho (⌘9)"
+            case .japanese: return "幅に合わせる (⌘9)"
+            case .simplifiedChinese: return "适应宽度 (⌘9)"
+            case .traditionalChinese: return "符合寬度 (⌘9)"
+            case .korean: return "너비에 맞추기 (⌘9)"
+            default: return "Fit to Width (⌘9)"
+            }
+
+        case .strokeWidthHUD(let width):
+            switch lang {
+            case .vietnamese: return "Độ dày nét: \(width) pt"
+            case .german: return "Strichbreite: \(width) pt"
+            case .french: return "Épaisseur du trait : \(width) pt"
+            case .spanish: return "Grosor de trazo: \(width) pt"
+            case .japanese: return "線の太さ: \(width) pt"
+            case .simplifiedChinese: return "描边粗细: \(width) pt"
+            case .traditionalChinese: return "筆畫粗細: \(width) pt"
+            case .korean: return "선 두께: \(width) pt"
+            default: return "Stroke Width: \(width) pt"
+            }
+
+        case .resetShortcutTooltip(let shortcut):
+            switch lang {
+            case .vietnamese: return "Đặt lại về \(shortcut)"
+            case .german: return "Auf \(shortcut) zurücksetzen"
+            case .french: return "Réinitialiser à \(shortcut)"
+            case .spanish: return "Restablecer a \(shortcut)"
+            case .japanese: return "\(shortcut) にリセット"
+            case .simplifiedChinese: return "重置为 \(shortcut)"
+            case .traditionalChinese: return "重設為 \(shortcut)"
+            case .korean: return "\(shortcut)(으)로 초기화"
+            default: return "Reset to \(shortcut)"
+            }
+
+        case .previewCancelTooltip:
+            switch lang {
+            case .vietnamese: return "Hủy (Esc)"
+            case .german: return "Abbrechen (Esc)"
+            case .french: return "Annuler (Esc)"
+            case .spanish: return "Cancelar (Esc)"
+            case .japanese: return "キャンセル (Esc)"
+            case .simplifiedChinese: return "取消 (Esc)"
+            case .traditionalChinese: return "取消 (Esc)"
+            case .korean: return "취소 (Esc)"
+            default: return "Cancel (Esc)"
+            }
+
+        case .previewDoneTooltip:
+            switch lang {
+            case .vietnamese: return "Hoàn thành (Return / Enter)"
+            case .german: return "Fertig (Eingabetaste)"
+            case .french: return "Terminé (Retour / Entrée)"
+            case .spanish: return "Listo (Retorno / Intro)"
+            case .japanese: return "完了 (Return / Enter)"
+            case .simplifiedChinese: return "完成 (Return / Enter)"
+            case .traditionalChinese: return "完成 (Return / Enter)"
+            case .korean: return "완료 (Return / Enter)"
+            default: return "Done (Return / Enter)"
             }
         }
     }

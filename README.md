@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.9"><img src="https://img.shields.io/badge/version-v1.0.9-blue.svg?style=flat-square" alt="Version v1.0.9"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.10"><img src="https://img.shields.io/badge/version-v1.0.10-blue.svg?style=flat-square" alt="Version v1.0.10"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -119,6 +119,15 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
+### What's New in v1.0.10
+
+- **Shift-Key Aspect Ratio Lock & Smart Dimension Badge**: Holding Shift while dragging or corner-resizing selection boxes now locks the region to a 1:1 square. The live dimension badge intelligently recognizes standard aspect ratios (`1:1`, `16:9`, `4:3`, `16:10`, `3:2`, `21:9`, `9:16`, `3:4`, `2:3`) with dynamic width sizing to prevent badge truncation.
+- **Bracket Key Shortcuts & Stroke Width HUD**: Adjust stroke width on the fly using bracket keys `[` (decrease) and `]` (increase) between 1pt and 16pt, accompanied by an instant on-screen HUD pill notification in both overlay and tall scrolling canvases.
+- **Copy & Save HUD Confirmation in Scrollable Canvas**: Copying (`Cmd+C` / toolbar) or Saving (`Cmd+S` / toolbar) on tall scrolling canvases now displays non-intrusive on-screen HUD feedback ("Copied to Clipboard" / "Saved to File").
+- **About Settings Tab 2-Row Action Buttons**: Action buttons are reorganized into 2 balanced rows (Row 1: Welcome & Quick Guide + Check for Updates; Row 2: Reset All Settings centered), eliminating ellipsis truncation in both English and Vietnamese.
+- **Settings Window Tab Cycling (`Cmd+[` / `Cmd+]`)**: Seamlessly cycle between Settings tabs using standard macOS shortcuts `Cmd+[` / `Cmd+Shift+[` (previous tab) and `Cmd+]` / `Cmd+Shift+]` (next tab).
+- **Full 9-Language Localization (0 Emojis)**: Comprehensive translations for WelcomeWindow feature cards, zoom controls tooltips, stroke width HUD, and shortcut reset tooltips across English, Vietnamese, German, French, Spanish, Japanese, Simplified Chinese, Traditional Chinese, and Korean.
+
 ### What's New in v1.0.9
 
 - **Search Field & Empty State Actionability**: Search clear button now features `pointingHand` cursor with localized tooltip. Empty search results display an instant "Clear Search" button, and empty history includes quick capture action buttons ("Area Capture (⌥S)" and "Scrolling Capture (⌥⇧S)").
@@ -153,7 +162,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.9.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.10.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -297,6 +306,15 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
+### Điểm mới trong v1.0.10
+
+- **Khóa tỉ lệ vuông bằng phím Shift & Huy hiệu kích thước thông minh**: Giữ phím Shift khi kéo tạo vùng chọn hoặc kéo góc để khóa cố định khung hình vuông 1:1. Huy hiệu kích thước trực tiếp tự động nhận diện các tỉ lệ chuẩn (`1:1`, `16:9`, `4:3`, `16:10`, `3:2`, `21:9`, `9:16`, `3:4`, `2:3`) với độ rộng co giãn thông minh không bị cắt chữ.
+- **Phím tắt phím ngoặc & Bảng HUD độ dày nét**: Tăng giảm nhanh độ dày nét vẽ từ 1pt đến 16pt bằng các phím ngoặc `[` (giảm) và `]` (tăng), kết hợp huy hiệu HUD xác nhận tức thì trên cả màn hình chụp lẫn khung vẽ cuộn dài.
+- **Phản hồi HUD khi Sao chép & Lưu trên khung vẽ cuộn**: Thao tác Sao chép (`Cmd+C` / nút thanh công cụ) hoặc Lưu file (`Cmd+S` / nút thanh công cụ) trên ảnh cuộn dài hiển thị thông báo HUD trực quan ("Đã sao chép vào bộ nhớ tạm" / "Đã lưu tệp thành công").
+- **Bố cục 2 hàng nút tab Giới thiệu chống tràn chữ**: Tái cấu trúc cụm nút hành động thành 2 hàng cân đối (Hàng 1: Chào mừng & Hướng dẫn + Kiểm tra bản cập nhật; Hàng 2: Đặt lại toàn bộ cài đặt căn giữa), loại bỏ hoàn toàn hiện tượng cắt chữ ba chấm trên cả tiếng Anh và tiếng Việt.
+- **Chuyển tab Cài đặt bằng phím tắt (`Cmd+[` / `Cmd+]`)**: Chuyển đổi linh hoạt giữa các tab Cài đặt bằng tổ hợp phím chuẩn macOS `Cmd+[` / `Cmd+Shift+[` (tab trước) và `Cmd+]` / `Cmd+Shift+]` (tab sau).
+- **Bản địa hóa 9 ngôn ngữ toàn diện (100% 0 emoji)**: Dịch chuẩn xác các thẻ tính năng cửa sổ Chào mừng, tooltip công cụ zoom, HUD độ dày nét và gợi ý đặt lại phím tắt trên toàn bộ 9 ngôn ngữ hỗ trợ.
+
 ### Điểm mới trong v1.0.9
 
 - **Nâng cấp ô tìm kiếm & trạng thái trống**: Nút xóa tìm kiếm trang bị con trỏ `pointingHand` và tooltip bản địa hóa. Màn hình không tìm thấy kết quả hỗ trợ nút bấm "Xóa tìm kiếm", và màn hình lịch sử trống cung cấp các nút thao tác nhanh ("Chụp vùng màn hình (⌥S)" và "Chụp cuộn trang (⌥⇧S)").
@@ -331,7 +349,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.9.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.10.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 
