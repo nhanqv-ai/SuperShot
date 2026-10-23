@@ -34,7 +34,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         self.onPresentationDismissalRequested = onPresentationDismissalRequested
 
         let window = SettingsWindow(
-            contentRect: NSRect(x: 0, y: 0, width: 520, height: 530),
+            contentRect: NSRect(x: 0, y: 0, width: 520, height: 565),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -42,7 +42,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         window.title = LocalizationManager.shared.tr(.menuPreferences)
         window.isReleasedWhenClosed = false
         window.level = .normal
-        window.setContentSize(NSSize(width: 520, height: 530))
+        window.setContentSize(NSSize(width: 520, height: 565))
         window.setFrameAutosaveName("SuperShotSettingsWindow")
 
         super.init(window: window)
@@ -88,7 +88,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
             }
         )
         let hostingController = NSHostingController(rootView: settingsView)
-        hostingController.preferredContentSize = NSSize(width: 520, height: 530)
+        hostingController.preferredContentSize = NSSize(width: 520, height: 565)
         window.contentViewController = hostingController
     }
 
@@ -120,12 +120,22 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
     }
 }
 
-// MARK: - Settings Window with Escape Key Dismissal
+// MARK: - Settings Window with Keyboard Navigation & Escape Key Dismissal
 
 private final class SettingsWindow: NSWindow {
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 {
             close()
+            return
+        }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags == .command,
+           let chars = event.charactersIgnoringModifiers,
+           let firstChar = chars.first,
+           let digit = Int(String(firstChar)),
+           digit >= 1 && digit <= SettingsTab.allCases.count {
+            let tab = SettingsTab.allCases[digit - 1]
+            NotificationCenter.default.post(name: .settingsSelectTab, object: tab, userInfo: ["tabIndex": digit - 1])
             return
         }
         super.keyDown(with: event)

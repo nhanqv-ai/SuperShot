@@ -9,6 +9,7 @@ public struct ShotRowView: View {
     public let storageManager: StorageManager?
     public let shortcutIndex: Int?
     public let isSelected: Bool
+    public let isRecentlyCopied: Bool
     public var onSelect: ((ShotItem) -> Void)?
     public var onCopy: ((ShotItem) -> Void)?
     public var onSave: ((ShotItem) -> Void)?
@@ -17,13 +18,19 @@ public struct ShotRowView: View {
     public var onHoverChange: ((ShotItem, Bool) -> Void)?
 
     @State private var isHovered: Bool = false
+    @State private var localCopiedFeedback: Bool = false
     @ObservedObject private var localizationManager = LocalizationManager.shared
+
+    private var isCopied: Bool {
+        isRecentlyCopied || localCopiedFeedback
+    }
 
     public init(
         item: ShotItem,
         storageManager: StorageManager? = nil,
         shortcutIndex: Int? = nil,
         isSelected: Bool = false,
+        isRecentlyCopied: Bool = false,
         onSelect: ((ShotItem) -> Void)? = nil,
         onCopy: ((ShotItem) -> Void)? = nil,
         onSave: ((ShotItem) -> Void)? = nil,
@@ -35,12 +42,24 @@ public struct ShotRowView: View {
         self.storageManager = storageManager
         self.shortcutIndex = shortcutIndex
         self.isSelected = isSelected
+        self.isRecentlyCopied = isRecentlyCopied
         self.onSelect = onSelect
         self.onCopy = onCopy
         self.onSave = onSave
         self.onTogglePin = onTogglePin
         self.onDelete = onDelete
         self.onHoverChange = onHoverChange
+    }
+
+    private func triggerLocalCopyFeedback() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            localCopiedFeedback = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.2) {
+            withAnimation(.easeInOut(duration: 0.2)) {
+                self.localCopiedFeedback = false
+            }
+        }
     }
 
     public var body: some View {
@@ -112,6 +131,7 @@ public struct ShotRowView: View {
         .contextMenu {
             Button(localizationManager.tr(.actionCopy)) {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                triggerLocalCopyFeedback()
                 onCopy?(item)
             }
             Button(localizationManager.tr(.actionSave) + "...") {
@@ -148,79 +168,76 @@ public struct ShotRowView: View {
     private var trailingControls: some View {
         HStack(spacing: 5) {
             if isHovered {
-                // Copy Button
-                Button(action: {
+                // Copy Button with 1.2s checkmark transition
+                RowActionButton(
+                    icon: isCopied ? "checkmark" : "doc.on.doc",
+                    tooltip: isCopied ? localizationManager.tr(.copiedToClipboard) : localizationManager.tr(.actionCopy),
+                    defaultTint: isCopied ? .green : .secondary,
+                    hoverTint: isCopied ? .green : .primary,
+                    customBackground: isCopied ? Color.green.opacity(0.18) : nil
+                ) {
                     ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                    triggerLocalCopyFeedback()
                     onCopy?(item)
-                }) {
-                    Image(systemName: "doc.on.doc")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .frame(width: 20, height: 20)
-                        .background(RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.12)))
                 }
-                .buttonStyle(.plain)
-                .pointingHandCursor()
-                .help(localizationManager.tr(.actionCopy))
 
                 // Save to File Button
-                Button(action: {
+                RowActionButton(
+                    icon: "square.and.arrow.down",
+                    tooltip: localizationManager.tr(.actionSave),
+                    defaultTint: .secondary,
+                    hoverTint: .primary
+                ) {
                     ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                     onSave?(item)
-                }) {
-                    Image(systemName: "square.and.arrow.down")
-                        .font(.system(size: 11))
-                        .foregroundColor(.secondary)
-                        .frame(width: 20, height: 20)
-                        .background(RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.12)))
                 }
-                .buttonStyle(.plain)
-                .pointingHandCursor()
-                .help(localizationManager.tr(.actionSave))
 
                 // Pin / Unpin Button
-                Button(action: {
+                RowActionButton(
+                    icon: item.isPinned ? "pin.fill" : "pin",
+                    tooltip: localizationManager.tr(item.isPinned ? .unpinButton : .pinButton),
+                    defaultTint: item.isPinned ? .accentColor : .secondary,
+                    hoverTint: item.isPinned ? .accentColor : .primary,
+                    customBackground: item.isPinned ? Color.accentColor.opacity(0.18) : nil
+                ) {
                     ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                     onTogglePin?(item)
-                }) {
-                    Image(systemName: item.isPinned ? "pin.fill" : "pin")
-                        .font(.system(size: 11))
-                        .foregroundColor(item.isPinned ? .accentColor : .secondary)
-                        .frame(width: 20, height: 20)
-                        .background(RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.12)))
                 }
-                .buttonStyle(.plain)
-                .pointingHandCursor()
-                .help(localizationManager.tr(item.isPinned ? .unpinButton : .pinButton))
 
                 // Delete Button
-                Button(action: {
+                RowActionButton(
+                    icon: "trash",
+                    tooltip: localizationManager.tr(.deleteButton),
+                    defaultTint: .red,
+                    hoverTint: .red,
+                    customBackground: Color.red.opacity(0.12)
+                ) {
                     ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                     onDelete?(item)
-                }) {
-                    Image(systemName: "trash")
-                        .font(.system(size: 11))
-                        .foregroundColor(.red)
-                        .frame(width: 20, height: 20)
-                        .background(RoundedRectangle(cornerRadius: 3).fill(Color.red.opacity(0.12)))
                 }
-                .buttonStyle(.plain)
-                .pointingHandCursor()
-                .help(localizationManager.tr(.deleteButton))
             } else {
-                if item.isPinned {
-                    Image(systemName: "pin.fill")
+                if isCopied {
+                    Image(systemName: "checkmark")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.accentColor)
-                }
-
-                if let shortcut = shortcutIndex {
-                    Text("\(shortcut)")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundColor(.secondary)
+                        .foregroundColor(.green)
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
-                        .background(RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.12)))
+                        .background(RoundedRectangle(cornerRadius: 3).fill(Color.green.opacity(0.14)))
+                } else {
+                    if item.isPinned {
+                        Image(systemName: "pin.fill")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.accentColor)
+                    }
+
+                    if let shortcut = shortcutIndex {
+                        Text("\(shortcut)")
+                            .font(.system(size: 10, weight: .semibold))
+                            .foregroundColor(.secondary)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 1)
+                            .background(RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.12)))
+                    }
                 }
             }
         }
@@ -245,6 +262,56 @@ public struct ShotRowView: View {
             return Color(nsColor: .separatorColor).opacity(0.25)
         } else {
             return Color.clear
+        }
+    }
+}
+
+/// Interactive action button for history item rows with smooth hover luminance (0.10 -> 0.18 on hover),
+/// spring animation, and pointingHand cursor.
+public struct RowActionButton: View {
+    public let icon: String
+    public let tooltip: String
+    public var defaultTint: Color = .secondary
+    public var hoverTint: Color = .primary
+    public var customBackground: Color? = nil
+    public let action: () -> Void
+
+    @State private var isHovered: Bool = false
+
+    public init(
+        icon: String,
+        tooltip: String,
+        defaultTint: Color = .secondary,
+        hoverTint: Color = .primary,
+        customBackground: Color? = nil,
+        action: @escaping () -> Void
+    ) {
+        self.icon = icon
+        self.tooltip = tooltip
+        self.defaultTint = defaultTint
+        self.hoverTint = hoverTint
+        self.customBackground = customBackground
+        self.action = action
+    }
+
+    public var body: some View {
+        Button(action: action) {
+            Image(systemName: icon)
+                .font(.system(size: 11))
+                .foregroundColor(isHovered ? hoverTint : defaultTint)
+                .frame(width: 20, height: 20)
+                .background(
+                    RoundedRectangle(cornerRadius: 3)
+                        .fill(customBackground ?? (isHovered ? Color.primary.opacity(0.18) : Color.secondary.opacity(0.10)))
+                )
+        }
+        .buttonStyle(.plain)
+        .pointingHandCursor()
+        .help(tooltip)
+        .onHover { hovering in
+            withAnimation(.spring(response: 0.2, dampingFraction: 0.75)) {
+                isHovered = hovering
+            }
         }
     }
 }

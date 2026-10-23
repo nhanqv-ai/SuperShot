@@ -49,6 +49,24 @@ public enum AnnotationToolType: Int, CaseIterable, Identifiable, Sendable {
     public var shortcutKey: String {
         "\(rawValue)"
     }
+
+    public var mnemonicKey: String {
+        switch self {
+        case .select: return "V"
+        case .rectangle: return "R"
+        case .ellipse: return "C"
+        case .arrow: return "A"
+        case .line: return "L"
+        case .pen: return "P"
+        case .highlighter: return "H"
+        case .text: return "T"
+        case .blur: return "B"
+        }
+    }
+
+    public var shortcutDisplay: String {
+        "\(rawValue) / \(mnemonicKey)"
+    }
 }
 
 // MARK: - Edge-Aware Layout Math Engine
@@ -195,7 +213,7 @@ public struct VerticalAnnotationToolbarView: View {
             ForEach(AnnotationToolType.allCases) { tool in
                 ToolIconButton(
                     icon: tool.sfSymbol,
-                    tooltip: "\(tool.localizedName) (\(tool.shortcutKey))",
+                    tooltip: "\(tool.localizedName) (\(tool.shortcutDisplay))",
                     isSelected: viewModel.activeTool == tool
                 ) {
                     viewModel.selectTool(tool)
@@ -254,7 +272,7 @@ public struct VerticalAnnotationToolbarView: View {
 
             ToolIconButton(
                 icon: "arrow.uturn.backward",
-                tooltip: "\(LocalizationManager.shared.tr(.undoTooltip)) (Cmd+Z)",
+                tooltip: "\(LocalizationManager.shared.tr(.undoTooltip)) (⌘Z)",
                 isEnabled: viewModel.canUndo
             ) {
                 viewModel.triggerUndo()
@@ -262,7 +280,7 @@ public struct VerticalAnnotationToolbarView: View {
 
             ToolIconButton(
                 icon: "arrow.uturn.forward",
-                tooltip: "\(LocalizationManager.shared.tr(.redoTooltip)) (Cmd+Shift+Z)",
+                tooltip: "\(LocalizationManager.shared.tr(.redoTooltip)) (⇧⌘Z)",
                 isEnabled: viewModel.canRedo
             ) {
                 viewModel.triggerRedo()
@@ -299,7 +317,7 @@ public struct HorizontalActionToolbarView: View {
             if showScrollCapture {
                 ActionButton(
                     icon: "arrow.up.and.down.text.horizontal",
-                    tooltip: "\(LocalizationManager.shared.tr(.actionScrollCapture)) (Space)",
+                    tooltip: "\(LocalizationManager.shared.tr(.actionScrollCapture)) (␣ / Space)",
                     tint: .blue
                 ) {
                     viewModel.triggerScrollCapture()
@@ -310,7 +328,7 @@ public struct HorizontalActionToolbarView: View {
 
             ActionButton(
                 icon: "doc.on.doc",
-                tooltip: "\(LocalizationManager.shared.tr(.actionCopy)) (Cmd+C / Return)",
+                tooltip: "\(LocalizationManager.shared.tr(.actionCopy)) (⌘C / ↵)",
                 tint: .green
             ) {
                 viewModel.triggerCopy()
@@ -318,7 +336,7 @@ public struct HorizontalActionToolbarView: View {
 
             ActionButton(
                 icon: "square.and.arrow.down",
-                tooltip: "\(LocalizationManager.shared.tr(.actionSave)) (Cmd+S)",
+                tooltip: "\(LocalizationManager.shared.tr(.actionSave)) (⌘S)",
                 tint: .primary
             ) {
                 viewModel.triggerSave()
@@ -330,7 +348,7 @@ public struct HorizontalActionToolbarView: View {
 
             ActionButton(
                 icon: "xmark",
-                tooltip: "\(LocalizationManager.shared.tr(.actionCancel)) (Esc)",
+                tooltip: "\(LocalizationManager.shared.tr(.actionCancel)) (⎋)",
                 tint: .red
             ) {
                 viewModel.triggerCancel()

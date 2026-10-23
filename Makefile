@@ -33,8 +33,10 @@ TARGET_ARM64 = arm64-apple-macos13.0
 TARGET_X86_64 = x86_64-apple-macos13.0
 HOST_ARCH = $(shell uname -m)
 TARGET_HOST = $(HOST_ARCH)-apple-macos13.0
-VERSION = 1.0.7
+VERSION = 1.0.8
 PACKAGE_ZIP = SuperShot-v$(VERSION).zip
+PACKAGE_DMG = SuperShot-v$(VERSION).dmg
+DMG_STAGING_DIR = $(BUILD_DIR)/dmg-staging
 
 # Source file discovery
 CORE_SRCS = $(shell find Sources/SuperShotCore -name '*.swift' 2>/dev/null)
@@ -46,7 +48,7 @@ SWIFTC_FLAGS_COMMON = -sdk $(SDKROOT)
 SWIFTC_FLAGS_DEBUG  = $(SWIFTC_FLAGS_COMMON) -g -Onone
 SWIFTC_FLAGS_RELEASE= $(SWIFTC_FLAGS_COMMON) -O -whole-module-optimization
 
-.PHONY: all build release bundle app package icon verify-app test verify lint clean help adversarial
+.PHONY: all build release bundle app package icon verify-app test verify lint clean help adversarial dmg
 
 all: build
 
@@ -58,6 +60,7 @@ help:
 	@echo "  make app         - Assemble and codesign standalone SuperShot.app bundle"
 	@echo "  make bundle      - Assemble and codesign standalone SuperShot.app bundle (alias for app)"
 	@echo "  make package     - Assemble, codesign, and package Universal 2 zip archive"
+	@echo "  make dmg         - Assemble and package Universal 2 DMG disk image"
 	@echo "  make verify-app  - Verify SuperShot.app bundle integrity & headless launch"
 	@echo "  make lint        - Verify strict 0-emoji constraint"
 	@echo "  make test        - Run automated test suite"
@@ -329,6 +332,16 @@ package: app
 	@ditto -c -k --sequesterRsrc --keepParent $(BUNDLE_NAME) $(PACKAGE_ZIP)
 	@echo "Universal 2 distribution archive created: $(PACKAGE_ZIP)"
 
+dmg: app
+	@echo "Packaging distributable Universal 2 DMG: $(PACKAGE_DMG)..."
+	@rm -rf $(DMG_STAGING_DIR) $(PACKAGE_DMG)
+	@mkdir -p $(DMG_STAGING_DIR)
+	@cp -R $(BUNDLE_NAME) $(DMG_STAGING_DIR)/
+	@ln -s /Applications $(DMG_STAGING_DIR)/Applications
+	@hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DMG_STAGING_DIR)" -ov -format UDZO $(PACKAGE_DMG)
+	@rm -rf $(DMG_STAGING_DIR)
+	@echo "Universal 2 distribution DMG created: $(PACKAGE_DMG)"
+
 # Standalone App Bundle Verification
 verify-app: bundle
 	@echo "Executing SuperShot.app standalone bundle verifications..."
@@ -358,5 +371,5 @@ adversarial: build
 # Clean Artifacts
 clean:
 	@echo "Cleaning build artifacts..."
-	@rm -rf $(BUILD_DIR) $(BUNDLE_NAME) SuperShot-*.zip .verifier_bin* .adversarial_runner* /tmp/SuperShot_* /tmp/supershot_*
+	@rm -rf $(BUILD_DIR) $(BUNDLE_NAME) SuperShot-*.zip SuperShot-*.dmg $(DMG_STAGING_DIR) .verifier_bin* .adversarial_runner* /tmp/SuperShot_* /tmp/supershot_*
 	@echo "Clean completed."
