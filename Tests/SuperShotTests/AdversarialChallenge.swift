@@ -193,6 +193,10 @@ struct AdversarialChallenge {
         testUpdateManagerStateTransitionsAndConcurrency()
         testUpdateCheckIntervalClampingAndPersistence()
 
+        // M13: Duplication, Geometry & Zoom Stress Suites
+        testAnnotationDuplicationAndDeepUndoRedoStress()
+        testAngleSnappingAndZoomMagnificationStress()
+
         let elapsed = Date().timeIntervalSince(startTime)
 
         print("\n\u{001B}[1;35m============================================================\u{001B}[0m")
@@ -2022,6 +2026,199 @@ struct AdversarialChallenge {
             shouldTriggerStartupCheck(autoCheck: false, lastCheck: refNow.addingTimeInterval(-86400 * 365), intervalDays: 1, now: refNow),
             "Startup check skipped when automaticallyCheckForUpdates is false even if checked 1 year ago"
         )
+    }
+
+    // MARK: - 16. Rapid Sequential Duplication & Deep Undo/Redo Stress
+    private static func testAnnotationDuplicationAndDeepUndoRedoStress() {
+        ChallengerHarness.startSuite("16. Rapid Sequential Duplications, Deep Undo/Redo & Clamping Stress")
+
+        let engine = AnnotationEngine()
+        let seed = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 20, y: 20, width: 80, height: 60),
+            colorHex: "#FF3B30",
+            strokeWidth: 3.0
+        )
+        engine.addObject(seed)
+        engine.selectedObjectID = seed.id
+
+        // 16A: Rapid sequential duplications (50 items)
+        let dupCount = 50
+        var generatedIDs = Set<UUID>()
+        generatedIDs.insert(seed.id)
+
+        for i in 1...dupCount {
+            guard let clone = engine.duplicateSelected(offset: CGPoint(x: 4, y: 4)) else {
+                ChallengerHarness.recordFail("Duplication step \(i)", reason: "duplicateSelected returned nil")
+                return
+            }
+            ChallengerHarness.assertFalse(generatedIDs.contains(clone.id), "Clone #\(i) has globally unique UUID")
+            generatedIDs.insert(clone.id)
+            ChallengerHarness.assertEqual(engine.selectedObjectID, clone.id, "Selection transferred to clone #\(i)")
+        }
+
+        ChallengerHarness.assertEqual(engine.objects.count, dupCount + 1, "Total objects in engine matches 51")
+        ChallengerHarness.assertEqual(generatedIDs.count, dupCount + 1, "All 51 object IDs are distinct")
+
+        // Deep Undo all 50 duplications
+        for i in 1...dupCount {
+            ChallengerHarness.assertTrue(engine.canUndo, "canUndo true before undo step \(i)")
+            engine.undo()
+        }
+        ChallengerHarness.assertEqual(engine.objects.count, 1, "Full roll-back restores canvas to exactly 1 seed object")
+        ChallengerHarness.assertEqual(engine.objects.first?.id, seed.id, "Seed object preserved intact")
+        ChallengerHarness.assertFalse(engine.canUndo, "canUndo is false after complete stack rollback")
+
+        // Deep Redo all 50 duplications
+        for i in 1...dupCount {
+            ChallengerHarness.assertTrue(engine.canRedo, "canRedo true before redo step \(i)")
+            engine.redo()
+        }
+        ChallengerHarness.assertEqual(engine.objects.count, dupCount + 1, "Full roll-forward restores all 51 objects")
+        ChallengerHarness.assertFalse(engine.canRedo, "canRedo is false after complete roll-forward")
+
+        // 16B: Interleaved mutations & duplications
+        let mixedEngine = AnnotationEngine()
+        let objA = AnnotationObject(tool: .rectangle, bounds: CGRect(x: 50, y: 50, width: 100, height: 100))
+        mixedEngine.addObject(objA)
+        mixedEngine.selectedObjectID = objA.id
+
+        let objB = mixedEngine.duplicateSelected()!
+        mixedEngine.recolorSelected(newHex: "#007AFF")
+        mixedEngine.moveSelected(by: CGPoint(x: 10, y: 20))
+        let objC = mixedEngine.duplicateSelected()!
+
+        ChallengerHarness.assertEqual(mixedEngine.objects.count, 3, "Interleaved engine contains 3 objects")
+        ChallengerHarness.assertEqual(objC.colorHex, "#007AFF", "Cloned object inherits recolored hex")
+
+        // Roll back step by step
+        mixedEngine.undo() // reverts create objC
+        ChallengerHarness.assertEqual(mixedEngine.objects.count, 2, "Reverted objC")
+        mixedEngine.undo() // reverts move
+        mixedEngine.undo() // reverts recolor
+        ChallengerHarness.assertEqual(mixedEngine.objects.first(where: { $0.id == objB.id })?.colorHex, "#FF3B30", "Reverted color to default red")
+        mixedEngine.undo() // reverts create objB
+        ChallengerHarness.assertEqual(mixedEngine.objects.count, 1, "Reverted objB")
+        ChallengerHarness.assertEqual(mixedEngine.objects.first?.id, objA.id, "Back to objA")
+
+        // 16C: Boundary clamping stress in micro frame
+        let microBoundary = CGRect(x: 0, y: 0, width: 60, height: 60)
+        let microEngine = AnnotationEngine()
+        let microObj = AnnotationObject(tool: .rectangle, bounds: CGRect(x: 10, y: 10, width: 35, height: 35))
+        microEngine.addObject(microObj)
+        microEngine.selectedObjectID = microObj.id
+
+        for _ in 0..<10 {
+            if let clone = microEngine.duplicateSelected(offset: CGPoint(x: 16, y: 16), within: microBoundary) {
+                ChallengerHarness.assertTrue(clone.bounds.maxX <= microBoundary.maxX, "Clone maxX \(clone.bounds.maxX) <= 60")
+                ChallengerHarness.assertTrue(clone.bounds.maxY <= microBoundary.maxY, "Clone maxY \(clone.bounds.maxY) <= 60")
+                ChallengerHarness.assertTrue(clone.bounds.minX >= microBoundary.minX, "Clone minX \(clone.bounds.minX) >= 0")
+                ChallengerHarness.assertTrue(clone.bounds.minY >= microBoundary.minY, "Clone minY \(clone.bounds.minY) >= 0")
+            }
+        }
+
+        // Extreme coordinate stress
+        let macroEngine = AnnotationEngine()
+        let macroObj = AnnotationObject(tool: .rectangle, bounds: CGRect(x: 29900, y: 29900, width: 80, height: 80))
+        macroEngine.addObject(macroObj)
+        macroEngine.selectedObjectID = macroObj.id
+        let macroClone = macroEngine.duplicateSelected(offset: CGPoint(x: 16, y: 16), within: CGRect(x: 0, y: 0, width: 30000, height: 30000))
+        ChallengerHarness.assertNotNil(macroClone, "Macro clone at 29,900px produced cleanly")
+        ChallengerHarness.assertTrue(macroClone!.bounds.maxX <= 30000, "Macro clone maxX <= 30000")
+    }
+
+    // MARK: - 17. Angle Snapping & Zoom Magnification Stress
+    private static func testAngleSnappingAndZoomMagnificationStress() {
+        ChallengerHarness.startSuite("17. Angle Snapping Mathematical Stability & Zoom Magnification Stress")
+
+        // 17A: Angle snapping mathematical stability
+        let origin = CGPoint(x: 0, y: 0)
+
+        // Sub-pixel guard (< 1.0pt length)
+        let subPixelTarget = CGPoint(x: 0.00001, y: 0.00002)
+        let subPixelSnapped = AnnotationObject.snapAngle(from: origin, to: subPixelTarget)
+        ChallengerHarness.assertFalse(subPixelSnapped.x.isNaN, "Sub-pixel snap x is not NaN")
+        ChallengerHarness.assertFalse(subPixelSnapped.y.isNaN, "Sub-pixel snap y is not NaN")
+        ChallengerHarness.assertFalse(subPixelSnapped.x.isInfinite, "Sub-pixel snap x is not Infinite")
+        ChallengerHarness.assertEqual(subPixelSnapped.x, subPixelTarget.x, "Sub-pixel snap preserves target exactly")
+
+        // Zero-length identical point
+        let zeroSnapped = AnnotationObject.snapAngle(from: origin, to: origin)
+        ChallengerHarness.assertEqual(zeroSnapped, origin, "Zero-length snap returns origin cleanly")
+
+        // Extreme macro coordinates (10,000,000 pt)
+        let macroOrigin = CGPoint(x: 10000000, y: 10000000)
+        let macroTarget = CGPoint(x: 10000100, y: 10000005)
+        let macroSnapped = AnnotationObject.snapAngle(from: macroOrigin, to: macroTarget)
+        ChallengerHarness.assertEqual(round(macroSnapped.x), 10000100.0, "Macro coordinate snapped x accurate")
+        ChallengerHarness.assertEqual(round(macroSnapped.y), 10000000.0, "Macro coordinate snapped y horizontal")
+
+        // 360-degree sweep in 1-degree steps: every snapped vector must align with k * pi/4
+        let sweepRadius: CGFloat = 100.0
+        var allSnapsValid = true
+        var allLengthsPreserved = true
+        for deg in 0..<360 {
+            let rad = CGFloat(deg) * .pi / 180.0
+            let targetPt = CGPoint(x: sweepRadius * cos(rad), y: sweepRadius * sin(rad))
+            let snappedPt = AnnotationObject.snapAngle(from: origin, to: targetPt)
+
+            let angle = atan2(snappedPt.y, snappedPt.x)
+            let normalizedAngle = angle < 0 ? angle + 2 * .pi : angle
+            let octant = normalizedAngle / (.pi / 4.0)
+            let diffFromInt = abs(octant - round(octant))
+            if diffFromInt > 1e-4 {
+                allSnapsValid = false
+            }
+
+            let len = hypot(snappedPt.x, snappedPt.y)
+            if abs(len - sweepRadius) > 0.001 {
+                allLengthsPreserved = false
+            }
+        }
+        ChallengerHarness.assertTrue(allSnapsValid, "All 360 sweep angles snap strictly to k * pi/4 multiples")
+        ChallengerHarness.assertTrue(allLengthsPreserved, "All 360 sweep lengths preserved within 0.001")
+
+        // 17B: Zoom Magnification Clamping & Step Stress
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        let ctx = CGContext(data: nil, width: 200, height: 200, bitsPerComponent: 8, bytesPerRow: 200 * 4, space: colorSpace, bitmapInfo: bitmapInfo)!
+        let dummyImage = ctx.makeImage()!
+
+        let engine = AnnotationEngine()
+        let docView = ScrollableAnnotationDocumentView(baseImage: dummyImage, engine: engine)
+        let scrollView = ScrollableAnnotationScrollView(documentCanvasView: docView)
+
+        // 50 alternating in/out steps without precision decay
+        for _ in 0..<50 {
+            scrollView.zoomIn()
+            scrollView.zoomOut()
+        }
+        ChallengerHarness.assertTrue(abs(scrollView.magnification - 1.0) < 1e-5, "50 alternating zoom steps maintain 1.0 within 1e-5")
+
+        // Extreme zoom-in ceiling
+        for _ in 0..<50 {
+            scrollView.zoomIn()
+        }
+        ChallengerHarness.assertEqual(scrollView.magnification, 4.0, "Clamped strictly to maxMagnification 4.0")
+
+        // Extreme zoom-out floor
+        for _ in 0..<50 {
+            scrollView.zoomOut()
+        }
+        ChallengerHarness.assertEqual(scrollView.magnification, 0.1, "Clamped strictly to minMagnification 0.1")
+
+        // Zoom ViewModel HUD percentage text formatting
+        let zoomHUDModel = ScrollableZoomViewModel(magnification: 1.0)
+        ChallengerHarness.assertEqual(Int(round(zoomHUDModel.magnification * 100)), 100, "1.0 maps to 100%")
+
+        zoomHUDModel.magnification = 0.1
+        ChallengerHarness.assertEqual(Int(round(zoomHUDModel.magnification * 100)), 10, "0.1 maps to 10%")
+
+        zoomHUDModel.magnification = 1.25
+        ChallengerHarness.assertEqual(Int(round(zoomHUDModel.magnification * 100)), 125, "1.25 maps to 125%")
+
+        zoomHUDModel.magnification = 4.0
+        ChallengerHarness.assertEqual(Int(round(zoomHUDModel.magnification * 100)), 400, "4.0 maps to 400%")
     }
 }
 

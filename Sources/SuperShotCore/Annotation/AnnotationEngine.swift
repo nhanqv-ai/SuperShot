@@ -50,6 +50,42 @@ public final class AnnotationEngine: ObservableObject {
         selectedObjectID = object.id
     }
 
+    /// Duplicates the currently selected vector object, applying an offset (+16, +16 by default).
+    /// Clamps or reverses the offset if boundary is provided and projected bounds exceed boundary.
+    /// Automatically records an AnnotationAction.create undo step and selects the new clone.
+    @discardableResult
+    public func duplicateSelected(
+        offset: CGPoint = CGPoint(x: 16, y: 16),
+        within boundary: CGRect? = nil
+    ) -> AnnotationObject? {
+        guard let original = selectedObject else { return nil }
+
+        var effectiveOffset = offset
+        if let bounds = boundary {
+            let candidateBounds = original.bounds.offsetBy(dx: offset.x, dy: offset.y)
+            let outOfBounds = candidateBounds.minX < bounds.minX ||
+                              candidateBounds.minY < bounds.minY ||
+                              candidateBounds.maxX > bounds.maxX ||
+                              candidateBounds.maxY > bounds.maxY
+            if outOfBounds {
+                // Attempt reverse offset if within boundary
+                let reverseBounds = original.bounds.offsetBy(dx: -offset.x, dy: -offset.y)
+                if reverseBounds.minX >= bounds.minX && reverseBounds.minY >= bounds.minY &&
+                   reverseBounds.maxX <= bounds.maxX && reverseBounds.maxY <= bounds.maxY {
+                    effectiveOffset = CGPoint(x: -offset.x, y: -offset.y)
+                } else {
+                    let clampedX = min(max(candidateBounds.minX, bounds.minX), bounds.maxX - original.bounds.width)
+                    let clampedY = min(max(candidateBounds.minY, bounds.minY), bounds.maxY - original.bounds.height)
+                    effectiveOffset = CGPoint(x: clampedX - original.bounds.minX, y: clampedY - original.bounds.minY)
+                }
+            }
+        }
+
+        let clone = original.duplicated(offset: effectiveOffset)
+        addObject(clone)
+        return clone
+    }
+
     /// Non-mutating hit-test returning the topmost object containing point, or nil if none.
     public func hitObject(at point: CGPoint) -> AnnotationObject? {
         for obj in objects.reversed() {
@@ -400,13 +436,6 @@ public final class AnnotationEngine: ObservableObject {
     // MARK: - Geometry Utilities
 
     private func snapAngle(from: CGPoint, to: CGPoint) -> CGPoint {
-        let dx = to.x - from.x
-        let dy = to.y - from.y
-        let len = hypot(dx, dy)
-        guard len > 1.0 else { return to }
-        let angle = atan2(dy, dx)
-        let snapInterval = CGFloat.pi / 4.0 // 45 degrees
-        let snappedAngle = round(angle / snapInterval) * snapInterval
-        return CGPoint(x: from.x + len * cos(snappedAngle), y: from.y + len * sin(snappedAngle))
+        AnnotationObject.snapAngle(from: from, to: to)
     }
 }

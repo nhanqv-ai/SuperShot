@@ -359,15 +359,101 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
         points = points.map { CGPoint(x: $0.x + delta.x, y: $0.y + delta.y) }
     }
 
+    /// Produces an identical clone of the vector annotation with a new UUID,
+    /// translated by offset, marked as selected, and timestamped to Date().
+    public func duplicated(
+        id: UUID = UUID(),
+        offset: CGPoint = CGPoint(x: 16, y: 16)
+    ) -> AnnotationObject {
+        AnnotationObject(
+            id: id,
+            tool: self.tool,
+            points: self.points.map { CGPoint(x: $0.x + offset.x, y: $0.y + offset.y) },
+            bounds: self.bounds.offsetBy(dx: offset.x, dy: offset.y),
+            colorHex: self.colorHex,
+            strokeWidth: self.strokeWidth,
+            fontSize: self.fontSize,
+            text: self.text,
+            blurRadius: self.blurRadius,
+            isSelected: true,
+            createdAt: Date()
+        )
+    }
+
+    /// Mathematical angle snapping to nearest multiple of interval (default: pi/4 = 45 degrees).
+    /// Supports 0, 45, 90, 135, 180, 225, 270, 315 degrees (all 8 octants), preserving hypotenuse length.
+    public static func snapAngle(from: CGPoint, to: CGPoint, interval: CGFloat = .pi / 4.0) -> CGPoint {
+        guard interval > 0 else { return to }
+        let dx = to.x - from.x
+        let dy = to.y - from.y
+        let len = hypot(dx, dy)
+        guard len > 1.0 else { return to }
+        let angle = atan2(dy, dx)
+        let snappedAngle = round(angle / interval) * interval
+        return CGPoint(x: from.x + len * cos(snappedAngle), y: from.y + len * sin(snappedAngle))
+    }
+
     /// Resizes bounding box by dragging a specified handle to target point.
     public mutating func resize(handle: AnnotationHandle, to target: CGPoint, shiftConstrained: Bool = false) {
         if (tool == .line || tool == .arrow) && points.count >= 2 {
             if handle == .startPoint {
-                points[0] = target
+                points[0] = shiftConstrained ? AnnotationObject.snapAngle(from: points[1], to: target) : target
             } else if handle == .endPoint {
-                points[1] = target
+                points[1] = shiftConstrained ? AnnotationObject.snapAngle(from: points[0], to: target) : target
             }
             bounds = AnnotationObject.calculateBounds(from: points, strokeWidth: strokeWidth)
+            return
+        }
+
+        if shiftConstrained {
+            let anchor: CGPoint
+            switch handle {
+            case .topLeft: anchor = CGPoint(x: bounds.maxX, y: bounds.maxY)
+            case .topRight: anchor = CGPoint(x: bounds.minX, y: bounds.maxY)
+            case .bottomLeft: anchor = CGPoint(x: bounds.maxX, y: bounds.minY)
+            case .bottomRight: anchor = CGPoint(x: bounds.minX, y: bounds.minY)
+            case .topCenter: anchor = CGPoint(x: bounds.midX, y: bounds.maxY)
+            case .bottomCenter: anchor = CGPoint(x: bounds.midX, y: bounds.minY)
+            case .middleLeft: anchor = CGPoint(x: bounds.maxX, y: bounds.midY)
+            case .middleRight: anchor = CGPoint(x: bounds.minX, y: bounds.midY)
+            case .startPoint, .endPoint: anchor = .zero
+            }
+
+            let rectX: CGFloat
+            let rectY: CGFloat
+            let side: CGFloat
+
+            switch handle {
+            case .topCenter, .bottomCenter:
+                let rawDy = target.y - anchor.y
+                side = max(1.0, abs(rawDy))
+                rectY = rawDy >= 0 ? anchor.y : anchor.y - side
+                rectX = bounds.midX - side / 2.0
+            case .middleLeft, .middleRight:
+                let rawDx = target.x - anchor.x
+                side = max(1.0, abs(rawDx))
+                rectX = rawDx >= 0 ? anchor.x : anchor.x - side
+                rectY = bounds.midY - side / 2.0
+            default:
+                let rawDx = target.x - anchor.x
+                let rawDy = target.y - anchor.y
+                side = max(1.0, max(abs(rawDx), abs(rawDy)))
+                rectX = rawDx >= 0 ? anchor.x : anchor.x - side
+                rectY = rawDy >= 0 ? anchor.y : anchor.y - side
+            }
+
+            let oldBounds = bounds
+            bounds = CGRect(x: rectX, y: rectY, width: side, height: side)
+
+            if !points.isEmpty && oldBounds.width > 0 && oldBounds.height > 0 {
+                let scaleX = side / oldBounds.width
+                let scaleY = side / oldBounds.height
+                points = points.map { pt in
+                    let relX = (pt.x - oldBounds.minX) * scaleX
+                    let relY = (pt.y - oldBounds.minY) * scaleY
+                    return CGPoint(x: rectX + relX, y: rectY + relY)
+                }
+            }
             return
         }
 
@@ -403,14 +489,8 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
 
         let newX = min(minX, maxX)
         let newY = min(minY, maxY)
-        var newW = max(1.0, abs(maxX - minX))
-        var newH = max(1.0, abs(maxY - minY))
-
-        if shiftConstrained {
-            let side = max(newW, newH)
-            newW = side
-            newH = side
-        }
+        let newW = max(1.0, abs(maxX - minX))
+        let newH = max(1.0, abs(maxY - minY))
 
         let oldBounds = bounds
         bounds = CGRect(x: newX, y: newY, width: newW, height: newH)
