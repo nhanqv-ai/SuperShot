@@ -16,7 +16,7 @@ public struct GeneralSettingsTab: View {
     @State private var recordingAction: HotKeyAction? = nil
     @State private var localKeyMonitor: Any? = nil
 
-    private let statusTimer = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
+    private let statusTimer = Timer.publish(every: 2.5, on: .main, in: .common).autoconnect()
 
     public init(
         appSettings: AppSettings,
@@ -45,8 +45,14 @@ public struct GeneralSettingsTab: View {
     }
 
     private func refreshPermissions() {
-        isScreenRecordingGranted = permissionManager.checkScreenRecording()
-        isAccessibilityGranted = permissionManager.checkAccessibility()
+        let screenGranted = permissionManager.checkScreenRecording()
+        if isScreenRecordingGranted != screenGranted {
+            isScreenRecordingGranted = screenGranted
+        }
+        let accessGranted = permissionManager.checkAccessibility()
+        if isAccessibilityGranted != accessGranted {
+            isAccessibilityGranted = accessGranted
+        }
     }
 
     // MARK: - Startup & Language

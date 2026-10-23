@@ -677,10 +677,15 @@ public struct CursorTrackingRepresentable: NSViewRepresentable {
     }
 
     public func updateNSView(_ nsView: CursorTrackingOverlayNSView, context: Context) {
+        let changed = (nsView.targetCursor != targetCursor)
+            || (nsView.fallbackCursor != fallbackCursor)
+            || (nsView.isCursorEnabled != isEnabled)
         nsView.targetCursor = targetCursor
         nsView.fallbackCursor = fallbackCursor
         nsView.isCursorEnabled = isEnabled
-        nsView.window?.invalidateCursorRects(for: nsView)
+        if changed {
+            nsView.window?.invalidateCursorRects(for: nsView)
+        }
     }
 }
 

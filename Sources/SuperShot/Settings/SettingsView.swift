@@ -88,13 +88,9 @@ public struct SettingsView: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onReceive(NotificationCenter.default.publisher(for: .settingsSelectTab)) { notification in
             if let tab = notification.object as? SettingsTab {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    selectedTab = tab
-                }
+                selectedTab = tab
             } else if let index = notification.userInfo?["tabIndex"] as? Int, index >= 0 && index < SettingsTab.allCases.count {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    selectedTab = SettingsTab.allCases[index]
-                }
+                selectedTab = SettingsTab.allCases[index]
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .settingsCycleTab)) { notification in
@@ -102,42 +98,22 @@ public struct SettingsView: View {
             let tabs = SettingsTab.allCases
             if let currentIndex = tabs.firstIndex(of: selectedTab) {
                 let nextIndex = (currentIndex + direction + tabs.count) % tabs.count
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    selectedTab = tabs[nextIndex]
-                }
+                selectedTab = tabs[nextIndex]
             }
         }
     }
 
-    // Top tab selector with icon above label
+    // Top tab selector with full-bleed rectangular hit target and instant tab switching
     private var topTabBar: some View {
-        HStack(spacing: 24) {
+        HStack(spacing: 12) {
             ForEach(SettingsTab.allCases) { tab in
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.15)) {
+                SettingsTabButton(
+                    tab: tab,
+                    isSelected: selectedTab == tab,
+                    action: {
                         selectedTab = tab
                     }
-                }) {
-                    VStack(spacing: 3) {
-                        Image(systemName: tab.iconName)
-                            .font(.system(size: 18, weight: .regular))
-                            .frame(height: 22)
-                        Text(tab.localizedTitle)
-                            .font(.system(size: 11, weight: selectedTab == tab ? .semibold : .regular))
-                            .lineLimit(1)
-                    }
-                    .foregroundColor(selectedTab == tab ? .primary : .secondary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 5)
-                    .background(
-                        RoundedRectangle(cornerRadius: 6, style: .continuous)
-                            .fill(selectedTab == tab ? Color.secondary.opacity(0.15) : Color.clear)
-                    )
-                }
-                .buttonStyle(.plain)
-                .pointingHandCursor()
-                .keyboardShortcut(KeyEquivalent(Character("\(tab.shortcutNumber)")), modifiers: .command)
-                .help("\(tab.localizedTitle) (\(tab.shortcutHint))")
+                )
             }
         }
         .padding(.horizontal, 16)
@@ -192,6 +168,64 @@ public struct SettingsView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 8)
+    }
+}
+
+public struct SettingsTabButton: View {
+    public let tab: SettingsTab
+    public let isSelected: Bool
+    public let action: () -> Void
+
+    @State private var isHovered: Bool = false
+
+    public init(tab: SettingsTab, isSelected: Bool, action: @escaping () -> Void) {
+        self.tab = tab
+        self.isSelected = isSelected
+        self.action = action
+    }
+
+    public var body: some View {
+        Button(action: action) {
+            VStack(spacing: 4) {
+                Image(systemName: tab.iconName)
+                    .font(.system(size: 18, weight: isSelected ? .medium : .regular))
+                    .frame(height: 22)
+                Text(tab.localizedTitle)
+                    .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                    .lineLimit(1)
+            }
+            .foregroundColor(isSelected ? .primary : (isHovered ? .primary.opacity(0.85) : .secondary))
+            .frame(minWidth: 108, minHeight: 46)
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(
+                        isSelected
+                            ? Color.secondary.opacity(0.18)
+                            : (isHovered ? Color.secondary.opacity(0.09) : Color.white.opacity(0.001))
+                    )
+            )
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .contentShape(Rectangle())
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isSelected {
+                        action()
+                    }
+                }
+        )
+        .onHover { hovering in
+            if isHovered != hovering {
+                isHovered = hovering
+            }
+        }
+        .pointingHandCursor()
+        .keyboardShortcut(KeyEquivalent(Character("\(tab.shortcutNumber)")), modifiers: .command)
+        .help("\(tab.localizedTitle) (\(tab.shortcutHint))")
     }
 }
 
