@@ -72,5 +72,56 @@ public struct HistoryPopoverTests {
         storage.deleteItem(id: item5.id)
         TestHarness.assertEqual(storage.items.count, 4, "Item count decremented to 4 after delete")
         TestHarness.assertNil(storage.items.first(where: { $0.id == item5.id }), "item5 deleted completely")
+
+        // 6. Hover Preview & Thumbnail Image Synchronization across Distinct Items
+        let imgA = MockScreenCaptureProvider.createSyntheticImage(size: CGSize(width: 320, height: 180))!
+        let imgB = MockScreenCaptureProvider.createSyntheticImage(size: CGSize(width: 500, height: 400))!
+        let imgC = MockScreenCaptureProvider.createSyntheticImage(size: CGSize(width: 640, height: 360))!
+
+        let hoverA = try! storage.save(image: imgA, sourceApp: "AppA", captureType: .region, tags: ["a"])
+        let hoverB = try! storage.save(image: imgB, sourceApp: "AppB", captureType: .scrolling, tags: ["b"])
+        let hoverC = try! storage.save(image: imgC, sourceApp: "AppC", captureType: .region, tags: ["c"])
+
+        let resolvedThumbA = ShotThumbnailView.resolveThumbnail(for: hoverA, storageManager: storage)
+        let resolvedThumbB = ShotThumbnailView.resolveThumbnail(for: hoverB, storageManager: storage)
+        let resolvedPreviewA = ThumbnailHoverPreviewCardView.resolveImage(for: hoverA, storageManager: storage)
+        let resolvedPreviewB = ThumbnailHoverPreviewCardView.resolveImage(for: hoverB, storageManager: storage)
+        let resolvedPreviewC = ThumbnailHoverPreviewCardView.resolveImage(for: hoverC, storageManager: storage)
+
+        TestHarness.assertNotNil(resolvedThumbA, "Thumbnail A resolves synchronously")
+        TestHarness.assertNotNil(resolvedThumbB, "Thumbnail B resolves synchronously")
+        TestHarness.assertEqual(Int(resolvedPreviewA?.size.width ?? 0), 320, "Preview A width matches hoverA (320)")
+        TestHarness.assertEqual(Int(resolvedPreviewB?.size.width ?? 0), 500, "Preview B width matches hoverB (500)")
+        TestHarness.assertEqual(Int(resolvedPreviewC?.size.width ?? 0), 640, "Preview C width matches hoverC (640)")
+
+        let panel = ThumbnailHoverPreviewPanel.shared
+        panel.storageManager = storage
+        panel.hide(immediate: true)
+
+        // Show hoverA (runs after 100ms debounce when hidden, or immediately when visible)
+        panel.orderFront(nil)
+        panel.show(for: hoverA)
+        TestHarness.assertEqual(panel.currentItemId, hoverA.id, "Panel currentItemId matches hoverA")
+        TestHarness.assertEqual(panel.viewModel.item?.id, hoverA.id, "Panel viewModel item matches hoverA")
+        TestHarness.assertEqual(Int(panel.viewModel.previewImage?.size.width ?? 0), 320, "Panel viewModel previewImage matches hoverA (320)")
+
+        // Transition directly to hoverB while visible
+        panel.show(for: hoverB)
+        TestHarness.assertEqual(panel.currentItemId, hoverB.id, "Panel currentItemId updates immediately to hoverB")
+        TestHarness.assertEqual(panel.viewModel.item?.id, hoverB.id, "Panel viewModel item updates immediately to hoverB")
+        TestHarness.assertEqual(Int(panel.viewModel.previewImage?.size.width ?? 0), 500, "Panel viewModel previewImage updates immediately to hoverB (500)")
+
+        // Simulate delayed onHover(false) from hoverA after hoverB is already active
+        panel.hide(forItemId: hoverA.id)
+        TestHarness.assertEqual(panel.currentItemId, hoverB.id, "Stale hide(forItemId: hoverA) does not clear active hoverB")
+        TestHarness.assertEqual(Int(panel.viewModel.previewImage?.size.width ?? 0), 500, "Active hoverB previewImage remains intact after stale hide from hoverA")
+
+        // Hide panel completely, then show hoverC
+        panel.hide(immediate: true)
+        panel.orderFront(nil)
+        panel.show(for: hoverC)
+        TestHarness.assertEqual(panel.currentItemId, hoverC.id, "Panel currentItemId matches hoverC after re-show")
+        TestHarness.assertEqual(Int(panel.viewModel.previewImage?.size.width ?? 0), 640, "Panel viewModel previewImage matches hoverC (640) after orderOut/orderFront")
+        panel.hide(immediate: true)
     }
 }

@@ -18,6 +18,7 @@ public struct MainShotView: View {
     @ObservedObject private var localizationManager = LocalizationManager.shared
     @State private var searchText: String = ""
     @State private var selectedIndex: Int? = 0
+    @State private var shouldScrollToSelection: Bool = false
     @State private var localKeyMonitor: Any? = nil
     @State private var hostWindow: NSWindow? = nil
 
@@ -108,6 +109,7 @@ public struct MainShotView: View {
                 resetSelection(scrollProxy: proxy)
             }
             .onChange(of: selectedIndex) { newIndex in
+                guard shouldScrollToSelection else { return }
                 if let idx = newIndex, idx >= 0 && idx < visibleItems.count {
                     let targetID = visibleItems[idx].id
                     withAnimation(.easeInOut(duration: 0.12)) {
@@ -386,7 +388,13 @@ public struct MainShotView: View {
                                 onCopy: { copyItem($0) },
                                 onSave: { saveItem($0) },
                                 onTogglePin: { storageManager.togglePin(id: $0.id) },
-                                onDelete: { storageManager.deleteItem(id: $0.id) }
+                                onDelete: { storageManager.deleteItem(id: $0.id) },
+                                onHoverChange: { hoveredItem, hovering in
+                                    if hovering, let idx = visibleItems.firstIndex(where: { $0.id == hoveredItem.id }) {
+                                        shouldScrollToSelection = false
+                                        selectedIndex = idx
+                                    }
+                                }
                             )
                             .id(item.id)
                         }
@@ -405,7 +413,13 @@ public struct MainShotView: View {
                                 onCopy: { copyItem($0) },
                                 onSave: { saveItem($0) },
                                 onTogglePin: { storageManager.togglePin(id: $0.id) },
-                                onDelete: { storageManager.deleteItem(id: $0.id) }
+                                onDelete: { storageManager.deleteItem(id: $0.id) },
+                                onHoverChange: { hoveredItem, hovering in
+                                    if hovering, let idx = visibleItems.firstIndex(where: { $0.id == hoveredItem.id }) {
+                                        shouldScrollToSelection = false
+                                        selectedIndex = idx
+                                    }
+                                }
                             )
                             .id(item.id)
                         }
@@ -626,6 +640,7 @@ public struct MainShotView: View {
             // 3. Down Arrow (125) - Circular cycling with live preview update
             if event.keyCode == 125 {
                 let newIdx = ShortcutNavigator.stepDown(currentIndex: selectedIndex, visibleCount: visibleItems.count)
+                shouldScrollToSelection = true
                 selectedIndex = newIdx
                 if let idx = newIdx, idx >= 0 && idx < visibleItems.count {
                     let item = visibleItems[idx]
@@ -639,6 +654,7 @@ public struct MainShotView: View {
             // 4. Up Arrow (126) - Circular cycling with live preview update
             if event.keyCode == 126 {
                 let newIdx = ShortcutNavigator.stepUp(currentIndex: selectedIndex, visibleCount: visibleItems.count)
+                shouldScrollToSelection = true
                 selectedIndex = newIdx
                 if let idx = newIdx, idx >= 0 && idx < visibleItems.count {
                     let item = visibleItems[idx]

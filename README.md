@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.5"><img src="https://img.shields.io/badge/version-v1.0.5-blue.svg?style=flat-square" alt="Version v1.0.5"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.6"><img src="https://img.shields.io/badge/version-v1.0.6-blue.svg?style=flat-square" alt="Version v1.0.6"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -119,8 +119,9 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
-### What's New in v1.0.5
+### What's New in v1.0.6
 
+- **Synchronized Hover Preview & Row Thumbnail**: Replaced stale `@State` image loading with reactive `ThumbnailHoverPreviewViewModel` and synchronous `resolveImage` / `resolveThumbnail` lookup, eliminating preview/hover image mismatches and out-of-order row exit races.
 - **Vector Object Duplication (`Cmd + D`)**: Instant cloning of any selected annotation object with smart diagonal offset via keyboard shortcut or toolbar duplicate button.
 - **Proportional & Angle Constraints (`Shift`)**: Hold Shift while drawing to constrain rectangles to 1:1 squares, ellipses to perfect circles, and straight lines/arrows to 45-degree angle increments.
 - **Tall Canvas Quick Zoom HUD**: Floating zoom controls with Fit, 100%, and 200% presets, plus interactive status display and `Cmd +` / `Cmd -` / `Cmd 0` shortcuts on `ScrollableCanvasView`.
@@ -135,7 +136,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.5.zip` from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.6.zip` from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Unzip and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -279,8 +280,9 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
-### Điểm mới trong v1.0.5
+### Điểm mới trong v1.0.6
 
+- **Đồng bộ tuyệt đối ảnh Preview và ảnh Hover**: Sử dụng `ThumbnailHoverPreviewViewModel` kết hợp giải mã đồng bộ `resolveImage` / `resolveThumbnail` và khử xung đột sự kiện `onHover` giữa các hàng, đảm bảo ảnh phóng to luôn khớp 100% với ảnh đang trỏ chuột.
 - **Nhân bản đối tượng chú thích (`Cmd + D`)**: Sao chép nhanh đối tượng hình vẽ, chữ hoặc vùng làm mờ đang chọn với độ lệch vị trí thông minh qua phím tắt hoặc nút nhân bản trên thanh công cụ.
 - **Khóa tỉ lệ chuẩn & góc nghiêng (`Shift`)**: Giữ phím Shift khi vẽ để khóa khung chữ nhật thành hình vuông (1:1), elip thành hình tròn tuyệt đối, và đường thẳng/mũi tên khớp các góc 45 độ.
 - **Bảng điều khiển phóng to/thu nhỏ nhanh (Zoom HUD)**: Thêm cụm nút zoom nổi trên khung vẽ cuộn `ScrollableCanvasView` với các chế độ Fit (vừa màn hình), 100%, 200% và phím tắt `Cmd +` / `Cmd -` / `Cmd 0`.
@@ -295,7 +297,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.5.zip` tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.6.zip` tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Giải nén và kéo file `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

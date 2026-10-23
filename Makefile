@@ -33,7 +33,7 @@ TARGET_ARM64 = arm64-apple-macos13.0
 TARGET_X86_64 = x86_64-apple-macos13.0
 HOST_ARCH = $(shell uname -m)
 TARGET_HOST = $(HOST_ARCH)-apple-macos13.0
-VERSION = 1.0.5
+VERSION = 1.0.6
 PACKAGE_ZIP = SuperShot-v$(VERSION).zip
 
 # Source file discovery
