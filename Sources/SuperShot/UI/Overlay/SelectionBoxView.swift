@@ -219,11 +219,22 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             return
         }
 
+        let vFitting = verticalToolbarHost?.fittingSize ?? ToolbarLayoutCalculator.verticalToolbarSize
+        let hFitting = horizontalToolbarHost?.fittingSize ?? ToolbarLayoutCalculator.horizontalToolbarSize
+        let vSize = CGSize(
+            width: max(ToolbarLayoutCalculator.verticalToolbarSize.width, vFitting.width),
+            height: max(ToolbarLayoutCalculator.verticalToolbarSize.height, vFitting.height)
+        )
+        let hSize = CGSize(
+            width: max(ToolbarLayoutCalculator.horizontalToolbarSize.width, hFitting.width),
+            height: max(ToolbarLayoutCalculator.horizontalToolbarSize.height, hFitting.height)
+        )
+
         let resolved = ToolbarPositionCalculator.resolveToolbarFrames(
             selectionRect: selectionRect,
             screenBounds: bounds,
-            vertSize: ToolbarLayoutCalculator.verticalToolbarSize,
-            horizSize: ToolbarLayoutCalculator.horizontalToolbarSize
+            vertSize: vSize,
+            horizSize: hSize
         )
 
         verticalToolbarHost?.frame = resolved.vertical

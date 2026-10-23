@@ -45,7 +45,8 @@ public struct HistorySettingsTab: View {
 
                 Text("\(appSettings.capacity) \(LocalizationManager.shared.tr(.historyCapacityUnit))")
                     .font(.system(size: 11.5, design: .monospaced))
-                    .frame(width: 80, alignment: .trailing)
+                    .lineLimit(1)
+                    .frame(width: 118, alignment: .trailing)
             }
         }
         .padding(12)

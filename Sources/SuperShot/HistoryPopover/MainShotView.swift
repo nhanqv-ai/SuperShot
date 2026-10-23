@@ -87,6 +87,7 @@ public struct MainShotView: View {
             .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
             .background(WindowAccessor { win in self.hostWindow = win })
             .onAppear {
+                ThumbnailHoverPreviewPanel.shared.storageManager = storageManager
                 installKeyboardMonitor()
                 resetSelection(scrollProxy: proxy)
             }
@@ -214,6 +215,7 @@ public struct MainShotView: View {
                         ForEach(pinnedItems) { item in
                             ShotRowView(
                                 item: item,
+                                storageManager: storageManager,
                                 shortcutIndex: ShortcutNavigator.shortcutIndex(for: item, in: visibleItems),
                                 isSelected: item.id == selectedItemId,
                                 onSelect: { selectItem($0) },
@@ -232,6 +234,7 @@ public struct MainShotView: View {
                         ForEach(recentItems) { item in
                             ShotRowView(
                                 item: item,
+                                storageManager: storageManager,
                                 shortcutIndex: ShortcutNavigator.shortcutIndex(for: item, in: visibleItems),
                                 isSelected: item.id == selectedItemId,
                                 onSelect: { selectItem($0) },

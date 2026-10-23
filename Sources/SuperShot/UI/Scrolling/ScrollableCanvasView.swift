@@ -419,13 +419,9 @@ public final class ScrollableCanvasView: NSView {
 
             vToolbar.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
             vToolbar.topAnchor.constraint(equalTo: topAnchor, constant: 16),
-            vToolbar.widthAnchor.constraint(equalToConstant: ToolbarLayoutCalculator.verticalToolbarSize.width),
-            vToolbar.heightAnchor.constraint(equalToConstant: ToolbarLayoutCalculator.verticalToolbarSize.height),
 
             hToolbar.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
-            hToolbar.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16),
-            hToolbar.widthAnchor.constraint(equalToConstant: ToolbarLayoutCalculator.horizontalToolbarSize.width),
-            hToolbar.heightAnchor.constraint(equalToConstant: ToolbarLayoutCalculator.horizontalToolbarSize.height)
+            hToolbar.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -16)
         ])
 
         setupToolbarBindings()

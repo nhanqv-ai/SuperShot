@@ -5,10 +5,12 @@ import SuperShotCore
 /// Host view rendering the floating hover zoom preview card.
 public struct ThumbnailHoverPreviewCardView: View {
     public let item: ShotItem?
+    public let storageManager: StorageManager?
     @State private var previewImage: NSImage?
 
-    public init(item: ShotItem?) {
+    public init(item: ShotItem?, storageManager: StorageManager? = nil) {
         self.item = item
+        self.storageManager = storageManager
     }
 
     public var body: some View {
@@ -84,8 +86,18 @@ public struct ThumbnailHoverPreviewCardView: View {
 
     private func loadFullImage() {
         guard let item = item else { return }
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let imageURL = appSupport.appendingPathComponent("SuperShot/images").appendingPathComponent(item.filePath)
+        if let sm = storageManager, let cgImg = sm.loadCGImage(for: item) {
+            self.previewImage = NSImage(cgImage: cgImg, size: NSSize(width: cgImg.width, height: cgImg.height))
+            return
+        }
+
+        let imageURL: URL
+        if let sm = storageManager {
+            imageURL = sm.getImageURL(for: item)
+        } else {
+            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            imageURL = appSupport.appendingPathComponent("SuperShot/images").appendingPathComponent(item.filePath)
+        }
 
         if let cached = ThumbnailImageCache.shared.image(for: imageURL) {
             self.previewImage = cached
@@ -107,6 +119,7 @@ public struct ThumbnailHoverPreviewCardView: View {
 public final class ThumbnailHoverPreviewPanel: NSPanel {
     public static let shared = ThumbnailHoverPreviewPanel()
 
+    public weak var storageManager: StorageManager?
     public private(set) var currentItemId: UUID?
     private var hostingView: NSHostingView<ThumbnailHoverPreviewCardView>
     private var showTimer: Timer?
@@ -153,7 +166,7 @@ public final class ThumbnailHoverPreviewPanel: NSPanel {
 
     private func display(item: ShotItem) {
         self.currentItemId = item.id
-        hostingView.rootView = ThumbnailHoverPreviewCardView(item: item)
+        hostingView.rootView = ThumbnailHoverPreviewCardView(item: item, storageManager: storageManager)
         positionPanel(width: 320, height: 230)
     }
 

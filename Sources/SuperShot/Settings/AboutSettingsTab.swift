@@ -27,15 +27,29 @@ public struct AboutSettingsTab: View {
     public var body: some View {
         VStack(spacing: 12) {
             // App Identity
-            if let icon = NSApp.applicationIconImage, icon.isValid {
+            if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+               let icon = NSImage(contentsOf: iconURL), icon.isValid {
                 Image(nsImage: icon)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .frame(width: 56, height: 56)
             } else {
-                Image(systemName: "camera.viewfinder")
-                    .font(.system(size: 40))
-                    .foregroundColor(.accentColor)
+                ZStack {
+                    RoundedRectangle(cornerRadius: 13, style: .continuous)
+                        .fill(
+                            LinearGradient(
+                                colors: [Color(red: 0.04, green: 0.52, blue: 1.0), Color(red: 0.37, green: 0.36, blue: 0.90)],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 56, height: 56)
+                        .shadow(color: Color.black.opacity(0.25), radius: 4, x: 0, y: 2)
+
+                    Image(systemName: "camera.viewfinder")
+                        .font(.system(size: 28, weight: .semibold))
+                        .foregroundColor(.white)
+                }
             }
 
             VStack(spacing: 2) {
@@ -58,7 +72,7 @@ public struct AboutSettingsTab: View {
 
             VStack(spacing: 6) {
                 HStack {
-                    Text(LocalizationManager.shared.tr(.authorLabel) + ":")
+                    Text(LocalizationManager.shared.tr(.authorLabel))
                         .font(.system(size: 11.5))
                         .foregroundColor(.secondary)
                     Spacer()
@@ -67,7 +81,7 @@ public struct AboutSettingsTab: View {
                 }
 
                 HStack {
-                    Text(LocalizationManager.shared.tr(.licenseLabel) + ":")
+                    Text("License:")
                         .font(.system(size: 11.5))
                         .foregroundColor(.secondary)
                     Spacer()

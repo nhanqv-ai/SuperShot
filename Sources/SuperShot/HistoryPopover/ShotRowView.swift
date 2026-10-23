@@ -6,6 +6,7 @@ import SuperShotCore
 /// dimensions badge, timestamp, right-aligned shortcut indicator, and hover action buttons.
 public struct ShotRowView: View {
     public let item: ShotItem
+    public let storageManager: StorageManager?
     public let shortcutIndex: Int?
     public let isSelected: Bool
     public var onSelect: ((ShotItem) -> Void)?
@@ -19,6 +20,7 @@ public struct ShotRowView: View {
 
     public init(
         item: ShotItem,
+        storageManager: StorageManager? = nil,
         shortcutIndex: Int? = nil,
         isSelected: Bool = false,
         onSelect: ((ShotItem) -> Void)? = nil,
@@ -28,6 +30,7 @@ public struct ShotRowView: View {
         onDelete: ((ShotItem) -> Void)? = nil
     ) {
         self.item = item
+        self.storageManager = storageManager
         self.shortcutIndex = shortcutIndex
         self.isSelected = isSelected
         self.onSelect = onSelect
@@ -40,7 +43,7 @@ public struct ShotRowView: View {
     public var body: some View {
         HStack(spacing: 8) {
             // Thumbnail icon
-            ShotThumbnailView(item: item)
+            ShotThumbnailView(item: item, storageManager: storageManager)
 
             // Title & Dimension Metadata
             VStack(alignment: .leading, spacing: 2) {
@@ -117,12 +120,17 @@ public struct ShotRowView: View {
             Divider()
             Button(localizationManager.tr(.openInFinder)) {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
-                let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-                let url = appSupport.appendingPathComponent("SuperShot/images").appendingPathComponent(item.filePath)
+                let url: URL
+                if let sm = storageManager {
+                    url = sm.getImageURL(for: item)
+                } else {
+                    let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                    url = appSupport.appendingPathComponent("SuperShot/images").appendingPathComponent(item.filePath)
+                }
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             }
             Divider()
-            Button(localizationManager.tr(.deletePreset)) {
+            Button(localizationManager.tr(.deleteButton)) {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onDelete?(item)
             }
@@ -189,7 +197,7 @@ public struct ShotRowView: View {
                         .background(RoundedRectangle(cornerRadius: 3).fill(Color.red.opacity(0.12)))
                 }
                 .buttonStyle(.plain)
-                .help(localizationManager.tr(.deletePreset))
+                .help(localizationManager.tr(.deleteButton))
             } else {
                 if item.isPinned {
                     Image(systemName: "pin.fill")
@@ -235,10 +243,12 @@ public struct ShotRowView: View {
 /// Thumbnail view supporting in-memory cached loading.
 public struct ShotThumbnailView: View {
     public let item: ShotItem
+    public let storageManager: StorageManager?
     @State private var loadedImage: NSImage?
 
-    public init(item: ShotItem) {
+    public init(item: ShotItem, storageManager: StorageManager? = nil) {
         self.item = item
+        self.storageManager = storageManager
     }
 
     public var body: some View {
@@ -272,8 +282,18 @@ public struct ShotThumbnailView: View {
     }
 
     private func loadThumbnail() {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let thumbURL = appSupport.appendingPathComponent("SuperShot/thumbnails").appendingPathComponent(item.thumbnailPath)
+        if let sm = storageManager, let cgImage = sm.loadThumbnailCGImage(for: item) {
+            self.loadedImage = NSImage(cgImage: cgImage, size: NSSize(width: cgImage.width, height: cgImage.height))
+            return
+        }
+
+        let thumbURL: URL
+        if let sm = storageManager {
+            thumbURL = sm.getThumbnailURL(for: item)
+        } else {
+            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            thumbURL = appSupport.appendingPathComponent("SuperShot/thumbnails").appendingPathComponent(item.thumbnailPath)
+        }
 
         if let cached = ThumbnailImageCache.shared.image(for: thumbURL) {
             self.loadedImage = cached
