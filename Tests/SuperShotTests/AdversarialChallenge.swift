@@ -188,6 +188,11 @@ struct AdversarialChallenge {
         testSearchFilteringLogic()
         testHoverPreviewPositioning()
 
+        // M10: UpdateManager & AppSettings Stress Suites
+        testSemanticVersionAndReleaseInfoAdversarialParsing()
+        testUpdateManagerStateTransitionsAndConcurrency()
+        testUpdateCheckIntervalClampingAndPersistence()
+
         let elapsed = Date().timeIntervalSince(startTime)
 
         print("\n\u{001B}[1;35m============================================================\u{001B}[0m")
@@ -1401,5 +1406,669 @@ struct AdversarialChallenge {
         }
         ChallengerHarness.assertTrue(burstSuccess, "100 rapid show/hide cycles execute cleanly without crash or state corruption")
     }
+
+    // MARK: - 13. SemanticVersion & ReleaseInfo Adversarial Parsing
+    static func testSemanticVersionAndReleaseInfoAdversarialParsing() {
+        ChallengerHarness.startSuite("13. SemanticVersion & ReleaseInfo Adversarial Parsing")
+
+        // 13A: SemanticVersion Abnormal Inputs
+        let emptyV = SemanticVersion("")
+        ChallengerHarness.assertEqual(emptyV.components, [0], "Empty string parses as [0]")
+        ChallengerHarness.assertNil(emptyV.prerelease, "Empty string has nil prerelease")
+        ChallengerHarness.assertEqual(emptyV.raw, "", "Empty string preserves raw ''")
+
+        let whitespaceV = SemanticVersion("   \n\t  ")
+        ChallengerHarness.assertEqual(whitespaceV.components, [0], "Whitespace-only parses as [0]")
+        ChallengerHarness.assertNil(whitespaceV.prerelease, "Whitespace-only has nil prerelease")
+
+        let justV = SemanticVersion("v")
+        ChallengerHarness.assertEqual(justV.components, [0], "Single 'v' parses as [0]")
+        ChallengerHarness.assertNil(justV.prerelease, "Single 'v' has nil prerelease")
+
+        let justUpperV = SemanticVersion("V")
+        ChallengerHarness.assertEqual(justUpperV.components, [0], "Single 'V' parses as [0]")
+
+        let zeroV = SemanticVersion("v0.0.0")
+        ChallengerHarness.assertEqual(zeroV.components, [0, 0, 0], "v0.0.0 parses components [0, 0, 0]")
+        ChallengerHarness.assertNil(zeroV.prerelease, "v0.0.0 has nil prerelease")
+
+        let leadingZeroes = SemanticVersion("01.02.03")
+        ChallengerHarness.assertEqual(leadingZeroes.components, [1, 2, 3], "01.02.03 parses components [1, 2, 3]")
+
+        let manyComponents = SemanticVersion("1.2.3.4.5.6.7")
+        ChallengerHarness.assertEqual(manyComponents.components, [1, 2, 3, 4, 5, 6, 7], "Multi-component version parses all 7 components")
+
+        let extraDots = SemanticVersion("...1...2...3...")
+        ChallengerHarness.assertEqual(extraDots.components, [1, 2, 3], "Leading/trailing/multiple dots parse cleanly as [1, 2, 3]")
+
+        let doubleDots = SemanticVersion("1..2..3")
+        ChallengerHarness.assertEqual(doubleDots.components, [1, 2, 3], "Double dots parse cleanly as [1, 2, 3]")
+
+        let trailingHyphen = SemanticVersion("1.0.0-")
+        ChallengerHarness.assertEqual(trailingHyphen.components, [1, 0, 0], "1.0.0- retains components [1, 0, 0]")
+        ChallengerHarness.assertNil(trailingHyphen.prerelease, "1.0.0- with empty prerelease has nil prerelease")
+
+        let trailingPlus = SemanticVersion("1.0.0+")
+        ChallengerHarness.assertEqual(trailingPlus.components, [1, 0, 0], "1.0.0+ retains components [1, 0, 0]")
+        ChallengerHarness.assertNil(trailingPlus.prerelease, "1.0.0+ build stripped")
+
+        let multipleBuildPluses = SemanticVersion("1.0.0-alpha+build.1+build.2")
+        ChallengerHarness.assertEqual(multipleBuildPluses.components, [1, 0, 0], "Multiple + build metadata components parse correctly")
+        ChallengerHarness.assertEqual(multipleBuildPluses.prerelease, "alpha", "Multiple + retains prerelease 'alpha'")
+
+        let multipleHyphens = SemanticVersion("1.0.0-beta.1-extra-debug")
+        ChallengerHarness.assertEqual(multipleHyphens.components, [1, 0, 0], "Multiple hyphens retain components [1, 0, 0]")
+        ChallengerHarness.assertEqual(multipleHyphens.prerelease, "beta.1-extra-debug", "Multiple hyphens retain full prerelease string")
+
+        let overflowV = SemanticVersion("9999999999999999999999999999999999.0.0")
+        ChallengerHarness.assertFalse(overflowV.components.isEmpty, "Integer overflow on component does not crash")
+
+        let negativeLeading = SemanticVersion("-1.0.0")
+        ChallengerHarness.assertEqual(negativeLeading.components, [1, 0, 0], "-1.0.0 strips leading hyphen and parses [1, 0, 0]")
+
+        let allNonNumeric = SemanticVersion("alpha.beta.gamma")
+        ChallengerHarness.assertEqual(allNonNumeric.components, [0], "All non-numeric components parse as [0]")
+
+        let mixedNonNumeric = SemanticVersion("1.beta.3")
+        ChallengerHarness.assertEqual(mixedNonNumeric.components, [1, 3], "1.beta.3 parses valid numeric components [1, 3]")
+
+        let unicodePrerelease = SemanticVersion("1.0.4-caf\u{00E9}")
+        ChallengerHarness.assertEqual(unicodePrerelease.prerelease, "caf\u{00E9}", "Unicode prerelease preserved")
+
+        // 13B: SemVer Equality & Mathematical Invariance
+        ChallengerHarness.assertEqual(SemanticVersion("1.0"), SemanticVersion("1.0.0"), "1.0 == 1.0.0")
+        ChallengerHarness.assertEqual(SemanticVersion("1.0.0"), SemanticVersion("1.0.0.0"), "1.0.0 == 1.0.0.0")
+        ChallengerHarness.assertEqual(SemanticVersion("v1.0.4"), SemanticVersion("1.0.4"), "v1.0.4 == 1.0.4")
+        ChallengerHarness.assertEqual(SemanticVersion("V1.0.4"), SemanticVersion("1.0.4"), "V1.0.4 == 1.0.4")
+        ChallengerHarness.assertEqual(SemanticVersion("1.0.4+exp.sha.1"), SemanticVersion("1.0.4+exp.sha.2"), "Build metadata ignored in equality")
+        ChallengerHarness.assertEqual(SemanticVersion("1.0.4+20261023"), SemanticVersion("1.0.4"), "Build metadata vs clean equality")
+
+        // 13C: SemVer Precedence & Comparison Matrix
+        let orderedVersions = [
+            "0.9.9",
+            "1.0.0-alpha",
+            "1.0.0-alpha.1",
+            "1.0.0-beta",
+            "1.0.0-beta.2",
+            "1.0.0-beta.11",
+            "1.0.0-rc.1",
+            "1.0.0",
+            "1.0.1",
+            "1.1.0-alpha",
+            "1.1.0",
+            "2.0.0-0",
+            "2.0.0"
+        ]
+
+        for i in 0..<(orderedVersions.count - 1) {
+            let smaller = SemanticVersion(orderedVersions[i])
+            let larger = SemanticVersion(orderedVersions[i + 1])
+            ChallengerHarness.assertTrue(smaller < larger, "SemVer precedence: \(orderedVersions[i]) < \(orderedVersions[i + 1])")
+            ChallengerHarness.assertFalse(larger < smaller, "Anti-symmetry: !(\(orderedVersions[i + 1]) < \(orderedVersions[i]))")
+            ChallengerHarness.assertFalse(smaller == larger, "Inequality: \(orderedVersions[i]) != \(orderedVersions[i + 1])")
+            ChallengerHarness.assertTrue(smaller == smaller, "Reflexivity: \(orderedVersions[i]) == \(orderedVersions[i])")
+            ChallengerHarness.assertFalse(smaller < smaller, "Strict irreflexivity: !(\(orderedVersions[i]) < \(orderedVersions[i]))")
+        }
+
+        // Transitivity test across random triples
+        for i in 0..<(orderedVersions.count - 2) {
+            let a = SemanticVersion(orderedVersions[i])
+            let b = SemanticVersion(orderedVersions[i + 1])
+            let c = SemanticVersion(orderedVersions[i + 2])
+            ChallengerHarness.assertTrue(a < b && b < c && a < c, "Transitivity: \(orderedVersions[i]) < \(orderedVersions[i + 2])")
+        }
+
+        // UpdateManager.isVersion helper checks
+        ChallengerHarness.assertTrue(UpdateManager.isVersion("2.0.0", greaterThan: "1.0.4"), "2.0.0 > 1.0.4")
+        ChallengerHarness.assertFalse(UpdateManager.isVersion("1.0.4", greaterThan: "2.0.0"), "!(1.0.4 > 2.0.0)")
+        ChallengerHarness.assertFalse(UpdateManager.isVersion("1.0.4", greaterThan: "1.0.4"), "!(1.0.4 > 1.0.4)")
+        ChallengerHarness.assertFalse(UpdateManager.isVersion("v1.0.4", greaterThan: "1.0.4"), "!(v1.0.4 > 1.0.4)")
+        ChallengerHarness.assertTrue(UpdateManager.isVersion("1.0.4", greaterThan: "1.0.4-beta.1"), "1.0.4 > 1.0.4-beta.1")
+        ChallengerHarness.assertFalse(UpdateManager.isVersion("1.0.4-beta.1", greaterThan: "1.0.4"), "!(1.0.4-beta.1 > 1.0.4)")
+
+        // 13D: ReleaseInfo Parsing with Malformed JSON
+        let invalidJSONData = "this is not valid json".data(using: .utf8)!
+        var threwInvalid = false
+        do {
+            _ = try UpdateManager.parseRelease(from: invalidJSONData)
+        } catch {
+            threwInvalid = true
+        }
+        ChallengerHarness.assertTrue(threwInvalid, "parseRelease throws on malformed JSON")
+
+        let emptyJSONData = "{}".data(using: .utf8)!
+        var threwEmpty = false
+        do {
+            _ = try UpdateManager.parseRelease(from: emptyJSONData)
+        } catch {
+            threwEmpty = true
+        }
+        ChallengerHarness.assertTrue(threwEmpty, "parseRelease throws on empty JSON object missing tag_name")
+
+        let typeMismatchJSON = "{\"tag_name\": 12345}".data(using: .utf8)!
+        var threwTypeMismatch = false
+        do {
+            _ = try UpdateManager.parseRelease(from: typeMismatchJSON)
+        } catch {
+            threwTypeMismatch = true
+        }
+        ChallengerHarness.assertTrue(threwTypeMismatch, "parseRelease throws on tag_name type mismatch")
+
+        // Missing optional fields (name, body, html_url, assets all omitted)
+        let minimalJSON = "{\"tag_name\": \"v1.0.4\"}".data(using: .utf8)!
+        do {
+            let rel = try UpdateManager.parseRelease(from: minimalJSON)
+            ChallengerHarness.assertEqual(rel.tagName, "v1.0.4", "Minimal JSON parses tag_name")
+            ChallengerHarness.assertEqual(rel.name, "v1.0.4", "Minimal JSON defaults name to tag_name")
+            ChallengerHarness.assertEqual(rel.releaseNotes, "", "Minimal JSON defaults releaseNotes to empty string")
+            ChallengerHarness.assertEqual(rel.htmlURL.absoluteString, "https://github.com/nhanqv-ai/SuperShot/releases", "Minimal JSON defaults htmlURL safely")
+            ChallengerHarness.assertNil(rel.zipAssetURL, "Minimal JSON has nil zipAssetURL")
+            ChallengerHarness.assertEqual(rel.versionString, "1.0.4", "versionString strips leading v")
+        } catch {
+            ChallengerHarness.assertTrue(false, "Minimal JSON unexpectedly threw: \(error)")
+        }
+
+        // Whitespace-only html_url fallback
+        let whitespaceUrlJSON = """
+        {
+            "tag_name": "v1.0.4",
+            "html_url": "   \\t  \\n"
+        }
+        """.data(using: .utf8)!
+        do {
+            let rel = try UpdateManager.parseRelease(from: whitespaceUrlJSON)
+            ChallengerHarness.assertEqual(rel.htmlURL.absoluteString, "https://github.com/nhanqv-ai/SuperShot/releases", "Whitespace html_url falls back to default releases URL")
+        } catch {
+            ChallengerHarness.assertTrue(false, "Whitespace html_url unexpectedly threw: \(error)")
+        }
+
+        // Assets discrimination: prefers asset matching supershot & .zip over general .zip
+        let multiAssetJSON = """
+        {
+            "tag_name": "v1.0.4",
+            "assets": [
+                { "name": "other-tool.zip", "browser_download_url": "https://example.com/other.zip" },
+                { "name": "SuperShot-v1.0.4-arm64.dmg", "browser_download_url": "https://example.com/app.dmg" },
+                { "name": "SuperShot-v1.0.4.zip", "browser_download_url": "https://example.com/SuperShot-v1.0.4.zip" },
+                { "name": "checksums.txt", "browser_download_url": "https://example.com/sha.txt" }
+            ]
+        }
+        """.data(using: .utf8)!
+        do {
+            let rel = try UpdateManager.parseRelease(from: multiAssetJSON)
+            ChallengerHarness.assertEqual(rel.zipAssetURL?.absoluteString, "https://example.com/SuperShot-v1.0.4.zip", "Selects supershot-specific zip over other zip assets")
+        } catch {
+            ChallengerHarness.assertTrue(false, "Multi-asset JSON unexpectedly threw: \(error)")
+        }
+
+        // Fallback to any .zip when 'supershot' keyword is not present in name
+        let genericZipJSON = """
+        {
+            "tag_name": "v1.0.4",
+            "assets": [
+                { "name": "release-archive.zip", "browser_download_url": "https://example.com/release-archive.zip" }
+            ]
+        }
+        """.data(using: .utf8)!
+        do {
+            let rel = try UpdateManager.parseRelease(from: genericZipJSON)
+            ChallengerHarness.assertEqual(rel.zipAssetURL?.absoluteString, "https://example.com/release-archive.zip", "Falls back to any .zip asset when supershot keyword is absent")
+        } catch {
+            ChallengerHarness.assertTrue(false, "Generic zip JSON unexpectedly threw: \(error)")
+        }
+
+        // Non-zip assets (e.g. tar.gz or dmg only) -> zipAssetURL is nil
+        let noZipJSON = """
+        {
+            "tag_name": "v1.0.4",
+            "assets": [
+                { "name": "SuperShot.dmg", "browser_download_url": "https://example.com/app.dmg" },
+                { "name": "SuperShot.tar.gz", "browser_download_url": "https://example.com/app.tar.gz" }
+            ]
+        }
+        """.data(using: .utf8)!
+        do {
+            let rel = try UpdateManager.parseRelease(from: noZipJSON)
+            ChallengerHarness.assertNil(rel.zipAssetURL, "zipAssetURL is nil when no .zip assets exist")
+        } catch {
+            ChallengerHarness.assertTrue(false, "No zip JSON unexpectedly threw: \(error)")
+        }
+    }
+
+    // MARK: - 14. UpdateManager State Transitions, Error Conditions & Concurrency
+    static func testUpdateManagerStateTransitionsAndConcurrency() {
+        ChallengerHarness.startSuite("14. UpdateManager State Transitions, Error Conditions & Concurrency")
+
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [AdversarialMockURLProtocol.self]
+        let session = URLSession(configuration: config)
+
+        let mockValidJSON = """
+        {
+            "tag_name": "v1.0.4",
+            "name": "SuperShot 1.0.4",
+            "body": "Adversarial test release notes",
+            "html_url": "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.4",
+            "assets": [
+                {
+                    "name": "SuperShot-v1.0.4.zip",
+                    "browser_download_url": "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.4/SuperShot-v1.0.4.zip"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let mgr = UpdateManager(session: session)
+        mgr.currentVersion = "1.0.3"
+
+        // 14A: Initial State Invariants
+        ChallengerHarness.assertEqual(mgr.status, .idle, "Initial status is .idle")
+        ChallengerHarness.assertFalse(mgr.hasPendingUpdate, "Initially hasPendingUpdate is false")
+        ChallengerHarness.assertFalse(mgr.hasUpdateAvailable, "Initially hasUpdateAvailable is false")
+        ChallengerHarness.assertFalse(mgr.shouldShowBanner, "Initially shouldShowBanner is false")
+        ChallengerHarness.assertFalse(mgr.isBusy, "Initially isBusy is false")
+
+        // 14B: State Machine Progression & Banner Session Dismissal
+        let dummyRelease = ReleaseInfo(
+            tagName: "v1.0.4",
+            name: "SuperShot 1.0.4",
+            releaseNotes: "Notes",
+            htmlURL: URL(string: "https://example.com")!,
+            zipAssetURL: URL(string: "https://example.com/update.zip")!
+        )
+
+        // Simulate .updateAvailable
+        mgr.status = .updateAvailable(dummyRelease)
+        mgr.latestRelease = dummyRelease
+        mgr.hasPendingUpdate = true
+        mgr.isBannerDismissedForSession = false
+
+        ChallengerHarness.assertTrue(mgr.hasPendingUpdate, "hasPendingUpdate is true in .updateAvailable")
+        ChallengerHarness.assertTrue(mgr.hasUpdateAvailable, "hasUpdateAvailable is true in .updateAvailable")
+        ChallengerHarness.assertTrue(mgr.shouldShowBanner, "shouldShowBanner is true in .updateAvailable")
+        ChallengerHarness.assertFalse(mgr.isBusy, "isBusy is false in .updateAvailable")
+
+        // Dismiss banner for session
+        mgr.dismissBannerForSession()
+        ChallengerHarness.assertFalse(mgr.shouldShowBanner, "shouldShowBanner is false after session dismissal")
+        ChallengerHarness.assertTrue(mgr.hasPendingUpdate, "hasPendingUpdate stays true after dismissal (gear badge)")
+        ChallengerHarness.assertTrue(mgr.hasUpdateAvailable, "hasUpdateAvailable stays true after dismissal")
+
+        // Transition to .downloading
+        mgr.status = .downloading(progress: 0.45)
+        ChallengerHarness.assertTrue(mgr.isBusy, "isBusy is true during .downloading")
+        mgr.isBannerDismissedForSession = false
+        ChallengerHarness.assertTrue(mgr.shouldShowBanner, "shouldShowBanner is true during downloading when not dismissed")
+
+        // Transition to .readyToRestart
+        mgr.status = .readyToRestart(dummyRelease)
+        mgr.isBannerDismissedForSession = false
+        ChallengerHarness.assertFalse(mgr.isBusy, "isBusy is false in .readyToRestart")
+        ChallengerHarness.assertTrue(mgr.shouldShowBanner, "shouldShowBanner is true in .readyToRestart")
+
+        // 14C: readyToRestart State Protection
+        // Background check must NEVER overwrite readyToRestart with .upToDate, .error, or .checking
+        AdversarialMockURLProtocol.reset()
+        AdversarialMockURLProtocol.mockResponse = HTTPURLResponse(
+            url: mgr.apiURL,
+            statusCode: 500,
+            httpVersion: nil,
+            headerFields: nil
+        )
+
+        var bgCheckCompleted = false
+        mgr.checkForUpdates(userInitiated: false) { result in
+            bgCheckCompleted = true
+        }
+
+        let deadlineBg = Date().addingTimeInterval(3.0)
+        while !bgCheckCompleted && Date() < deadlineBg {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+
+        ChallengerHarness.assertTrue(bgCheckCompleted, "Background check completed")
+        ChallengerHarness.assertEqual(mgr.status, .readyToRestart(dummyRelease), "Background check preserves .readyToRestart and is not clobbered by server error")
+
+        // 14D: HTTP Error Code Mapping
+        let errorCodes: [(Int, UpdateError)] = [
+            (404, .noReleaseFound),
+            (403, .rateLimitExceeded),
+            (429, .rateLimitExceeded),
+            (500, .httpError(500)),
+            (502, .httpError(502)),
+            (503, .httpError(503))
+        ]
+
+        for (code, expectedErr) in errorCodes {
+            AdversarialMockURLProtocol.reset()
+            AdversarialMockURLProtocol.mockResponse = HTTPURLResponse(
+                url: mgr.apiURL,
+                statusCode: code,
+                httpVersion: nil,
+                headerFields: nil
+            )
+
+            mgr.status = .idle
+            var errCompleted = false
+
+            mgr.checkForUpdates(userInitiated: true) { _ in
+                errCompleted = true
+            }
+
+            let dl = Date().addingTimeInterval(3.0)
+            while !errCompleted && Date() < dl {
+                RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+            }
+
+            ChallengerHarness.assertTrue(errCompleted, "Check completed for HTTP \(code)")
+            if case .error(let msg) = mgr.status {
+                ChallengerHarness.assertTrue(msg.contains(expectedErr.localizedDescription) || msg == expectedErr.localizedDescription, "Status contains expected error message for HTTP \(code)")
+            } else {
+                ChallengerHarness.assertTrue(false, "Expected .error status for HTTP \(code), got: \(mgr.status)")
+            }
+        }
+
+        // 14E: Rapid Concurrent Invocation Stress
+        AdversarialMockURLProtocol.reset()
+        AdversarialMockURLProtocol.mockData = mockValidJSON
+        AdversarialMockURLProtocol.mockResponse = HTTPURLResponse(
+            url: mgr.apiURL,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )
+
+        mgr.status = .idle
+        mgr.currentVersion = "1.0.3"
+
+        let concurrentCalls = 30
+        var completedConcurrent = 0
+        let concLock = NSLock()
+
+        for i in 0..<concurrentCalls {
+            DispatchQueue.global().async {
+                mgr.checkForUpdates(userInitiated: i % 2 == 0) { _ in
+                    concLock.lock()
+                    completedConcurrent += 1
+                    concLock.unlock()
+                }
+            }
+        }
+
+        let concDeadline = Date().addingTimeInterval(5.0)
+        while completedConcurrent < concurrentCalls && Date() < concDeadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+
+        ChallengerHarness.assertEqual(completedConcurrent, concurrentCalls, "All \(concurrentCalls) concurrent checkForUpdates calls completed without deadlock")
+        ChallengerHarness.assertTrue(mgr.hasPendingUpdate, "hasPendingUpdate resolved cleanly under concurrency")
+        if case .updateAvailable(let rel) = mgr.status {
+            ChallengerHarness.assertEqual(rel.tagName, "v1.0.4", "Status cleanly converged to .updateAvailable v1.0.4")
+        } else {
+            ChallengerHarness.assertTrue(false, "Status failed to converge to .updateAvailable, got: \(mgr.status)")
+        }
+    }
+
+    // MARK: - 15. AppSettings updateCheckIntervalDays Clamping & Timing Stress
+    static func testUpdateCheckIntervalClampingAndPersistence() {
+        ChallengerHarness.startSuite("15. AppSettings updateCheckIntervalDays Clamping & Timing Stress")
+
+        let sandboxDir = URL(fileURLWithPath: NSTemporaryDirectory()).appendingPathComponent("SuperShot_Adv_Settings_\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: sandboxDir, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: sandboxDir)
+        }
+
+        let settingsURL = sandboxDir.appendingPathComponent("settings.json")
+        let settings = AppSettings(settingsURL: settingsURL)
+
+        // 15A: Default Value
+        ChallengerHarness.assertEqual(settings.updateCheckIntervalDays, 1, "Default updateCheckIntervalDays is 1")
+
+        // 15B: Boundary Clamping on Assignment
+        let clampingCases: [(input: Int, expected: Int)] = [
+            (0, 1),
+            (-1, 1),
+            (-50, 1),
+            (-999999, 1),
+            (Int.min, 1),
+            (1, 1),
+            (2, 2),
+            (7, 7),
+            (14, 14),
+            (30, 30),
+            (31, 30),
+            (100, 30),
+            (999999, 30),
+            (Int.max, 30)
+        ]
+
+        for c in clampingCases {
+            settings.updateCheckIntervalDays = c.input
+            ChallengerHarness.assertEqual(settings.updateCheckIntervalDays, c.expected, "updateCheckIntervalDays \(c.input) clamped to \(c.expected)")
+        }
+
+        // 15C: Persistence & Reload Roundtrip
+        settings.updateCheckIntervalDays = 7
+        do {
+            try settings.saveSynchronously()
+            let reloaded = AppSettings(settingsURL: settingsURL)
+            ChallengerHarness.assertEqual(reloaded.updateCheckIntervalDays, 7, "Persisted interval 7 reloaded accurately")
+        } catch {
+            ChallengerHarness.assertTrue(false, "saveSynchronously unexpectedly threw: \(error)")
+        }
+
+        settings.updateCheckIntervalDays = 30
+        do {
+            try settings.saveSynchronously()
+            let reloaded30 = AppSettings(settingsURL: settingsURL)
+            ChallengerHarness.assertEqual(reloaded30.updateCheckIntervalDays, 30, "Persisted interval 30 reloaded accurately")
+        } catch {
+            ChallengerHarness.assertTrue(false, "saveSynchronously 30 threw: \(error)")
+        }
+
+        // 15D: Legacy JSON Decoding Fallback (Backward Compatibility)
+        let legacyJSON = """
+        {
+            "activeColorHex": "#FF3B30",
+            "activeStrokeWidth": 3.0,
+            "activeFontSize": 18.0,
+            "presets": [],
+            "autoSaveEnabled": false,
+            "autoSaveDirectoryPath": "/tmp",
+            "saveFormat": "png",
+            "jpegQuality": 0.9,
+            "maxScrollHeightPx": 15000,
+            "capacity": 50,
+            "launchAtLogin": false,
+            "language": "system",
+            "autoPasteOnSelection": true,
+            "regionHotKeyKeyCode": 1,
+            "regionHotKeyModifiers": 2048,
+            "scrollHotKeyKeyCode": 1,
+            "scrollHotKeyModifiers": 2560,
+            "automaticallyCheckForUpdates": true
+        }
+        """.data(using: .utf8)!
+
+        do {
+            let decoder = JSONDecoder()
+            let legacySnapshot = try decoder.decode(AppSettingsSnapshot.self, from: legacyJSON)
+            ChallengerHarness.assertEqual(legacySnapshot.updateCheckIntervalDays, 1, "Legacy JSON without updateCheckIntervalDays defaults to 1")
+
+            let legacySettings = AppSettings(settingsURL: sandboxDir.appendingPathComponent("legacy.json"), initialSnapshot: legacySnapshot)
+            ChallengerHarness.assertEqual(legacySettings.updateCheckIntervalDays, 1, "AppSettings constructed from legacy snapshot has updateCheckIntervalDays == 1")
+        } catch {
+            ChallengerHarness.assertTrue(false, "Legacy JSON decode failed: \(error)")
+        }
+
+        // 15E: Corrupt JSON Clamping on Load
+        let corruptNegativeJSON = """
+        {
+            "activeColorHex": "#FF3B30",
+            "activeStrokeWidth": 3.0,
+            "activeFontSize": 18.0,
+            "presets": [],
+            "autoSaveEnabled": false,
+            "autoSaveDirectoryPath": "/tmp",
+            "saveFormat": "png",
+            "jpegQuality": 0.9,
+            "maxScrollHeightPx": 15000,
+            "capacity": 50,
+            "launchAtLogin": false,
+            "language": "system",
+            "autoPasteOnSelection": true,
+            "regionHotKeyKeyCode": 1,
+            "regionHotKeyModifiers": 2048,
+            "scrollHotKeyKeyCode": 1,
+            "scrollHotKeyModifiers": 2560,
+            "automaticallyCheckForUpdates": true,
+            "updateCheckIntervalDays": -100
+        }
+        """.data(using: .utf8)!
+
+        let corruptNegURL = sandboxDir.appendingPathComponent("corrupt_neg.json")
+        try? corruptNegativeJSON.write(to: corruptNegURL)
+        let corruptNegSettings = AppSettings(settingsURL: corruptNegURL)
+        ChallengerHarness.assertEqual(corruptNegSettings.updateCheckIntervalDays, 1, "Corrupt negative interval in JSON is clamped to 1 on load")
+
+        let corruptHugeJSON = """
+        {
+            "activeColorHex": "#FF3B30",
+            "activeStrokeWidth": 3.0,
+            "activeFontSize": 18.0,
+            "presets": [],
+            "autoSaveEnabled": false,
+            "autoSaveDirectoryPath": "/tmp",
+            "saveFormat": "png",
+            "jpegQuality": 0.9,
+            "maxScrollHeightPx": 15000,
+            "capacity": 50,
+            "launchAtLogin": false,
+            "language": "system",
+            "autoPasteOnSelection": true,
+            "regionHotKeyKeyCode": 1,
+            "regionHotKeyModifiers": 2048,
+            "scrollHotKeyKeyCode": 1,
+            "scrollHotKeyModifiers": 2560,
+            "automaticallyCheckForUpdates": true,
+            "updateCheckIntervalDays": 9999
+        }
+        """.data(using: .utf8)!
+
+        let corruptHugeURL = sandboxDir.appendingPathComponent("corrupt_huge.json")
+        try? corruptHugeJSON.write(to: corruptHugeURL)
+        let corruptHugeSettings = AppSettings(settingsURL: corruptHugeURL)
+        ChallengerHarness.assertEqual(corruptHugeSettings.updateCheckIntervalDays, 30, "Corrupt huge interval in JSON is clamped to 30 on load")
+
+        // 15F: Startup Timing Oracle Verification
+        func shouldTriggerStartupCheck(
+            autoCheck: Bool,
+            lastCheck: Date?,
+            intervalDays: Int,
+            now: Date
+        ) -> Bool {
+            guard autoCheck else { return false }
+            guard let last = lastCheck else { return true }
+            let clampedInterval = max(1, intervalDays)
+            let intervalSeconds = Double(clampedInterval * 86400)
+            return now.timeIntervalSince(last) >= intervalSeconds
+        }
+
+        let refNow = Date()
+
+        // Daily interval (1 day)
+        ChallengerHarness.assertFalse(
+            shouldTriggerStartupCheck(autoCheck: true, lastCheck: refNow.addingTimeInterval(-3600), intervalDays: 1, now: refNow),
+            "Daily check skipped when last check was 1 hour ago"
+        )
+        ChallengerHarness.assertFalse(
+            shouldTriggerStartupCheck(autoCheck: true, lastCheck: refNow.addingTimeInterval(-86300), intervalDays: 1, now: refNow),
+            "Daily check skipped when last check was 23.97 hours ago"
+        )
+        ChallengerHarness.assertTrue(
+            shouldTriggerStartupCheck(autoCheck: true, lastCheck: refNow.addingTimeInterval(-86401), intervalDays: 1, now: refNow),
+            "Daily check triggered when last check was > 24 hours ago"
+        )
+
+        // Weekly interval (7 days)
+        ChallengerHarness.assertFalse(
+            shouldTriggerStartupCheck(autoCheck: true, lastCheck: refNow.addingTimeInterval(-86400 * 6), intervalDays: 7, now: refNow),
+            "Weekly check skipped when last check was 6 days ago"
+        )
+        ChallengerHarness.assertTrue(
+            shouldTriggerStartupCheck(autoCheck: true, lastCheck: refNow.addingTimeInterval(-86400 * 7 - 1), intervalDays: 7, now: refNow),
+            "Weekly check triggered when last check was > 7 days ago"
+        )
+
+        // Monthly interval (30 days)
+        ChallengerHarness.assertFalse(
+            shouldTriggerStartupCheck(autoCheck: true, lastCheck: refNow.addingTimeInterval(-86400 * 29), intervalDays: 30, now: refNow),
+            "Monthly check skipped when last check was 29 days ago"
+        )
+        ChallengerHarness.assertTrue(
+            shouldTriggerStartupCheck(autoCheck: true, lastCheck: refNow.addingTimeInterval(-86400 * 30 - 1), intervalDays: 30, now: refNow),
+            "Monthly check triggered when last check was > 30 days ago"
+        )
+
+        // No prior check date
+        ChallengerHarness.assertTrue(
+            shouldTriggerStartupCheck(autoCheck: true, lastCheck: nil, intervalDays: 7, now: refNow),
+            "Startup check triggered when lastUpdateCheckDate is nil"
+        )
+
+        // Auto check disabled
+        ChallengerHarness.assertFalse(
+            shouldTriggerStartupCheck(autoCheck: false, lastCheck: refNow.addingTimeInterval(-86400 * 365), intervalDays: 1, now: refNow),
+            "Startup check skipped when automaticallyCheckForUpdates is false even if checked 1 year ago"
+        )
+    }
 }
+
+// MARK: - Mock Network Protocol for Adversarial Testing
+
+final class AdversarialMockURLProtocol: URLProtocol {
+    static var mockData: Data?
+    static var mockResponse: HTTPURLResponse?
+    static var mockError: Error?
+    static var lastRequest: URLRequest?
+
+    static func reset() {
+        mockData = nil
+        mockResponse = nil
+        mockError = nil
+        lastRequest = nil
+    }
+
+    override class func canInit(with request: URLRequest) -> Bool {
+        return true
+    }
+
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest {
+        return request
+    }
+
+    override func startLoading() {
+        AdversarialMockURLProtocol.lastRequest = request
+
+        if let error = AdversarialMockURLProtocol.mockError {
+            client?.urlProtocol(self, didFailWithError: error)
+            return
+        }
+
+        let response = AdversarialMockURLProtocol.mockResponse
+            ?? HTTPURLResponse(url: request.url!, statusCode: 200, httpVersion: nil, headerFields: ["Content-Type": "application/json"])!
+
+        client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+
+        if let data = AdversarialMockURLProtocol.mockData {
+            client?.urlProtocol(self, didLoad: data)
+        }
+
+        client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {}
+}
+
 

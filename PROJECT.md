@@ -182,6 +182,24 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 58 | Launch at Login | SMAppService login item registration and state querying | M4 | ORIGINAL_REQUEST §R3 |
 | 59 | Documentation Sync | Updated README.md documenting Scrolling Capture and Color Presets | M4 | ORIGINAL_REQUEST §R4 |
 | 60 | E2E Regression Pass | 100% pass on all 4 tiers of E2E test suite and adversarial check | M5 | ORIGINAL_REQUEST §Acceptance |
+| 61 | Live GUI Driver Execution | Compile and execute LiveGUIDriver.swift to render on-screen GUI and generate snapshots | M6 | ORIGINAL_REQUEST §R1 |
+| 62 | In-Place Capture Overlay Verification | Test pre-selection instruction banner, 8 handles, W x H px badge, edge-aware positioning | M6 | ORIGINAL_REQUEST §R1.1 |
+| 63 | Context-Aware Cursor UX Verification | Verify pointingHand on controls, crosshair/tool/resize cursors on canvas | M6 | ORIGINAL_REQUEST §R1.2 |
+| 64 | Vector Engine & Mosaic Blur Verification | Test 9 tools, 1-click presets, hex/eyedropper, undo/redo | M6 | ORIGINAL_REQUEST §R1.3 |
+| 65 | Scrolling Capture & Tall Canvas Verification | Auto/manual scroll, sticky dedup, preview panel, tall canvas annotation | M6 | ORIGINAL_REQUEST §R1.4 |
+| 66 | Menu Bar Popover & Settings Verification | 380x560 popover, pinned/recent, hover preview, 4 settings tabs in EN and VI | M6 | ORIGINAL_REQUEST §R1.5 |
+| 67 | Proactive UX & Feature Polish | Inspect live snapshots for visual rough edges, clipping, responsiveness; refine code (0 emojis) | M7 | ORIGINAL_REQUEST §R2 |
+| 68 | Automated Release Pipeline | Bump patch version, branch, PR, merge, make verify/package, GitHub public release | M8 | ORIGINAL_REQUEST §R3 |
+| 69 | Real UpdateManager Integration | Implement UpdateManager in SuperShotCore querying GitHub releases API, wire to AboutSettingsTab | M7.1 | Follow-up 2026-10-23 |
+| 70 | In-App Update Banner & Notification | MainShotView update banner (.updateAvailable, .downloading, .readyToRestart, .error), Settings gear badge dot | M10 | Follow-up 2026-10-23 |
+| 71 | Update Frequency Setting | Daily (1), Weekly (7), Monthly (30) interval options in General settings, persisted & clamped in AppSettings | M10 | Follow-up 2026-10-23 |
+| 72 | Ergonomics Polish & Zero-Emoji L10n | Popover dynamic arrowEdge, scroll capture cleanup, pointingHandCursor on settings buttons, 9 languages | M10 | Follow-up 2026-10-23 |
+| 73 | Full Download & Install Flow | Direct download of release asset zip and installation/updater launch matching SuperClip | M10 | ORIGINAL_REQUEST §R2 |
+| 74 | Vector/Capture Ergonomics Polish | Any cursor, hover, or toolbar refinements identified during live GUI audit | M10 | ORIGINAL_REQUEST §R2 |
+| 75 | Version Bump to v1.0.4 | Update Info.plist, AboutSettingsTab, Makefile, README.md | M11 | ORIGINAL_REQUEST §R3 |
+| 76 | Automated Git PR & Merge | Feature branch, gh pr create, gh pr merge to main | M11 | ORIGINAL_REQUEST §R3 |
+| 77 | Universal 2 Package & Release | make clean, lint, test, adversarial, app, verify-app, package, gh release create v1.0.4 | M11 | ORIGINAL_REQUEST §R3 |
+| 78 | Public Repo Enforcement | Ensure nhanqv-ai/SuperShot visibility is PUBLIC | M11 | Follow-up 2026-10-23 |
 
 ## Milestones
 
@@ -192,6 +210,12 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M3 | Scrolling Capture & Stitching | ScrollingCaptureManager (auto/manual scroll CGEvent wheel), ImageStitcher (scrollbar exclusion, sticky header/footer dedup, overlap matching, auto-stop), ScrollableAnnotationCanvas | M1, M2 | DONE |
 | M4 | Popover History, Settings & App Target | SuperShot app target (main, AppDelegate), StatusItemManager, MainShotView (pinned, recent, search, hover zoom, 1..9), AutoPasteService, 4-tab SettingsView, README.md update | M1, M2, M3 | DONE |
 | M5 | Final E2E Pass & Hardening | Wait for TEST_READY.md, pass 100% of E2E test tiers 1-4, Phase 2 adversarial hardening (Tier 5), verify-app, verify-bundle, and make package | M1, M2, M3, M4, E2E Track | DONE |
+| M6 | Live On-Screen GUI & Interactive UX Testing | Execute LiveGUIDriver, verify 5 interactive surfaces (Features 61-66), validate snapshots | M1-M5 | DONE |
+| M7 | Proactive UX & Feature Polish | Implement UX refinements in Sources/SuperShot and SuperShotCore (0 emojis), PR #3 | M6 | DONE |
+| M7.1 | Real UpdateManager Integration | Implement UpdateManager, SemanticVersion, wire into AboutSettingsTab & AppDelegate, unit tests, enforce PUBLIC repo visibility | M7 | DONE |
+| M8 | Automated Release Pipeline | Merge PR #3 to main, package Universal 2, publish public GH release v1.0.3 | M7.1 | DONE |
+| M10 | In-App Update Banner & Frequency Polish | UpdateManager async wrappers, MainShotView update banner with gear badge, update check frequency picker in GeneralSettingsTab, ergonomics polish (popover dynamic edge, scrollable canvas, pointingHandCursor), comprehensive unit tests (0 emojis) | M8, M7.1 | DONE |
+| M11 | Automated Release Pipeline v1.0.4 | Version bump to v1.0.4, branch, PR, merge, clean build/verify, GitHub release v1.0.4, verify PUBLIC | M10 | DONE |
 
 ## Interface Contracts
 

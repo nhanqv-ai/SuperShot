@@ -1,6 +1,8 @@
 import Foundation
 import AppKit
+import SwiftUI
 import SuperShotCore
+import SuperShot
 
 /// Mock URLProtocol to intercept and stub network responses for UpdateManager testing.
 final class MockUpdateURLProtocol: URLProtocol {
@@ -559,7 +561,229 @@ public struct UpdateManagerTests {
 
         // Notification safety in CLI process (bundleIdentifier is nil)
         stageMgr.postUpdateNotification(release: fakeRelease)
-        stageMgr.postUpToDateNotification(currentVersion: "1.0.3")
+        stageMgr.postUpToDateNotification(currentVersion: "1.0.4")
         TestHarness.assertTrue(true, "Notifications execute safely outside app bundle without crashing")
+
+        // =========================================================================
+        // 9. hasUpdateAvailable Computed Property Verification
+        // =========================================================================
+        let checkAliasMgr = UpdateManager(session: mockSession)
+        TestHarness.assertFalse(checkAliasMgr.hasUpdateAvailable, "Initial hasUpdateAvailable is false")
+        TestHarness.assertEqual(checkAliasMgr.hasUpdateAvailable, checkAliasMgr.hasPendingUpdate, "hasUpdateAvailable matches hasPendingUpdate initially")
+
+        checkAliasMgr.status = .updateAvailable(fakeRelease)
+        checkAliasMgr.hasPendingUpdate = true
+        TestHarness.assertTrue(checkAliasMgr.hasUpdateAvailable, "hasUpdateAvailable is true when hasPendingUpdate is true")
+        TestHarness.assertEqual(checkAliasMgr.hasUpdateAvailable, checkAliasMgr.hasPendingUpdate, "hasUpdateAvailable accurately mirrors hasPendingUpdate")
+
+        checkAliasMgr.status = .upToDate(currentVersion: "1.0.4")
+        checkAliasMgr.hasPendingUpdate = false
+        TestHarness.assertFalse(checkAliasMgr.hasUpdateAvailable, "hasUpdateAvailable is false when up to date")
+
+        // =========================================================================
+        // 10. Async/Await API Wrappers Verification
+        // =========================================================================
+        MockUpdateURLProtocol.reset()
+        MockUpdateURLProtocol.mockData = mockValidJSON
+        MockUpdateURLProtocol.mockResponse = HTTPURLResponse(
+            url: URL(string: "https://api.github.com/repos/nhanqv-ai/SuperShot/releases/latest")!,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"]
+        )
+        let asyncUpdateMgr = UpdateManager(session: mockSession)
+        asyncUpdateMgr.currentVersion = "1.0.3"
+
+        var asyncFinished = false
+        var asyncReleaseResult: ReleaseInfo? = nil
+        var asyncErrorResult: Error? = nil
+
+        Task {
+            do {
+                let release = try await asyncUpdateMgr.checkForUpdates(userInitiated: true)
+                asyncReleaseResult = release
+            } catch {
+                asyncErrorResult = error
+            }
+            asyncFinished = true
+        }
+
+        let asyncDeadline = Date().addingTimeInterval(3.0)
+        while !asyncFinished && Date() < asyncDeadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+
+        TestHarness.assertNil(asyncErrorResult, "async checkForUpdates completed without error")
+        TestHarness.assertNotNil(asyncReleaseResult, "async checkForUpdates returned release info")
+        TestHarness.assertEqual(asyncReleaseResult?.tagName, "v1.0.4", "async checkForUpdates discovered v1.0.4")
+        TestHarness.assertTrue(asyncUpdateMgr.hasPendingUpdate, "async checkForUpdates set hasPendingUpdate to true")
+        TestHarness.assertTrue(asyncUpdateMgr.hasUpdateAvailable, "async checkForUpdates set hasUpdateAvailable to true")
+
+        // Async download and install using mock local zip
+        let asyncStageMgr = UpdateManager(session: mockSession)
+        asyncStageMgr.verifyCodeSignature = false
+        let asyncDest = stagingDir.appendingPathComponent("AsyncStaged/SuperShot.app")
+        var asyncInstallFinished = false
+        var asyncStagedURL: URL? = nil
+        var asyncInstallError: Error? = nil
+
+        let localZipRelease = ReleaseInfo(
+            tagName: "v1.0.4",
+            name: "SuperShot v1.0.4",
+            releaseNotes: "Local test release",
+            htmlURL: fakeRelease.htmlURL,
+            zipAssetURL: zipURL
+        )
+
+        Task {
+            do {
+                let staged = try await asyncStageMgr.downloadAndInstall(release: localZipRelease, targetURL: asyncDest)
+                asyncStagedURL = staged
+            } catch {
+                asyncInstallError = error
+            }
+            asyncInstallFinished = true
+        }
+
+        let asyncInstallDeadline = Date().addingTimeInterval(3.0)
+        while !asyncInstallFinished && Date() < asyncInstallDeadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+        }
+
+        TestHarness.assertNil(asyncInstallError, "async downloadAndInstall completed without error")
+        TestHarness.assertEqual(asyncStagedURL?.path, asyncDest.path, "async downloadAndInstall staged to target destination")
+        TestHarness.assertTrue(FileManager.default.fileExists(atPath: asyncDest.path), "Async staged application exists at target destination")
+
+        // =========================================================================
+        // 11. updateCheckIntervalDays Clamping, Persistence & Startup Scheduling
+        // =========================================================================
+        let intervalSettingsURL = sandboxDir.appendingPathComponent("interval_settings.json")
+        let intervalSettings = AppSettings(settingsURL: intervalSettingsURL)
+
+        TestHarness.assertEqual(intervalSettings.updateCheckIntervalDays, 1, "Default updateCheckIntervalDays is 1 day")
+
+        intervalSettings.updateCheckIntervalDays = 7
+        TestHarness.assertEqual(intervalSettings.updateCheckIntervalDays, 7, "updateCheckIntervalDays updated to 7 (weekly)")
+
+        intervalSettings.updateCheckIntervalDays = 30
+        TestHarness.assertEqual(intervalSettings.updateCheckIntervalDays, 30, "updateCheckIntervalDays updated to 30 (monthly)")
+
+        // Lower boundary clamping (< 1 -> 1)
+        intervalSettings.updateCheckIntervalDays = 0
+        TestHarness.assertEqual(intervalSettings.updateCheckIntervalDays, 1, "updateCheckIntervalDays 0 clamped to 1")
+        intervalSettings.updateCheckIntervalDays = -10
+        TestHarness.assertEqual(intervalSettings.updateCheckIntervalDays, 1, "updateCheckIntervalDays negative clamped to 1")
+
+        // Upper boundary clamping (> 30 -> 30)
+        intervalSettings.updateCheckIntervalDays = 31
+        TestHarness.assertEqual(intervalSettings.updateCheckIntervalDays, 30, "updateCheckIntervalDays 31 clamped to 30")
+        intervalSettings.updateCheckIntervalDays = 365
+        TestHarness.assertEqual(intervalSettings.updateCheckIntervalDays, 30, "updateCheckIntervalDays 365 clamped to 30")
+
+        // Persistence round-trip
+        intervalSettings.updateCheckIntervalDays = 7
+        try? intervalSettings.saveSynchronously()
+        let reloadedIntervalSettings = AppSettings(settingsURL: intervalSettingsURL)
+        TestHarness.assertEqual(reloadedIntervalSettings.updateCheckIntervalDays, 7, "Reloaded updateCheckIntervalDays persisted as 7")
+
+        // Backward compatibility: decoding older JSON without updateCheckIntervalDays
+        let olderJSON = """
+        {
+            "activeColorHex": "#FF3B30",
+            "activeStrokeWidth": 3.0,
+            "activeFontSize": 18.0,
+            "presets": [],
+            "autoSaveEnabled": false,
+            "autoSaveDirectoryPath": "/tmp",
+            "saveFormat": "png",
+            "jpegQuality": 0.9,
+            "maxScrollHeightPx": 15000,
+            "capacity": 50,
+            "launchAtLogin": false,
+            "language": "system",
+            "autoPasteOnSelection": true,
+            "regionHotKeyKeyCode": 1,
+            "regionHotKeyModifiers": 2048,
+            "scrollHotKeyKeyCode": 1,
+            "scrollHotKeyModifiers": 2560,
+            "automaticallyCheckForUpdates": true
+        }
+        """.data(using: .utf8)!
+
+        let decodedOlder = try? JSONDecoder().decode(AppSettingsSnapshot.self, from: olderJSON)
+        TestHarness.assertNotNil(decodedOlder, "Successfully decoded older AppSettingsSnapshot without updateCheckIntervalDays")
+        TestHarness.assertEqual(decodedOlder?.updateCheckIntervalDays, 1, "Older AppSettingsSnapshot defaulted updateCheckIntervalDays to 1")
+
+        // Startup evaluation with custom intervals
+        let startupEvalMgr = UpdateManager(session: mockSession)
+        startupEvalMgr.apiURL = URL(string: "https://api.github.com/mock")!
+
+        // Sub-test A: interval = 7 days, checked 3 days ago -> should skip
+        intervalSettings.automaticallyCheckForUpdates = true
+        intervalSettings.updateCheckIntervalDays = 7
+        intervalSettings.lastUpdateCheckDate = Date().addingTimeInterval(-3 * 86400) // 3 days ago
+
+        startupEvalMgr.status = .idle
+        startupEvalMgr.checkOnStartupIfNeeded(appSettings: intervalSettings)
+        TestHarness.assertEqual(startupEvalMgr.status, .idle, "Startup check skipped when last check (3 days ago) < 7 days interval")
+
+        // Sub-test B: interval = 7 days, checked 8 days ago -> should execute check
+        MockUpdateURLProtocol.reset()
+        MockUpdateURLProtocol.mockData = mockValidJSON
+        intervalSettings.lastUpdateCheckDate = Date().addingTimeInterval(-8 * 86400) // 8 days ago
+
+        startupEvalMgr.status = .idle
+        startupEvalMgr.checkOnStartupIfNeeded(appSettings: intervalSettings)
+        TestHarness.assertTrue(
+            startupEvalMgr.status == .checking || startupEvalMgr.status == .updateAvailable(fakeRelease),
+            "Startup check triggered when last check (8 days ago) >= 7 days interval"
+        )
+
+        // =========================================================================
+        // 12. MainShotView Update Banner View States
+        // =========================================================================
+        let bannerStorage = StorageManager(baseDirectory: sandboxDir.appendingPathComponent("BannerStorage"), initialCapacity: 10)
+        let bannerUpdateMgr = UpdateManager(session: mockSession)
+        let mainShotView = MainShotView(
+            storageManager: bannerStorage,
+            appSettings: intervalSettings,
+            updateManager: bannerUpdateMgr
+        )
+
+        // State A: Idle (banner should not show)
+        bannerUpdateMgr.status = .idle
+        TestHarness.assertFalse(bannerUpdateMgr.shouldShowBanner, "shouldShowBanner is false in .idle")
+
+        // State B: Update Available
+        bannerUpdateMgr.status = .updateAvailable(fakeRelease)
+        bannerUpdateMgr.latestRelease = fakeRelease
+        bannerUpdateMgr.hasPendingUpdate = true
+        TestHarness.assertTrue(bannerUpdateMgr.shouldShowBanner, "shouldShowBanner is true in .updateAvailable")
+        TestHarness.assertTrue(bannerUpdateMgr.hasPendingUpdate, "hasPendingUpdate is true in .updateAvailable")
+        let _ = mainShotView.updateBannerView
+        TestHarness.assertTrue(true, "MainShotView.updateBannerView renders cleanly for .updateAvailable")
+
+        // State C: Downloading
+        bannerUpdateMgr.status = .downloading(progress: 0.5)
+        TestHarness.assertTrue(bannerUpdateMgr.shouldShowBanner, "shouldShowBanner is true in .downloading")
+        let _ = mainShotView.updateBannerView
+        TestHarness.assertTrue(true, "MainShotView.updateBannerView renders cleanly for .downloading")
+
+        // State D: Ready to Restart
+        bannerUpdateMgr.status = .readyToRestart(fakeRelease)
+        TestHarness.assertTrue(bannerUpdateMgr.shouldShowBanner, "shouldShowBanner is true in .readyToRestart")
+        let _ = mainShotView.updateBannerView
+        TestHarness.assertTrue(true, "MainShotView.updateBannerView renders cleanly for .readyToRestart")
+
+        // State E: Error with latest release
+        bannerUpdateMgr.status = .error(message: "Download Failed")
+        TestHarness.assertTrue(bannerUpdateMgr.shouldShowBanner, "shouldShowBanner is true in .error when latestRelease is present")
+        let _ = mainShotView.updateBannerView
+        TestHarness.assertTrue(true, "MainShotView.updateBannerView renders cleanly for .error")
+
+        // State F: Banner Dismissal for Session
+        bannerUpdateMgr.dismissBannerForSession()
+        TestHarness.assertFalse(bannerUpdateMgr.shouldShowBanner, "shouldShowBanner is false after dismissBannerForSession")
+        TestHarness.assertTrue(bannerUpdateMgr.hasPendingUpdate, "hasPendingUpdate remains true after banner dismissal so gear badge dot stays visible")
     }
 }

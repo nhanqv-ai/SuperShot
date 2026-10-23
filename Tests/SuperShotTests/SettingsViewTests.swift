@@ -104,5 +104,21 @@ public struct SettingsViewTests {
         )!
         controller.window?.keyDown(with: escEvent)
         TestHarness.assertFalse(controller.window?.isVisible == true, "Settings window closed after Escape key")
+
+        // 6. Automatic Update Check Frequency Configuration
+        TestHarness.assertTrue(settings.automaticallyCheckForUpdates, "Default automaticallyCheckForUpdates is true")
+        TestHarness.assertEqual(settings.updateCheckIntervalDays, 1, "Default updateCheckIntervalDays is 1")
+        settings.updateCheckIntervalDays = 7
+        TestHarness.assertEqual(settings.updateCheckIntervalDays, 7, "updateCheckIntervalDays set to 7 (weekly)")
+        settings.updateCheckIntervalDays = 30
+        TestHarness.assertEqual(settings.updateCheckIntervalDays, 30, "updateCheckIntervalDays set to 30 (monthly)")
+        settings.updateCheckIntervalDays = 100
+        TestHarness.assertEqual(settings.updateCheckIntervalDays, 30, "updateCheckIntervalDays clamped to 30")
+        settings.updateCheckIntervalDays = -5
+        TestHarness.assertEqual(settings.updateCheckIntervalDays, 1, "updateCheckIntervalDays clamped to 1")
+
+        let generalTab = GeneralSettingsTab(appSettings: settings)
+        let _ = generalTab.body
+        TestHarness.assertTrue(true, "GeneralSettingsTab body evaluates cleanly with auto-update toggle and interval picker")
     }
 }

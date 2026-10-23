@@ -525,7 +525,7 @@ public final class ScrollableCanvasView: NSView {
         addSubview(sView)
 
         let vToolbar = NSHostingView(rootView: VerticalAnnotationToolbarView(viewModel: toolbarsViewModel, appSettings: appSettings))
-        let hToolbar = NSHostingView(rootView: HorizontalActionToolbarView(viewModel: toolbarsViewModel))
+        let hToolbar = NSHostingView(rootView: HorizontalActionToolbarView(viewModel: toolbarsViewModel, showScrollCapture: false))
         vToolbar.translatesAutoresizingMaskIntoConstraints = false
         hToolbar.translatesAutoresizingMaskIntoConstraints = false
         addSubview(vToolbar)
@@ -799,7 +799,7 @@ public final class ScrollableAnnotationWindow: NSWindow {
             return
         }
 
-        if ToolbarKeyShortcutHandler.handleKeyEvent(event: event, viewModel: canvasView.toolbarsViewModel) {
+        if ToolbarKeyShortcutHandler.handleKeyEvent(event: event, viewModel: canvasView.toolbarsViewModel, allowScrollCapture: false) {
             return
         }
 

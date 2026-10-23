@@ -6,6 +6,7 @@ import SuperShotCore
 public struct MainShotView: View {
     @ObservedObject public var storageManager: StorageManager
     public var appSettings: AppSettings?
+    @ObservedObject public var updateManager: UpdateManager
     public var autoPasteService: any AutoPasteServicing
     public var previousAppTracker: any PreviousAppTracking
     public var onCaptureRegion: (() -> Void)?
@@ -23,6 +24,7 @@ public struct MainShotView: View {
     public init(
         storageManager: StorageManager,
         appSettings: AppSettings? = nil,
+        updateManager: UpdateManager = UpdateManager.shared,
         autoPasteService: any AutoPasteServicing = AutoPasteService.shared,
         previousAppTracker: any PreviousAppTracking = PreviousAppTracker.shared,
         onDismiss: (() -> Void)? = nil,
@@ -33,6 +35,7 @@ public struct MainShotView: View {
     ) {
         self.storageManager = storageManager
         self.appSettings = appSettings
+        self.updateManager = updateManager
         self.autoPasteService = autoPasteService
         self.previousAppTracker = previousAppTracker
         self.onDismiss = onDismiss
@@ -72,6 +75,9 @@ public struct MainShotView: View {
             VStack(spacing: 0) {
                 headerBar
                 searchBarSection
+                if updateManager.shouldShowBanner {
+                    updateBannerView
+                }
                 Divider().opacity(0.6)
                 contentSection(scrollProxy: proxy)
             }
@@ -159,10 +165,20 @@ public struct MainShotView: View {
                 onDismiss?()
                 onOpenSettings?()
             }) {
-                Image(systemName: "gearshape")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(.secondary)
-                    .padding(4)
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.secondary)
+                        .padding(4)
+
+                    if updateManager.hasPendingUpdate {
+                        Circle()
+                            .fill(Color.accentColor)
+                            .frame(width: 6, height: 6)
+                            .offset(x: 2, y: -2)
+                    }
+                }
+                .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
@@ -192,6 +208,150 @@ public struct MainShotView: View {
             placeholder: localizationManager.tr(.searchPlaceholder),
             onCommit: { handleReturnKey() }
         )
+        .padding(.horizontal, 12)
+        .padding(.bottom, 6)
+    }
+
+    // MARK: - Update Banner View
+
+    public var updateBannerView: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "arrow.triangle.2.circlepath.circle.fill")
+                .foregroundColor(.accentColor)
+                .font(.system(size: 13))
+
+            VStack(alignment: .leading, spacing: 1) {
+                switch updateManager.status {
+                case .readyToRestart:
+                    Text(localizationManager.tr(.updateReadyRestart))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.primary)
+
+                case .downloading(let progress):
+                    Text(localizationManager.tr(.downloadingUpdate) + (progress > 0 ? String(format: " (%.0f%%)", progress * 100) : ""))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.primary)
+
+                case .updateAvailable(let release):
+                    let tag = release.tagName.lowercased().hasPrefix("v") ? release.tagName : "v\(release.tagName)"
+                    Text(localizationManager.tr(.updateAvailable(tag)))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.primary)
+
+                case .error(let msg):
+                    Text(msg)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundColor(.red)
+                        .lineLimit(1)
+
+                default:
+                    EmptyView()
+                }
+            }
+
+            Spacer()
+
+            switch updateManager.status {
+            case .readyToRestart:
+                Button(action: {
+                    updateManager.dismissBannerForSession()
+                }) {
+                    Text(localizationManager.tr(.later))
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .pointingHandCursor()
+
+                Button(action: {
+                    updateManager.restartApp()
+                }) {
+                    Text(localizationManager.tr(.restart))
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .pointingHandCursor()
+
+            case .downloading:
+                ProgressView()
+                    .controlSize(.small)
+                    .scaleEffect(0.6)
+
+            case .updateAvailable(let release):
+                Button(action: {
+                    NSWorkspace.shared.open(release.htmlURL)
+                }) {
+                    Text(localizationManager.tr(.releaseNotes))
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .pointingHandCursor()
+
+                Button(action: {
+                    updateManager.dismissBannerForSession()
+                }) {
+                    Text(localizationManager.tr(.later))
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .pointingHandCursor()
+
+                Button(action: {
+                    updateManager.startDownloadAndInstall(release: release)
+                }) {
+                    Text(localizationManager.tr(.updateNow))
+                        .font(.system(size: 10, weight: .semibold))
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.small)
+                .pointingHandCursor()
+
+            case .error:
+                if let release = updateManager.latestRelease {
+                    Button(action: {
+                        NSWorkspace.shared.open(release.htmlURL)
+                    }) {
+                        Text(localizationManager.tr(.releaseNotes))
+                            .font(.system(size: 10))
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundColor(.secondary)
+                    .pointingHandCursor()
+                }
+
+                Button(action: {
+                    updateManager.dismissBannerForSession()
+                }) {
+                    Text(localizationManager.tr(.later))
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .pointingHandCursor()
+
+                if let release = updateManager.latestRelease {
+                    Button(action: {
+                        updateManager.startDownloadAndInstall(release: release)
+                    }) {
+                        Text(localizationManager.tr(.updateNow))
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    .pointingHandCursor()
+                }
+
+            default:
+                EmptyView()
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(Color.accentColor.opacity(0.12))
+        .cornerRadius(6)
         .padding(.horizontal, 12)
         .padding(.bottom, 6)
     }
