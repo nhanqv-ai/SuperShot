@@ -151,11 +151,67 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(receivedTab, .captureSave, "Cmd+2 event selects .captureSave tab via notification")
         NotificationCenter.default.removeObserver(observer)
 
+        // 8b. Cmd+[ and Cmd+] KeyDown Tab Cycling Notifications
+        var receivedCycleDirection: Int? = nil
+        let cycleObserver = NotificationCenter.default.addObserver(forName: .settingsCycleTab, object: nil, queue: nil) { notif in
+            receivedCycleDirection = notif.userInfo?["direction"] as? Int
+        }
+
+        // Cmd+[ (previous tab)
+        let cmdLeftBracketEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "[",
+            charactersIgnoringModifiers: "[",
+            isARepeat: false,
+            keyCode: 33
+        )!
+        controller.window?.keyDown(with: cmdLeftBracketEvent)
+        TestHarness.assertEqual(receivedCycleDirection, -1, "Cmd+[ posts .settingsCycleTab with direction -1")
+
+        // Cmd+] (next tab)
+        let cmdRightBracketEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "]",
+            charactersIgnoringModifiers: "]",
+            isARepeat: false,
+            keyCode: 30
+        )!
+        controller.window?.keyDown(with: cmdRightBracketEvent)
+        TestHarness.assertEqual(receivedCycleDirection, 1, "Cmd+] posts .settingsCycleTab with direction 1")
+
+        // Cmd+Shift+[ (previous tab)
+        let cmdShiftLeftBracketEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command, .shift],
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "{",
+            charactersIgnoringModifiers: "[",
+            isARepeat: false,
+            keyCode: 33
+        )!
+        controller.window?.keyDown(with: cmdShiftLeftBracketEvent)
+        TestHarness.assertEqual(receivedCycleDirection, -1, "Cmd+Shift+[ posts .settingsCycleTab with direction -1")
+
+        NotificationCenter.default.removeObserver(cycleObserver)
+
         // 9. WelcomeWindowView & WelcomeWindowController Verification
         var welcomeDismissed = false
         let welcomeView = WelcomeView(onDismiss: { welcomeDismissed = true })
         let _ = welcomeView.body
-        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.9", "WelcomeView version string is v1.0.9")
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.10", "WelcomeView version string is v1.0.10")
         welcomeView.onDismiss?()
         TestHarness.assertTrue(welcomeDismissed, "WelcomeView onDismiss executes cleanly")
 

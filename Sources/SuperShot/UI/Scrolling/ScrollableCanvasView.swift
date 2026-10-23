@@ -125,14 +125,22 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         }
     }
 
-    public func showToolSelectionHUD(tool: AnnotationToolType) {
-        toolHUDText = "\(tool.localizedName) (\(tool.mnemonicKey))"
+    public func showHUDNotification(text: String) {
+        toolHUDText = text
         needsDisplay = true
         toolHUDTimer?.invalidate()
         toolHUDTimer = Timer.scheduledTimer(withTimeInterval: 0.8, repeats: false) { [weak self] _ in
             self?.toolHUDText = nil
             self?.needsDisplay = true
         }
+    }
+
+    public func showStrokeWidthHUD(width: Int) {
+        showHUDNotification(text: LocalizationManager.shared.tr(.strokeWidthHUD(width)))
+    }
+
+    public func showToolSelectionHUD(tool: AnnotationToolType) {
+        showHUDNotification(text: "\(tool.localizedName) (\(tool.mnemonicKey))")
     }
 
     private func drawToolFeedbackHUD(text: String, in visibleRect: CGRect, context: CGContext) {
@@ -598,7 +606,7 @@ public struct ScrollableZoomControlsView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Zoom Out (⌘-)")
+            .help(LocalizationManager.shared.tr(.zoomOutTooltip))
 
             Button(action: { viewModel.onActualSize?() }) {
                 Text("\(Int(round(viewModel.magnification * 100)))%")
@@ -607,7 +615,7 @@ public struct ScrollableZoomControlsView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Actual Size 100% (⌘0)")
+            .help(LocalizationManager.shared.tr(.zoomActualSizeTooltip))
 
             Button(action: { viewModel.onZoomIn?() }) {
                 Image(systemName: "plus.magnifyingglass")
@@ -616,7 +624,7 @@ public struct ScrollableZoomControlsView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Zoom In (⌘+)")
+            .help(LocalizationManager.shared.tr(.zoomInTooltip))
 
             Divider()
                 .frame(height: 14)
@@ -629,7 +637,7 @@ public struct ScrollableZoomControlsView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Fit to Width (⌘9)")
+            .help(LocalizationManager.shared.tr(.zoomFitWidthTooltip))
 
             Button(action: { viewModel.onActualSize?() }) {
                 Image(systemName: "1.magnifyingglass")
@@ -638,7 +646,7 @@ public struct ScrollableZoomControlsView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help("Actual Size 100% (⌘0)")
+            .help(LocalizationManager.shared.tr(.zoomActualSizeTooltip))
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
@@ -802,8 +810,9 @@ public final class ScrollableCanvasView: NSView {
             self.documentView.currentStrokeWidth = width
             if self.engine.selectedObjectID != nil {
                 self.engine.updateSelectedStrokeWidth(width)
-                self.documentView.needsDisplay = true
             }
+            self.showStrokeWidthHUD(width: Int(width))
+            self.documentView.needsDisplay = true
         }
 
         toolbarsViewModel.onFontSizeSelected = { [weak self] size in
@@ -840,6 +849,7 @@ public final class ScrollableCanvasView: NSView {
             guard let self = self else { return }
             self.documentView.commitActiveTextEditing()
             self.copyToClipboard()
+            self.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.copiedToClipboard))
             self.onCopyRequested?()
         }
 
@@ -847,6 +857,7 @@ public final class ScrollableCanvasView: NSView {
             guard let self = self else { return }
             self.documentView.commitActiveTextEditing()
             self.saveToFile(window: self.window)
+            self.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.savedToFile))
             self.onSaveRequested?()
         }
 
@@ -865,6 +876,14 @@ public final class ScrollableCanvasView: NSView {
 
     required init?(coder: NSCoder) {
         fatalError("init(coder:) has not been implemented")
+    }
+
+    public func showHUDNotification(text: String) {
+        documentView.showHUDNotification(text: text)
+    }
+
+    public func showStrokeWidthHUD(width: Int) {
+        documentView.showStrokeWidthHUD(width: width)
     }
 
     public func copyToClipboard() {

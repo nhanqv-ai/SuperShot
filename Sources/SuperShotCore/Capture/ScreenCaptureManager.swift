@@ -378,7 +378,8 @@ public struct SelectionBoxGeometry {
         currentPoint: CGPoint,
         anchor: CGPoint,
         bounds: CGRect,
-        currentRect: CGRect = .zero
+        currentRect: CGRect = .zero,
+        shiftKeyPressed: Bool = false
     ) -> CGRect {
         var p = currentPoint
         p.x = max(bounds.minX, min(p.x, bounds.maxX))
@@ -386,6 +387,16 @@ public struct SelectionBoxGeometry {
 
         switch handle {
         case .topLeft, .topRight, .bottomLeft, .bottomRight:
+            if shiftKeyPressed {
+                let dx = p.x - anchor.x
+                let dy = p.y - anchor.y
+                let side = max(abs(dx), abs(dy))
+                let squarePoint = CGPoint(
+                    x: anchor.x + (dx >= 0 ? side : -side),
+                    y: anchor.y + (dy >= 0 ? side : -side)
+                )
+                return normalizeRect(p1: anchor, p2: squarePoint, bounds: bounds)
+            }
             return normalizeRect(p1: anchor, p2: p, bounds: bounds)
         case .topCenter, .bottomCenter:
             let y1 = min(anchor.y, p.y)
@@ -404,9 +415,38 @@ public struct SelectionBoxGeometry {
         }
     }
 
-    public static func formatDimensionBadge(width: CGFloat, height: CGFloat, scaleFactor: CGFloat) -> String {
+    public static func detectAspectRatio(width: CGFloat, height: CGFloat) -> String? {
+        guard width > 10, height > 10 else { return nil }
+        let ratio = width / height
+        let tolerance: CGFloat = 0.025
+        let standardRatios: [(name: String, value: CGFloat)] = [
+            ("1:1", 1.0),
+            ("16:9", 16.0 / 9.0),
+            ("4:3", 4.0 / 3.0),
+            ("16:10", 16.0 / 10.0),
+            ("3:2", 3.0 / 2.0),
+            ("21:9", 21.0 / 9.0),
+            ("9:16", 9.0 / 16.0),
+            ("3:4", 3.0 / 4.0),
+            ("2:3", 2.0 / 3.0)
+        ]
+        for (name, val) in standardRatios {
+            if abs(ratio - val) / val <= tolerance { return name }
+        }
+        return nil
+    }
+
+    public static func formatDimensionBadge(
+        width: CGFloat,
+        height: CGFloat,
+        scaleFactor: CGFloat,
+        includeAspectRatio: Bool = false
+    ) -> String {
         let wPx = Int(round(max(1.0, width) * scaleFactor))
         let hPx = Int(round(max(1.0, height) * scaleFactor))
+        if includeAspectRatio, let aspect = detectAspectRatio(width: width, height: height) {
+            return "\(wPx) x \(hPx) px (\(aspect))"
+        }
         return "\(wPx) x \(hPx) px"
     }
 }

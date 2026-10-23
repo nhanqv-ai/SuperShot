@@ -97,6 +97,16 @@ public struct SettingsView: View {
                 }
             }
         }
+        .onReceive(NotificationCenter.default.publisher(for: .settingsCycleTab)) { notification in
+            let direction = notification.userInfo?["direction"] as? Int ?? 1
+            let tabs = SettingsTab.allCases
+            if let currentIndex = tabs.firstIndex(of: selectedTab) {
+                let nextIndex = (currentIndex + direction + tabs.count) % tabs.count
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    selectedTab = tabs[nextIndex]
+                }
+            }
+        }
     }
 
     // Top tab selector with icon above label
@@ -202,5 +212,6 @@ extension View {
 // Settings Tab Navigation Notification
 extension NSNotification.Name {
     public static let settingsSelectTab = NSNotification.Name("SuperShotSettingsSelectTab")
+    public static let settingsCycleTab = NSNotification.Name("SuperShotSettingsCycleTab")
 }
 

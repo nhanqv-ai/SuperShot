@@ -30,6 +30,9 @@ public struct CaptureOverlayTests {
 
         // 8. Toolbar Boundary Containment & Collision Resolution (Top-Right Corner, Top Edge, Right Edge)
         testToolbarBoundaryContainmentAndCollision()
+
+        // 9. Aspect Ratio Detection & Shift-Key Lock (v1.0.10)
+        testAspectRatioAndShiftLock()
     }
 
     // --- Test 1: Mock ScreenCaptureManager ---
@@ -260,5 +263,73 @@ public struct CaptureOverlayTests {
                 "\(name): Horizontal toolbar Y clamped within [\(screen.minY), \(screen.maxY)]"
             )
         }
+    }
+
+    // --- Test 9: Aspect Ratio Detection, Smart Badge & Shift-Key Lock (v1.0.10) ---
+    private static func testAspectRatioAndShiftLock() {
+        // 1. Standard Aspect Ratio Detection
+        TestHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 800, height: 800), "1:1", "Square detects 1:1")
+        TestHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 1920, height: 1080), "16:9", "1920x1080 detects 16:9")
+        TestHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 1024, height: 768), "4:3", "1024x768 detects 4:3")
+        TestHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 1920, height: 1200), "16:10", "1920x1200 detects 16:10")
+        TestHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 1500, height: 1000), "3:2", "1500x1000 detects 3:2")
+        TestHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 2560, height: 1080), "21:9", "2560x1080 detects 21:9")
+        TestHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 1080, height: 1920), "9:16", "1080x1920 detects 9:16")
+        TestHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 768, height: 1024), "3:4", "768x1024 detects 3:4")
+        TestHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 1000, height: 1500), "2:3", "1000x1500 detects 2:3")
+
+        // 2. Tolerance & Non-standard ratios
+        TestHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 1915, height: 1080), "16:9", "Within 2.5% tolerance detects 16:9")
+        TestHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 500, height: 420), "Non-standard ratio returns nil")
+        TestHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 5, height: 5), "Dimensions <= 10 return nil")
+
+        // 3. Smart Dimension Badge Formatting
+        let badgeWithAspect = SelectionBoxGeometry.formatDimensionBadge(
+            width: 1920,
+            height: 1080,
+            scaleFactor: 1.0,
+            includeAspectRatio: true
+        )
+        TestHarness.assertEqual(badgeWithAspect, "1920 x 1080 px (16:9)", "Badge formats with aspect ratio")
+
+        let badgeSquare2x = SelectionBoxGeometry.formatDimensionBadge(
+            width: 400,
+            height: 400,
+            scaleFactor: 2.0,
+            includeAspectRatio: true
+        )
+        TestHarness.assertEqual(badgeSquare2x, "800 x 800 px (1:1)", "Retina 2x square badge formats 1:1")
+
+        let badgeNoAspect = SelectionBoxGeometry.formatDimensionBadge(
+            width: 1920,
+            height: 1080,
+            scaleFactor: 1.0,
+            includeAspectRatio: false
+        )
+        TestHarness.assertEqual(badgeNoAspect, "1920 x 1080 px", "includeAspectRatio=false preserves raw dimension string")
+
+        // 4. Shift-Key Square Resizing Constraint
+        let bounds = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let anchor = CGPoint(x: 100, y: 100)
+        let dragPoint = CGPoint(x: 350, y: 200) // dx = 250, dy = 100
+        let unconstrainedRect = SelectionBoxGeometry.calculateResizedRect(
+            handle: .bottomRight,
+            currentPoint: dragPoint,
+            anchor: anchor,
+            bounds: bounds,
+            shiftKeyPressed: false
+        )
+        TestHarness.assertEqual(unconstrainedRect.width, 250.0, "Unconstrained width is 250")
+        TestHarness.assertEqual(unconstrainedRect.height, 100.0, "Unconstrained height is 100")
+
+        let constrainedRect = SelectionBoxGeometry.calculateResizedRect(
+            handle: .bottomRight,
+            currentPoint: dragPoint,
+            anchor: anchor,
+            bounds: bounds,
+            shiftKeyPressed: true
+        )
+        TestHarness.assertEqual(constrainedRect.width, 250.0, "Constrained width is 250")
+        TestHarness.assertEqual(constrainedRect.height, 250.0, "Constrained height is 250 (1:1 square)")
     }
 }

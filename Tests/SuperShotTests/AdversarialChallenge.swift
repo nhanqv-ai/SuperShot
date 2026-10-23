@@ -197,6 +197,12 @@ struct AdversarialChallenge {
         testAnnotationDuplicationAndDeepUndoRedoStress()
         testAngleSnappingAndZoomMagnificationStress()
 
+        // M25: Smart Sizing, Stroke Stepping & Tab Cycling Stress Suites
+        testAspectRatioDetectionAndToleranceBoundaryStress()
+        testStrokeWidthBracketSteppingBoundsAndDispatchStress()
+        testShiftKeyAspectRatioSnappingUnderExtremeCoordinatesStress()
+        testSettingsTabCyclingWrappingAndModuloStress()
+
         let elapsed = Date().timeIntervalSince(startTime)
 
         print("\n\u{001B}[1;35m============================================================\u{001B}[0m")
@@ -2219,6 +2225,461 @@ struct AdversarialChallenge {
 
         zoomHUDModel.magnification = 4.0
         ChallengerHarness.assertEqual(Int(round(zoomHUDModel.magnification * 100)), 400, "4.0 maps to 400%")
+    }
+
+    // MARK: - 18. Aspect Ratio Detection & Tolerance Boundary Stress
+    private static func testAspectRatioDetectionAndToleranceBoundaryStress() {
+        ChallengerHarness.startSuite("18. Aspect Ratio Detection & Tolerance Boundary Stress")
+
+        // 18A: Zero, negative, and micro-dimension edge cases
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 0, height: 0), "0x0 dimensions return nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 1920, height: 0), "Non-zero width with 0 height returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 0, height: 1080), "0 width with non-zero height returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: -1920, height: -1080), "Negative dimensions return nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: -1920, height: 1080), "Negative width returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 1920, height: -1080), "Negative height returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 10.0, height: 10.0), "Boundary 10x10 dimensions return nil (threshold is > 10)")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 10.0, height: 100.0), "Boundary width 10 returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 100.0, height: 10.0), "Boundary height 10 returns nil")
+        ChallengerHarness.assertEqual(SelectionBoxGeometry.detectAspectRatio(width: 10.0001, height: 10.0001), "1:1", "Slightly above 10 (10.0001) detects 1:1")
+
+        // 18B: Extreme aspect ratios and non-standard ratios
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 10000, height: 1), "10000:1 ratio with small height returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 1, height: 10000), "1:10000 ratio with small width returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 100000, height: 11), "Extreme 9090:1 ratio returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 11, height: 100000), "Extreme 1:9090 ratio returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 500, height: 420), "Arbitrary non-standard ratio returns nil")
+
+        // 18C: Special IEEE floating point values (NaN, Infinity)
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: .nan, height: 100), "NaN width returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 100, height: .nan), "NaN height returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: .infinity, height: 100), "Infinity width returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: 100, height: .infinity), "Infinity height returns nil")
+        ChallengerHarness.assertNil(SelectionBoxGeometry.detectAspectRatio(width: .infinity, height: .infinity), "Infinity/Infinity returns nil")
+
+        // 18D: All 9 Standard Aspect Ratios at exact values
+        let standardTests: [(name: String, w: CGFloat, h: CGFloat)] = [
+            ("1:1", 800, 800),
+            ("16:9", 1920, 1080),
+            ("4:3", 1024, 768),
+            ("16:10", 1920, 1200),
+            ("3:2", 1500, 1000),
+            ("21:9", 2560, 1097.142857),
+            ("9:16", 1080, 1920),
+            ("3:4", 768, 1024),
+            ("2:3", 1000, 1500)
+        ]
+        for item in standardTests {
+            let detected = SelectionBoxGeometry.detectAspectRatio(width: item.w, height: item.h)
+            ChallengerHarness.assertEqual(detected, item.name, "Exact ratio for \(item.name)")
+        }
+
+        // 18E: Tolerance Boundary Stress (±2.4% vs ±2.6% threshold testing)
+        let toleranceTestRatios: [(name: String, standardRatio: CGFloat)] = [
+            ("1:1", 1.0),
+            ("16:9", 16.0 / 9.0),
+            ("4:3", 4.0 / 3.0),
+            ("16:10", 16.0 / 10.0),
+            ("3:2", 3.0 / 2.0),
+            ("21:9", 21.0 / 9.0),
+            ("9:16", 9.0 / 16.0),
+            ("3:4", 3.0 / 4.0),
+            ("2:3", 2.0 / 3.0)
+        ]
+
+        let baseHeight: CGFloat = 1000.0
+        for item in toleranceTestRatios {
+            let standardWidth = baseHeight * item.standardRatio
+
+            // +2.4% deviation (should pass)
+            let wPlus24 = standardWidth * 1.024
+            ChallengerHarness.assertEqual(
+                SelectionBoxGeometry.detectAspectRatio(width: wPlus24, height: baseHeight),
+                item.name,
+                "\(item.name) at +2.4% deviation is recognized within tolerance"
+            )
+
+            // -2.4% deviation (should pass)
+            let wMinus24 = standardWidth * 0.976
+            ChallengerHarness.assertEqual(
+                SelectionBoxGeometry.detectAspectRatio(width: wMinus24, height: baseHeight),
+                item.name,
+                "\(item.name) at -2.4% deviation is recognized within tolerance"
+            )
+
+            // +2.6% deviation (should reject)
+            let wPlus26 = standardWidth * 1.026
+            ChallengerHarness.assertNil(
+                SelectionBoxGeometry.detectAspectRatio(width: wPlus26, height: baseHeight),
+                "\(item.name) at +2.6% deviation is rejected outside tolerance"
+            )
+
+            // -2.6% deviation (should reject)
+            let wMinus26 = standardWidth * 0.974
+            ChallengerHarness.assertNil(
+                SelectionBoxGeometry.detectAspectRatio(width: wMinus26, height: baseHeight),
+                "\(item.name) at -2.6% deviation is rejected outside tolerance"
+            )
+        }
+
+        // 18F: Dimension Badge Formatting Stress
+        let badgeWithAspect = SelectionBoxGeometry.formatDimensionBadge(width: 1920, height: 1080, scaleFactor: 1.0, includeAspectRatio: true)
+        ChallengerHarness.assertEqual(badgeWithAspect, "1920 x 1080 px (16:9)", "Badge formats with 16:9 aspect ratio")
+
+        let badgeRetina = SelectionBoxGeometry.formatDimensionBadge(width: 1920, height: 1080, scaleFactor: 2.0, includeAspectRatio: true)
+        ChallengerHarness.assertEqual(badgeRetina, "3840 x 2160 px (16:9)", "Badge formats 2x retina with 16:9 aspect ratio")
+
+        let badgeNoAspect = SelectionBoxGeometry.formatDimensionBadge(width: 1920, height: 1080, scaleFactor: 1.0, includeAspectRatio: false)
+        ChallengerHarness.assertEqual(badgeNoAspect, "1920 x 1080 px", "Badge without aspect ratio omits parenthesis")
+
+        let badgeZero = SelectionBoxGeometry.formatDimensionBadge(width: 0, height: 0, scaleFactor: 1.0, includeAspectRatio: true)
+        ChallengerHarness.assertEqual(badgeZero, "1 x 1 px", "0x0 dimensions format safely as 1 x 1 px")
+    }
+
+    // MARK: - 19. Stroke Width Bracket Stepping Bounds & Rapid Dispatch Stress
+    private static func testStrokeWidthBracketSteppingBoundsAndDispatchStress() {
+        ChallengerHarness.startSuite("19. Stroke Width Bracket Stepping Bounds & Rapid Dispatch Stress")
+
+        let appSettings = AppSettings()
+        appSettings.activeStrokeWidth = 3.0
+        let viewModel = FloatingToolbarsViewModel(appSettings: appSettings)
+
+        var selectedWidths: [CGFloat] = []
+        viewModel.onStrokeWidthSelected = { width in
+            selectedWidths.append(width)
+        }
+
+        // 19A: Rapid repeated decrements far beyond lower bound (below 1.0)
+        appSettings.activeStrokeWidth = 1.0
+        for _ in 0..<100 {
+            viewModel.decreaseStrokeWidth()
+        }
+        ChallengerHarness.assertEqual(appSettings.activeStrokeWidth, 1.0, "100 decrements from 1.0 remain strictly clamped at 1.0")
+
+        // 19B: Rapid repeated increments far beyond upper bound (above 16.0)
+        appSettings.activeStrokeWidth = 16.0
+        for _ in 0..<100 {
+            viewModel.increaseStrokeWidth()
+        }
+        ChallengerHarness.assertEqual(appSettings.activeStrokeWidth, 16.0, "100 increments from 16.0 remain strictly clamped at 16.0")
+
+        // 19C: 15 consecutive increments from 1.0 stepping 1-by-1 to 16.0
+        appSettings.activeStrokeWidth = 1.0
+        selectedWidths.removeAll()
+        for step in 1...15 {
+            viewModel.increaseStrokeWidth()
+            ChallengerHarness.assertEqual(appSettings.activeStrokeWidth, CGFloat(1 + step), "Step \(step) correctly incremented to \(1 + step)")
+        }
+        ChallengerHarness.assertEqual(appSettings.activeStrokeWidth, 16.0, "Reached 16.0 at step 15")
+        ChallengerHarness.assertEqual(selectedWidths.count, 15, "15 callbacks received")
+
+        // 19D: 15 consecutive decrements from 16.0 stepping 1-by-1 to 1.0
+        for step in 1...15 {
+            viewModel.decreaseStrokeWidth()
+            ChallengerHarness.assertEqual(appSettings.activeStrokeWidth, CGFloat(16 - step), "Step \(step) correctly decremented to \(16 - step)")
+        }
+        ChallengerHarness.assertEqual(appSettings.activeStrokeWidth, 1.0, "Reached 1.0 at step 15")
+
+        // 19E: 50 cycles of rapid alternating (increase then decrease)
+        appSettings.activeStrokeWidth = 5.0
+        for _ in 0..<50 {
+            viewModel.increaseStrokeWidth()
+            viewModel.decreaseStrokeWidth()
+        }
+        ChallengerHarness.assertEqual(appSettings.activeStrokeWidth, 5.0, "50 alternating cycles preserve stroke width 5.0")
+
+        // 19F: Keyboard event dispatch stress: keycode 33 ([) and keycode 30 (])
+        let bracketLeftEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "[",
+            charactersIgnoringModifiers: "[",
+            isARepeat: false,
+            keyCode: 33
+        )!
+        let bracketRightEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "]",
+            charactersIgnoringModifiers: "]",
+            isARepeat: false,
+            keyCode: 30
+        )!
+
+        appSettings.activeStrokeWidth = 8.0
+        let handledL = ToolbarKeyShortcutHandler.handleKeyEvent(event: bracketLeftEvent, viewModel: viewModel)
+        ChallengerHarness.assertTrue(handledL, "Keycode 33 [ handled")
+        ChallengerHarness.assertEqual(appSettings.activeStrokeWidth, 7.0, "Keycode 33 decremented to 7.0")
+
+        let handledR = ToolbarKeyShortcutHandler.handleKeyEvent(event: bracketRightEvent, viewModel: viewModel)
+        ChallengerHarness.assertTrue(handledR, "Keycode 30 ] handled")
+        ChallengerHarness.assertEqual(appSettings.activeStrokeWidth, 8.0, "Keycode 30 incremented to 8.0")
+
+        // Modifier flags (Command, Option) should NOT trigger stroke width stepping
+        let cmdBracketEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "[",
+            charactersIgnoringModifiers: "[",
+            isARepeat: false,
+            keyCode: 33
+        )!
+        let handledCmd = ToolbarKeyShortcutHandler.handleKeyEvent(event: cmdBracketEvent, viewModel: viewModel)
+        ChallengerHarness.assertFalse(handledCmd, "Cmd+[ is not consumed by toolbar shortcut handler")
+        ChallengerHarness.assertEqual(appSettings.activeStrokeWidth, 8.0, "Stroke width unchanged on Cmd+[")
+    }
+
+    // MARK: - 20. Shift-Key Aspect Ratio Snapping Under Extreme Coordinates Stress
+    private static func testShiftKeyAspectRatioSnappingUnderExtremeCoordinatesStress() {
+        ChallengerHarness.startSuite("20. Shift-Key Aspect Ratio Snapping Under Extreme Coordinates Stress")
+
+        let bounds = CGRect(x: 0, y: 0, width: 2560, height: 1440)
+        let anchor = CGPoint(x: 1000, y: 800)
+
+        // 20A: 4 Quadrants corner-handle drag with Shift key
+        // Quadrant 1 (bottom-right / +dx, +dy)
+        let ptQ1 = CGPoint(x: 1400, y: 1000)
+        let rectQ1 = SelectionBoxGeometry.calculateResizedRect(
+            handle: .bottomRight,
+            currentPoint: ptQ1,
+            anchor: anchor,
+            bounds: bounds,
+            shiftKeyPressed: true
+        )
+        ChallengerHarness.assertEqual(rectQ1.width, 400.0, "Q1 width is 400.0")
+        ChallengerHarness.assertEqual(rectQ1.height, 400.0, "Q1 height is 400.0 (1:1 square)")
+
+        // Quadrant 2 (bottom-left / -dx, +dy)
+        let ptQ2 = CGPoint(x: 700, y: 1000)
+        let rectQ2 = SelectionBoxGeometry.calculateResizedRect(
+            handle: .bottomLeft,
+            currentPoint: ptQ2,
+            anchor: anchor,
+            bounds: bounds,
+            shiftKeyPressed: true
+        )
+        ChallengerHarness.assertEqual(rectQ2.width, 300.0, "Q2 width is 300.0")
+        ChallengerHarness.assertEqual(rectQ2.height, 300.0, "Q2 height is 300.0 (1:1 square)")
+
+        // Quadrant 3 (top-left / -dx, -dy)
+        let ptQ3 = CGPoint(x: 750, y: 550)
+        let rectQ3 = SelectionBoxGeometry.calculateResizedRect(
+            handle: .topLeft,
+            currentPoint: ptQ3,
+            anchor: anchor,
+            bounds: bounds,
+            shiftKeyPressed: true
+        )
+        ChallengerHarness.assertEqual(rectQ3.width, 250.0, "Q3 width is 250.0")
+        ChallengerHarness.assertEqual(rectQ3.height, 250.0, "Q3 height is 250.0 (1:1 square)")
+
+        // Quadrant 4 (top-right / +dx, -dy)
+        let ptQ4 = CGPoint(x: 1350, y: 650)
+        let rectQ4 = SelectionBoxGeometry.calculateResizedRect(
+            handle: .topRight,
+            currentPoint: ptQ4,
+            anchor: anchor,
+            bounds: bounds,
+            shiftKeyPressed: true
+        )
+        ChallengerHarness.assertEqual(rectQ4.width, 350.0, "Q4 width is 350.0")
+        ChallengerHarness.assertEqual(rectQ4.height, 350.0, "Q4 height is 350.0 (1:1 square)")
+
+        // 20B: Extreme negative mouse coordinates
+        let extremeNegPoint = CGPoint(x: -100000, y: -100000)
+        let rectNeg = SelectionBoxGeometry.calculateResizedRect(
+            handle: .topLeft,
+            currentPoint: extremeNegPoint,
+            anchor: anchor,
+            bounds: bounds,
+            shiftKeyPressed: true
+        )
+        ChallengerHarness.assertTrue(rectNeg.minX >= bounds.minX, "Extreme negative x clamped to bounds minX")
+        ChallengerHarness.assertTrue(rectNeg.minY >= bounds.minY, "Extreme negative y clamped to bounds minY")
+        ChallengerHarness.assertFalse(rectNeg.width.isNaN, "Width is not NaN under extreme negative coordinates")
+        ChallengerHarness.assertFalse(rectNeg.height.isNaN, "Height is not NaN under extreme negative coordinates")
+
+        // 20C: Extreme positive mouse coordinates
+        let extremePosPoint = CGPoint(x: 100000, y: 100000)
+        let rectPos = SelectionBoxGeometry.calculateResizedRect(
+            handle: .bottomRight,
+            currentPoint: extremePosPoint,
+            anchor: anchor,
+            bounds: bounds,
+            shiftKeyPressed: true
+        )
+        ChallengerHarness.assertTrue(rectPos.maxX <= bounds.maxX, "Extreme positive x clamped to bounds maxX")
+        ChallengerHarness.assertTrue(rectPos.maxY <= bounds.maxY, "Extreme positive y clamped to bounds maxY")
+        ChallengerHarness.assertFalse(rectPos.width.isNaN, "Width is not NaN under extreme positive coordinates")
+        ChallengerHarness.assertFalse(rectPos.height.isNaN, "Height is not NaN under extreme positive coordinates")
+
+        // 20D: Zero-distance drag (anchor equals currentPoint)
+        let rectZero = SelectionBoxGeometry.calculateResizedRect(
+            handle: .bottomRight,
+            currentPoint: anchor,
+            anchor: anchor,
+            bounds: bounds,
+            shiftKeyPressed: true
+        )
+        ChallengerHarness.assertTrue(rectZero.width >= 1.0, "Zero distance drag produces width >= 1.0")
+        ChallengerHarness.assertTrue(rectZero.height >= 1.0, "Zero distance drag produces height >= 1.0")
+
+        // 20E: Micro-displacement (0.001pt)
+        let ptMicro = CGPoint(x: anchor.x + 0.001, y: anchor.y + 0.001)
+        let rectMicro = SelectionBoxGeometry.calculateResizedRect(
+            handle: .bottomRight,
+            currentPoint: ptMicro,
+            anchor: anchor,
+            bounds: bounds,
+            shiftKeyPressed: true
+        )
+        ChallengerHarness.assertTrue(rectMicro.width >= 1.0, "Micro displacement produces valid width")
+        ChallengerHarness.assertTrue(rectMicro.height >= 1.0, "Micro displacement produces valid height")
+    }
+
+    // MARK: - 21. Settings Tab Cycling Wrapping & Modulo Stress
+    private static func testSettingsTabCyclingWrappingAndModuloStress() {
+        ChallengerHarness.startSuite("21. Settings Tab Cycling Wrapping & Modulo Stress")
+
+        let tabs = SettingsTab.allCases
+        ChallengerHarness.assertEqual(tabs.count, 4, "SettingsTab has exactly 4 tabs")
+
+        // 21A: Forward tab wrapping: 0 -> 1 -> 2 -> 3 -> 0
+        var currentIndex = 0
+        let forwardSequence: [SettingsTab] = [.general, .captureSave, .history, .about, .general]
+        for expectedTab in forwardSequence {
+            ChallengerHarness.assertEqual(tabs[currentIndex], expectedTab, "Current tab matches \(expectedTab)")
+            currentIndex = (currentIndex + 1 + tabs.count) % tabs.count
+        }
+
+        // 21B: Backward tab wrapping: 0 -> 3 -> 2 -> 1 -> 0
+        currentIndex = 0
+        let backwardSequence: [SettingsTab] = [.general, .about, .history, .captureSave, .general]
+        for expectedTab in backwardSequence {
+            ChallengerHarness.assertEqual(tabs[currentIndex], expectedTab, "Backward step matches \(expectedTab)")
+            currentIndex = (currentIndex - 1 + tabs.count) % tabs.count
+        }
+
+        // 21C: 1,000 steps continuous forward cycling stress
+        currentIndex = 0
+        var allForwardValid = true
+        for step in 0..<1000 {
+            let expectedIndex = step % tabs.count
+            if currentIndex != expectedIndex {
+                allForwardValid = false
+                break
+            }
+            currentIndex = (currentIndex + 1 + tabs.count) % tabs.count
+        }
+        ChallengerHarness.assertTrue(allForwardValid, "1,000 continuous forward steps wrap modulo 4 with 100% precision")
+
+        // 21D: 1,000 steps continuous backward cycling stress
+        currentIndex = 0
+        var allBackwardValid = true
+        for step in 0..<1000 {
+            let expectedIndex = (tabs.count - (step % tabs.count)) % tabs.count
+            if currentIndex != expectedIndex {
+                allBackwardValid = false
+                break
+            }
+            currentIndex = (currentIndex - 1 + tabs.count) % tabs.count
+        }
+        ChallengerHarness.assertTrue(allBackwardValid, "1,000 continuous backward steps wrap modulo 4 with 100% precision")
+
+        // 21E: 500 rapid forward-backward pairs
+        currentIndex = 1
+        for _ in 0..<500 {
+            currentIndex = (currentIndex + 1 + tabs.count) % tabs.count
+            currentIndex = (currentIndex - 1 + tabs.count) % tabs.count
+        }
+        ChallengerHarness.assertEqual(currentIndex, 1, "500 forward-backward cycles restore exact tab index 1")
+
+        // 21F: Notification-based Cycling Integration Test
+        let advSettings = AppSettings()
+        let advStorage = StorageManager(baseDirectory: FileManager.default.temporaryDirectory.appendingPathComponent("AdvSettingsTest_\(UUID().uuidString)"))
+        let controller = SettingsWindowController(appSettings: advSettings, storageManager: advStorage)
+        var receivedDirections: [Int] = []
+        let observer = NotificationCenter.default.addObserver(forName: .settingsCycleTab, object: nil, queue: nil) { notif in
+            if let dir = notif.userInfo?["direction"] as? Int {
+                receivedDirections.append(dir)
+            }
+        }
+
+        // Keycode 33 ([) with Command
+        let cmdLeftBracket = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "[",
+            charactersIgnoringModifiers: "[",
+            isARepeat: false,
+            keyCode: 33
+        )!
+        controller.window?.keyDown(with: cmdLeftBracket)
+
+        // Keycode 30 (]) with Command
+        let cmdRightBracket = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "]",
+            charactersIgnoringModifiers: "]",
+            isARepeat: false,
+            keyCode: 30
+        )!
+        controller.window?.keyDown(with: cmdRightBracket)
+
+        // Keycode 33 with Cmd+Shift
+        let cmdShiftLeftBracket = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command, .shift],
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "{",
+            charactersIgnoringModifiers: "[",
+            isARepeat: false,
+            keyCode: 33
+        )!
+        controller.window?.keyDown(with: cmdShiftLeftBracket)
+
+        // Keycode 30 with Cmd+Shift
+        let cmdShiftRightBracket = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command, .shift],
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "}",
+            charactersIgnoringModifiers: "]",
+            isARepeat: false,
+            keyCode: 30
+        )!
+        controller.window?.keyDown(with: cmdShiftRightBracket)
+
+        NotificationCenter.default.removeObserver(observer)
+
+        ChallengerHarness.assertEqual(receivedDirections, [-1, 1, -1, 1], "Received expected sequence of cycle directions [-1, 1, -1, 1]")
     }
 }
 

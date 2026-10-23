@@ -138,6 +138,19 @@ private final class SettingsWindow: NSWindow {
             NotificationCenter.default.post(name: .settingsSelectTab, object: tab, userInfo: ["tabIndex": digit - 1])
             return
         }
+
+        // Cmd+[ or Cmd+Shift+[ (previous tab) and Cmd+] or Cmd+Shift+] (next tab)
+        if flags == .command || flags == [.command, .shift] {
+            let chars = event.charactersIgnoringModifiers ?? ""
+            if event.keyCode == 33 || chars == "[" {
+                NotificationCenter.default.post(name: .settingsCycleTab, object: nil, userInfo: ["direction": -1])
+                return
+            } else if event.keyCode == 30 || chars == "]" {
+                NotificationCenter.default.post(name: .settingsCycleTab, object: nil, userInfo: ["direction": 1])
+                return
+            }
+        }
+
         super.keyDown(with: event)
     }
 

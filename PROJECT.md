@@ -208,6 +208,12 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 84 | Automated Git PR & Merge | Feature branch feat/v1.0.5-ux-canvas-polish, gh pr create, gh pr merge to main | M14 | ORIGINAL_REQUEST §R3 |
 | 85 | Universal 2 Package & Release | make clean, lint, test, adversarial, app, verify-app, package, gh release create v1.0.5 | M14 | ORIGINAL_REQUEST §R3 |
 | 86 | Public Repo Enforcement | Ensure nhanqv-ai/SuperShot visibility remains PUBLIC with release tag v1.0.5 verified | M14 | ORIGINAL_REQUEST §R3 |
+| 87 | Live GUI & On-Screen Audit v1.0.10 | Exercise 6 surfaces on screen, capture 24 Retina snapshots, inspect layout | M24 | ORIGINAL_REQUEST §R1 |
+| 88 | About Settings Button Layout & Truncation Fix | Reorganize 3 action buttons into 2 rows to eliminate ellipsis clipping in EN & VI | M25 | ORIGINAL_REQUEST §R2 |
+| 89 | Shift-Key Square Selection & Smart Aspect Ratio Badge | Constrain 1:1 selection box with Shift, detect standard aspect ratios with auto-sizing badge | M25 | ORIGINAL_REQUEST §R2 |
+| 90 | Stroke Width Shortcuts & ScrollableCanvas HUD | Bracket keys [ and ] step stroke width with HUD pill, copy/save HUD confirmation | M25 | ORIGINAL_REQUEST §R2 |
+| 91 | Localization & Settings Tab Cycling | Full 9-language localization for Welcome feature cards & zoom tooltips, Cmd+[/] tab cycling | M25 | ORIGINAL_REQUEST §R2 |
+| 92 | Version Bump v1.0.10 & Automated Release | Bump 6 files + 1 test file, PR, merge, clean Universal 2 build, zip & dmg release, app relaunch | M26 | ORIGINAL_REQUEST §R3 |
 
 ## Milestones
 
@@ -234,6 +240,9 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M19 | Proactive UX & Feature Polish | Instant copy feedback, Settings 565pt & Cmd+1..4, mnemonic shortcuts, row button hover, make dmg | M18 | DONE |
 | M21 | Explorer UX & Release Readiness Audit | Live on-screen audit, 5 concrete UX/feature proposals, pipeline readiness (v1.0.9) | M19 | DONE |
 | M22 | UX Polish, 4-Tier Escape, Welcome Window & v1.0.9 | Search/empty state polish, 4-tier escape & tool HUD, zoom centering, WelcomeWindow, L10n hygiene, v1.0.9 bump | M21 | DONE |
+| M24 | Survey, Live GUI Audit & Pipeline Audit (v1.0.10) | Live GUI Driver execution, snapshot analysis, UX polish identification, release readiness | M22 | DONE |
+| M25 | UX Polish, Sizing Helper, Bracket Shortcuts & v1.0.10 Bump | Implement 6 proactive UX refinements, 9-language l10n, bump 6+1 version files to 1.0.10, tests | M24 | DONE |
+| M26 | Automated Release Pipeline v1.0.10 & Live App Relaunch | Git branch, PR create/merge, clean build, Universal 2 zip & dmg release, app relaunch | M25 | IN_PROGRESS |
 
 ## Interface Contracts
 

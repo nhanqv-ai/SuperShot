@@ -27,6 +27,7 @@ public struct FloatingToolbarsTests {
         testEndToEndCaptureOverlayAnnotationCompositing()
         testContextAwareCursorResolution()
         testHierarchicalEscapeKeyAndToolHUD()
+        testStrokeWidthBracketShortcutsAndHUD()
     }
 
     // 1. Tool Mapping & Counts
@@ -567,6 +568,71 @@ public struct FloatingToolbarsTests {
         contentView.toolbarsViewModel.selectTool(.select)
         let cursorSelect = contentView.resolveCanvasCursor(at: insidePt)
         TestHarness.assertTrue(cursorSelect === NSCursor.openHand, "Cursor synchronizes to openHand for select tool")
+    }
+
+    private static func testStrokeWidthBracketShortcutsAndHUD() {
+        let appSettings = AppSettings()
+        appSettings.activeStrokeWidth = 3.0
+        let viewModel = FloatingToolbarsViewModel(appSettings: appSettings)
+
+        var notifiedWidth: CGFloat? = nil
+        viewModel.onStrokeWidthSelected = { width in
+            notifiedWidth = width
+        }
+
+        // Test step up
+        viewModel.increaseStrokeWidth()
+        TestHarness.assertEqual(appSettings.activeStrokeWidth, 4.0, "increaseStrokeWidth steps from 3 to 4")
+        TestHarness.assertEqual(notifiedWidth, 4.0, "onStrokeWidthSelected called with 4.0")
+
+        // Test step down
+        viewModel.decreaseStrokeWidth()
+        TestHarness.assertEqual(appSettings.activeStrokeWidth, 3.0, "decreaseStrokeWidth steps from 4 to 3")
+        TestHarness.assertEqual(notifiedWidth, 3.0, "onStrokeWidthSelected called with 3.0")
+
+        // Test lower bound clamping at 1.0
+        appSettings.activeStrokeWidth = 1.0
+        viewModel.decreaseStrokeWidth()
+        TestHarness.assertEqual(appSettings.activeStrokeWidth, 1.0, "Clamped at minimum 1.0")
+
+        // Test upper bound clamping at 16.0
+        appSettings.activeStrokeWidth = 16.0
+        viewModel.increaseStrokeWidth()
+        TestHarness.assertEqual(appSettings.activeStrokeWidth, 16.0, "Clamped at maximum 16.0")
+
+        // Test Keyboard Shortcut Handler: [ (keycode 33) and ] (keycode 30)
+        appSettings.activeStrokeWidth = 5.0
+        let bracketLeftEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "[",
+            charactersIgnoringModifiers: "[",
+            isARepeat: false,
+            keyCode: 33
+        )!
+        let handledLeft = ToolbarKeyShortcutHandler.handleKeyEvent(event: bracketLeftEvent, viewModel: viewModel)
+        TestHarness.assertTrue(handledLeft, "Bracket left key [ handled")
+        TestHarness.assertEqual(appSettings.activeStrokeWidth, 4.0, "Bracket left key decremented stroke width to 4.0")
+
+        let bracketRightEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "]",
+            charactersIgnoringModifiers: "]",
+            isARepeat: false,
+            keyCode: 30
+        )!
+        let handledRight = ToolbarKeyShortcutHandler.handleKeyEvent(event: bracketRightEvent, viewModel: viewModel)
+        TestHarness.assertTrue(handledRight, "Bracket right key ] handled")
+        TestHarness.assertEqual(appSettings.activeStrokeWidth, 5.0, "Bracket right key incremented stroke width to 5.0")
     }
 
     // Helper: Synthetic CGImage Creator
