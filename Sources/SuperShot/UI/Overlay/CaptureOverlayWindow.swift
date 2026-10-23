@@ -13,11 +13,17 @@ public class CaptureOverlayWindow: NSPanel {
     public weak var captureDelegate: CaptureOverlayWindowDelegate?
     public let capturedScreen: CapturedScreen
     public let appSettings: AppSettings
+    public var prefersScrollingOnConfirm: Bool
     public private(set) var contentViewRef: CaptureOverlayContentView?
 
-    public init(capturedScreen: CapturedScreen, appSettings: AppSettings = AppSettings()) {
+    public init(
+        capturedScreen: CapturedScreen,
+        appSettings: AppSettings = AppSettings(),
+        prefersScrollingOnConfirm: Bool = false
+    ) {
         self.capturedScreen = capturedScreen
         self.appSettings = appSettings
+        self.prefersScrollingOnConfirm = prefersScrollingOnConfirm
         let frame = capturedScreen.displayInfo.cocoaFrame
 
         super.init(
@@ -65,11 +71,17 @@ public class CaptureOverlayWindow: NSPanel {
             return
         }
 
-        // Return / Enter: Confirm selection and copy
+        // Return / Enter: Confirm selection (or start scrolling capture when triggered via Scrolling Capture)
         if event.keyCode == 36 || event.keyCode == 76 {
             if let view = contentViewRef, !view.selectionRect.isEmpty {
-                captureDelegate?.overlayDidConfirmSelection(rect: view.selectionRect, display: capturedScreen.displayInfo)
-                close()
+                let rect = view.selectionRect
+                let display = capturedScreen.displayInfo
+                if prefersScrollingOnConfirm {
+                    captureDelegate?.overlayDidTriggerScroll(rect: rect, display: display)
+                } else {
+                    captureDelegate?.overlayDidConfirmSelection(rect: rect, display: display)
+                    close()
+                }
                 return
             }
         }

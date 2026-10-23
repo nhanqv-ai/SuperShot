@@ -39,6 +39,9 @@ public struct ScrollingCaptureTests {
 
         // 10. Thread-Safety & Concurrent Cancellation Tests
         testConcurrentCancellation()
+
+        // 11. Manual Scroll Default & Global Esc/Enter Key Handling Tests
+        testManualScrollDefaultAndKeyHandling()
     }
 
     // MARK: - Test 1: Mock Scroll Event Synthesizer
@@ -306,5 +309,43 @@ public struct ScrollingCaptureTests {
         }
         let waitResult = group.wait(timeout: .now() + 2.0)
         TestHarness.assertEqual(waitResult, .success, "Concurrent start and cancel completed without deadlock")
+    }
+
+    // MARK: - Test 11: Manual Scroll Default & Global Esc/Enter Key Handling
+    private static func testManualScrollDefaultAndKeyHandling() {
+        let mockProvider = MockScreenCaptureProvider()
+        let mockSynthesizer = MockScrollEventSynthesizer()
+        let manager = ScrollingCaptureManager(
+            captureProvider: mockProvider,
+            scrollSynthesizer: mockSynthesizer
+        )
+        let display = mockProvider.availableDisplays()[0]
+        let selection = CGRect(x: 100, y: 100, width: 300, height: 200)
+
+        // Default startSession (omitting mode) must default to .manual
+        let started = manager.startSession(selectionRect: selection, displayInfo: display)
+        TestHarness.assertTrue(started, "Default startSession starts cleanly")
+        TestHarness.assertEqual(manager.state, .capturing(mode: .manual), "Default startSession mode is .manual")
+        TestHarness.assertEqual(manager.progress.mode, .manual, "Progress mode is .manual")
+
+        let panel = LiveStitchedPreviewPanel(
+            captureManager: manager,
+            screenFrame: display.cocoaFrame,
+            selectionRect: selection
+        )
+        TestHarness.assertEqual(panel.viewModel.mode, .manual, "LiveStitchedPreviewViewModel defaults to .manual")
+
+        // Pressing Esc (keyCode 53) cancels the active manual scroll session
+        let handledEsc = panel.handleScrollingKeyCode(53)
+        TestHarness.assertTrue(handledEsc, "handleScrollingKeyCode(53) handles Esc")
+        TestHarness.assertEqual(manager.state, .cancelled, "Esc transitions manager state to .cancelled")
+
+        // Restart session and press Return (keyCode 36) to finish
+        manager.resetSession()
+        _ = manager.startSession(selectionRect: selection, displayInfo: display)
+        let handledReturn = panel.handleScrollingKeyCode(36)
+        TestHarness.assertTrue(handledReturn, "handleScrollingKeyCode(36) handles Return")
+        TestHarness.assertTrue(manager.isFinished, "Return finishes manual scrolling capture session")
+        panel.removeKeyboardMonitors()
     }
 }
