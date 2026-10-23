@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.14"><img src="https://img.shields.io/badge/version-v1.0.14-blue.svg?style=flat-square" alt="Version v1.0.14"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.15"><img src="https://img.shields.io/badge/version-v1.0.15-blue.svg?style=flat-square" alt="Version v1.0.15"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -119,6 +119,13 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
+### What's New in v1.0.15
+
+- **Settings Tab Bar Truncation Fix Across All Languages**: Eliminated tab label clipping across all 9 languages with `.minimumScaleFactor(0.78)` and standard concise titles (`History` in English, `Historial` in Spanish, and `Capture & Sauvegarde` in French).
+- **Explicit ContentShape Hit-Testing Across All Custom Buttons & Pills**: Added full-bleed `.contentShape(Rectangle())` and `.contentShape(Circle())` across Floating Toolbars (`ActionButton`, `ActionShareButton`, stroke & color triggers, stroke width circles, font size buttons), Color Palette popover swatches and buttons, Scrollable Canvas zoom HUD buttons, Live Stitched Preview Panel buttons, History Popover header, empty state, and row buttons, Welcome Window actions, and Settings tabs so clicks in padding never miss.
+- **Ergonomic Keyboard Shortcuts (`Cmd+A`, Arrow Nudge & `/`)**: Press `Cmd+A` during in-place capture to immediately select the entire display bounds, use Arrow keys (with optional Shift for 10px) to nudge selection with pixel precision, and press `/` in the history popover to focus the search field instantly.
+- **Universal 2 (`arm64` + `x86_64`) Binary Packaging**: Full Universal 2 build verified statically via `lipo` and `otool` without Rosetta 2 execution.
+
 ### What's New in v1.0.14
 
 - **Instant & Responsive Settings Tabs**: Extracted `SettingsTabButton` with full-bleed `.contentShape(Rectangle())` hit targets (`108x46pt`), non-transparent hit-testing surface, hover highlight, and zero-latency mouse-down response (`DragGesture(minimumDistance: 0)`). Eliminated synchronous disk enumeration in `HistorySettingsTab.body`, cached `AppIcon.icns` in `AboutSettingsTab`, and guarded `CursorTrackingRepresentable.updateNSView` against redundant cursor-rect invalidations.
@@ -168,7 +175,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.14.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.15.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -312,6 +319,13 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
+### Điểm mới trong v1.0.15
+
+- **Khắc phục triệt để tràn chữ trên thanh Tab Cài đặt (Preferences)**: Tự động co giãn chữ thông minh `.minimumScaleFactor(0.78)` và chuẩn hóa tiêu đề gọn gàng trên mọi ngôn ngữ (`History` trong tiếng Anh, `Historial` trong tiếng Tây Ban Nha và `Capture & Sauvegarde` trong tiếng Pháp), loại bỏ hoàn toàn dấu ba chấm cắt chữ.
+- **Vùng nhận diện click toàn phần (Full-Bleed ContentShape) trên mọi nút bấm**: Bổ sung `.contentShape(Rectangle())` và `.contentShape(Circle())` cho toàn bộ các nút tùy biến trên thanh công cụ nổi (Action buttons, bảng màu, chọn nét vẽ, cỡ chữ), cụm nút Zoom HUD ảnh cuộn dài, bảng điều khiển ghép ảnh trực tiếp, các nút trên hàng lịch sử và thanh tiêu đề popover, cửa sổ Chào mừng và các tab Cài đặt giúp click chuột luôn chính xác 100% dù bấm vào phần viền padding.
+- **Phím tắt tiện dụng mới (`Cmd+A`, phím mũi tên & `/`)**: Nhấn `Cmd+A` khi đang mở lớp phủ chụp để chọn ngay toàn bộ màn hình, dùng 4 phím Mũi tên (kết hợp Shift để nhảy 10px) để vi chỉnh khung chọn pixel-perfect, và nhấn phím `/` trong popover lịch sử để chuyển ngay tiêu điểm vào ô tìm kiếm.
+- **Đóng gói Universal 2 (`arm64` + `x86_64`) chuẩn xác**: Bản phân phối nhị phân Universal 2 chạy gốc mượt mà trên cả chip Apple Silicon lẫn Intel.
+
 ### Điểm mới trong v1.0.14
 
 - **Phản hồi tức thì khi bấm chuyển Tab trong Cài đặt (Preferences)**: Bổ sung `SettingsTabButton` với vùng nhận click toàn phần `.contentShape(Rectangle())` (`108x46pt`), phản hồi tức thì ngay khi nhấn chuột xuống (`DragGesture(minimumDistance: 0)`), chuyển tính toán dung lượng ổ đĩa trong tab Lịch sử sang bất đồng bộ và lưu đệm biểu tượng ứng dụng trong tab Giới thiệu giúp chuyển tab mượt mà 0ms độ trễ.
@@ -361,7 +375,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.14.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.15.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

@@ -304,6 +304,7 @@ public struct RowActionButton: View {
                     RoundedRectangle(cornerRadius: 3)
                         .fill(customBackground ?? (isHovered ? Color.primary.opacity(0.18) : Color.secondary.opacity(0.10)))
                 )
+                .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .pointingHandCursor()

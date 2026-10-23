@@ -67,7 +67,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.14"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.15"
                 Text(LocalizationManager.shared.tr(.versionLabel(version)))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
@@ -117,6 +117,7 @@ public struct AboutSettingsTab: View {
                                 .font(.system(size: 10))
                         }
                         .foregroundColor(.accentColor)
+                        .contentShape(Rectangle())
                     }
                     .buttonStyle(.plain)
                     .pointingHandCursor()
@@ -272,6 +273,8 @@ public struct AboutSettingsTab: View {
                 }) {
                     Image(systemName: "arrow.up.forward.square")
                         .font(.system(size: 10))
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)

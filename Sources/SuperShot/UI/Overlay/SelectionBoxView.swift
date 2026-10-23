@@ -48,7 +48,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         frame: NSRect,
         capturedScreen: CapturedScreen,
         appSettings: AppSettings = AppSettings(),
-        windowDelegate: CaptureOverlayWindow
+        windowDelegate: CaptureOverlayWindow? = nil
     ) {
         self.capturedScreen = capturedScreen
         self.appSettings = appSettings
@@ -768,6 +768,12 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
            annotationEngine.selectedObjectID != nil {
             annotationEngine.duplicateSelected(within: selectionRect)
             needsDisplay = true
+            return true
+        }
+
+        // Cmd+A: Immediately select the entire display bounds
+        if flags == .command && (event.keyCode == 0 || event.charactersIgnoringModifiers?.lowercased() == "a") {
+            selectionRect = bounds
             return true
         }
 

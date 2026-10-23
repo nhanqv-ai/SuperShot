@@ -245,6 +245,7 @@ public struct VerticalAnnotationToolbarView: View {
                 .frame(width: 32, height: 32)
                 .background(viewModel.isStrokeWidthPresented ? Color.white.opacity(0.2) : Color.clear)
                 .cornerRadius(6)
+                .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
             .pointingHandCursor()
@@ -269,6 +270,7 @@ public struct VerticalAnnotationToolbarView: View {
                 .frame(width: 32, height: 32)
                 .background(viewModel.isColorPalettePresented ? Color.white.opacity(0.2) : Color.clear)
                 .cornerRadius(6)
+                .contentShape(Rectangle())
             }
             .buttonStyle(PlainButtonStyle())
             .pointingHandCursor()
@@ -423,6 +425,7 @@ public struct StrokeWidthPopoverView: View {
                                 .fill(appSettings.activeStrokeWidth == width ? Color.white : Color.primary)
                                 .frame(width: CGFloat(width), height: CGFloat(width))
                         }
+                        .contentShape(Circle())
                     }
                     .buttonStyle(PlainButtonStyle())
                     .pointingHandCursor()
@@ -448,6 +451,7 @@ public struct StrokeWidthPopoverView: View {
                             .frame(width: 26, height: 22)
                             .background(appSettings.activeFontSize == size ? Color.accentColor : Color.primary.opacity(0.1))
                             .cornerRadius(4)
+                            .contentShape(Rectangle())
                     }
                     .buttonStyle(PlainButtonStyle())
                     .pointingHandCursor()
@@ -528,6 +532,7 @@ public struct ActionButton: View {
                 .frame(width: 32, height: 32)
                 .background(Color.primary.opacity(isHovered ? 0.16 : 0.06))
                 .cornerRadius(6)
+                .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
         .onHover { hovering in
@@ -559,6 +564,7 @@ public struct ActionShareButton: View {
                 .frame(width: 32, height: 32)
                 .background(Color.primary.opacity(isHovered ? 0.16 : 0.06))
                 .cornerRadius(6)
+                .contentShape(Rectangle())
         }
         .buttonStyle(PlainButtonStyle())
         .onHover { hovering in

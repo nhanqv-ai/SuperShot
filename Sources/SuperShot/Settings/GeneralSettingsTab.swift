@@ -215,6 +215,8 @@ public struct GeneralSettingsTab: View {
                 }) {
                     Image(systemName: "arrow.counterclockwise")
                         .font(.system(size: 10))
+                        .frame(width: 18, height: 18)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
                 .pointingHandCursor()
@@ -238,6 +240,8 @@ public struct GeneralSettingsTab: View {
                 }) {
                     Image(systemName: "arrow.counterclockwise")
                         .font(.system(size: 10))
+                        .frame(width: 18, height: 18)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.borderless)
                 .pointingHandCursor()
@@ -297,6 +301,7 @@ public struct GeneralSettingsTab: View {
                 RoundedRectangle(cornerRadius: 4)
                     .stroke(isRecording ? Color.accentColor : Color(nsColor: .separatorColor), lineWidth: 1)
             )
+            .contentShape(RoundedRectangle(cornerRadius: 4))
         }
         .buttonStyle(.plain)
         .pointingHandCursor()

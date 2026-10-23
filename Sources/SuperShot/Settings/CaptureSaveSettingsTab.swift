@@ -167,6 +167,7 @@ public struct CaptureSaveSettingsTab: View {
                             Circle()
                                 .stroke(Color.accentColor, lineWidth: preset.hex.caseInsensitiveCompare(appSettings.activeColorHex) == .orderedSame ? 2.5 : 0)
                         )
+                        .contentShape(Circle())
                         .contextMenu {
                             Button(LocalizationManager.shared.tr(.deletePreset)) {
                                 appSettings.deletePreset(id: preset.id)

@@ -211,7 +211,7 @@ public struct SettingsViewTests {
         var welcomeDismissed = false
         let welcomeView = WelcomeView(onDismiss: { welcomeDismissed = true })
         let _ = welcomeView.body
-        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.14", "WelcomeView version string is v1.0.14")
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.15", "WelcomeView version string is v1.0.15")
         welcomeView.onDismiss?()
         TestHarness.assertTrue(welcomeDismissed, "WelcomeView onDismiss executes cleanly")
 
@@ -243,5 +243,134 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(locMgr.tr(.welcomeTitle), "Welcome to SuperShot", "welcomeTitle in English")
         TestHarness.assertEqual(locMgr.tr(.getStartedButton), "Get Started", "getStartedButton in English")
         TestHarness.assertEqual(locMgr.tr(.welcomeGuideButton), "Welcome & Quick Guide", "welcomeGuideButton in English")
+
+        // 11. Settings Tab Truncation & Concise Localization Verification (v1.0.15)
+        TestHarness.assertEqual(L10nKey.tabHistory.localized(for: .english), "History", "English tabHistory is concise 'History'")
+        TestHarness.assertEqual(L10nKey.tabHistory.localized(for: .spanish), "Historial", "Spanish tabHistory is concise 'Historial'")
+        TestHarness.assertEqual(L10nKey.tabCaptureSave.localized(for: .french), "Capture & Sauvegarde", "French tabCaptureSave is concise 'Capture & Sauvegarde'")
+        TestHarness.assertEqual(SettingsTab.history.localizedTitle, "History", "SettingsTab.history default localizedTitle is 'History'")
+
+        // 12. Version Consistency & Fallback Verification (v1.0.15)
+        let updateMgr = UpdateManager.shared
+        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.15", "UpdateManager currentVersion fallback is 1.0.15")
+
+        // 13. Overlay Cmd+A Fullscreen & Arrow Key Nudging Verification (v1.0.15)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let dummyCtx = CGContext(
+            data: nil,
+            width: 100,
+            height: 100,
+            bitsPerComponent: 8,
+            bytesPerRow: 400,
+            space: colorSpace,
+            bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+        )!
+        let testImage = dummyCtx.makeImage()!
+        let display = CaptureDisplayInfo(
+            displayID: 1,
+            name: "TestDisplay",
+            cocoaFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            cgBounds: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            scaleFactor: 2.0,
+            isMain: true,
+            pixelSize: CGSize(width: 2880, height: 1800)
+        )
+        let captured = CapturedScreen(displayInfo: display, fullImage: testImage, timestamp: Date())
+        let overlayView = CaptureOverlayContentView(
+            frame: NSRect(x: 0, y: 0, width: 1440, height: 900),
+            capturedScreen: captured,
+            appSettings: settings,
+            windowDelegate: nil
+        )
+
+        TestHarness.assertEqual(overlayView.selectionRect, CGRect.zero, "Initial selectionRect is empty")
+
+        // Test Cmd+A immediately selects entire screen
+        let cmdAEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: .command,
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "a",
+            charactersIgnoringModifiers: "a",
+            isARepeat: false,
+            keyCode: 0
+        )!
+        let cmdAHandled = overlayView.handleOverlayKeyDown(with: cmdAEvent)
+        TestHarness.assertTrue(cmdAHandled, "Cmd+A key event handled by overlay view")
+        TestHarness.assertEqual(overlayView.selectionRect, overlayView.bounds, "Cmd+A expands selectionRect to full bounds (1440x900)")
+
+        // Test Arrow key nudging: 1px without Shift, 10px with Shift
+        overlayView.selectionRect = CGRect(x: 100, y: 100, width: 200, height: 150)
+
+        // Right arrow (+1px)
+        let rightArrowEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 124
+        )!
+        let rightHandled = overlayView.handleOverlayKeyDown(with: rightArrowEvent)
+        TestHarness.assertTrue(rightHandled, "Right arrow key event handled")
+        TestHarness.assertEqual(overlayView.selectionRect.origin.x, 101.0, "Right arrow nudges selectionRect x by +1px")
+
+        // Shift + Down arrow (-10px)
+        let shiftDownEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: .shift,
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 125
+        )!
+        let shiftDownHandled = overlayView.handleOverlayKeyDown(with: shiftDownEvent)
+        TestHarness.assertTrue(shiftDownHandled, "Shift+Down arrow key event handled")
+        TestHarness.assertEqual(overlayView.selectionRect.origin.y, 90.0, "Shift+Down arrow nudges selectionRect y by -10px")
+
+        // Left arrow (-1px)
+        let leftArrowEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 123
+        )!
+        let leftHandled = overlayView.handleOverlayKeyDown(with: leftArrowEvent)
+        TestHarness.assertTrue(leftHandled, "Left arrow key event handled")
+        TestHarness.assertEqual(overlayView.selectionRect.origin.x, 100.0, "Left arrow nudges selectionRect x by -1px")
+
+        // Shift + Up arrow (+10px)
+        let shiftUpEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: .shift,
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 126
+        )!
+        let shiftUpHandled = overlayView.handleOverlayKeyDown(with: shiftUpEvent)
+        TestHarness.assertTrue(shiftUpHandled, "Shift+Up arrow key event handled")
+        TestHarness.assertEqual(overlayView.selectionRect.origin.y, 100.0, "Shift+Up arrow nudges selectionRect y by +10px")
     }
 }
