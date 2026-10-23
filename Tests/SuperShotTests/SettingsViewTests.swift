@@ -211,9 +211,20 @@ public struct SettingsViewTests {
         var welcomeDismissed = false
         let welcomeView = WelcomeView(onDismiss: { welcomeDismissed = true })
         let _ = welcomeView.body
-        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.13", "WelcomeView version string is v1.0.13")
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.14", "WelcomeView version string is v1.0.14")
         welcomeView.onDismiss?()
         TestHarness.assertTrue(welcomeDismissed, "WelcomeView onDismiss executes cleanly")
+
+        // 9b. SettingsTabButton Instant Action & Hit-Target Verification
+        var selectedTabFromButton: SettingsTab = .general
+        for tab in SettingsTab.allCases {
+            let tabButton = SettingsTabButton(tab: tab, isSelected: selectedTabFromButton == tab) {
+                selectedTabFromButton = tab
+            }
+            let _ = tabButton.body
+            tabButton.action()
+            TestHarness.assertEqual(selectedTabFromButton, tab, "SettingsTabButton action immediately switches selected tab to \(tab.rawValue)")
+        }
 
         let welcomeController = WelcomeWindowController.shared
         TestHarness.assertNotNil(welcomeController.window, "WelcomeWindowController window instantiated")

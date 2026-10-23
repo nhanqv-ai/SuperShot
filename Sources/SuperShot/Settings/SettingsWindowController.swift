@@ -101,7 +101,11 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         }
 
         onPresentationDismissalRequested?()
-        setupContentView(initialTab: tab)
+        if window?.contentViewController == nil {
+            setupContentView(initialTab: tab)
+        } else {
+            NotificationCenter.default.post(name: .settingsSelectTab, object: tab)
+        }
 
         guard let window = self.window else { return }
         window.title = LocalizationManager.shared.tr(.menuPreferences)
@@ -116,7 +120,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
     }
 
     public func windowWillClose(_ notification: Notification) {
-        setupContentView()
+        NotificationCenter.default.post(name: .settingsSelectTab, object: SettingsTab.general)
     }
 }
 

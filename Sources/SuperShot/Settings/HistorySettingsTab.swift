@@ -8,6 +8,7 @@ public struct HistorySettingsTab: View {
     @ObservedObject private var localizationManager = LocalizationManager.shared
 
     @State private var showingClearConfirmation: Bool = false
+    @State private var cachedDiskUsage: String = "0 KB"
 
     public init(appSettings: AppSettings, storageManager: StorageManager) {
         self.appSettings = appSettings
@@ -19,6 +20,12 @@ public struct HistorySettingsTab: View {
             capacityCard
             pinProtectionCard
             storageStatsCard
+        }
+        .onAppear {
+            refreshDiskUsageAsync()
+        }
+        .onChange(of: storageManager.items.count) { _ in
+            refreshDiskUsageAsync()
         }
     }
 
@@ -83,7 +90,7 @@ public struct HistorySettingsTab: View {
                 metricRow(label: LocalizationManager.shared.tr(.totalScreenshots), value: "\(storageManager.items.count)")
                 metricRow(label: LocalizationManager.shared.tr(.pinnedScreenshots), value: "\(storageManager.pinnedItems.count)")
                 metricRow(label: LocalizationManager.shared.tr(.unpinnedScreenshots), value: "\(storageManager.recentItems.count)")
-                metricRow(label: LocalizationManager.shared.tr(.diskUsage), value: calculateDiskUsageFormatted())
+                metricRow(label: LocalizationManager.shared.tr(.diskUsage), value: cachedDiskUsage)
             }
             .padding(8)
             .background(Color(nsColor: .controlBackgroundColor).opacity(0.5))
@@ -142,8 +149,19 @@ public struct HistorySettingsTab: View {
         }
     }
 
-    private func calculateDiskUsageFormatted() -> String {
+    private func refreshDiskUsageAsync() {
         let url = storageManager.baseDirectory
+        DispatchQueue.global(qos: .utility).async {
+            let formatted = Self.calculateDiskUsageFormatted(for: url)
+            DispatchQueue.main.async {
+                if self.cachedDiskUsage != formatted {
+                    self.cachedDiskUsage = formatted
+                }
+            }
+        }
+    }
+
+    private static func calculateDiskUsageFormatted(for url: URL) -> String {
         guard let enumerator = FileManager.default.enumerator(
             at: url,
             includingPropertiesForKeys: [.fileSizeKey, .isRegularFileKey],

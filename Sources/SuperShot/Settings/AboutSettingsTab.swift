@@ -13,6 +13,15 @@ public struct AboutSettingsTab: View {
 
     @State private var showingResetAllConfirmation: Bool = false
 
+    private static let cachedAppIcon: NSImage? = {
+        guard let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+              let icon = NSImage(contentsOf: iconURL),
+              icon.isValid else {
+            return nil
+        }
+        return icon
+    }()
+
     public init(
         appSettings: AppSettings,
         storageManager: StorageManager,
@@ -30,8 +39,7 @@ public struct AboutSettingsTab: View {
     public var body: some View {
         VStack(spacing: 12) {
             // App Identity
-            if let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
-               let icon = NSImage(contentsOf: iconURL), icon.isValid {
+            if let icon = Self.cachedAppIcon {
                 Image(nsImage: icon)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
@@ -59,7 +67,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.13"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.14"
                 Text(LocalizationManager.shared.tr(.versionLabel(version)))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
