@@ -225,14 +225,29 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
     }
 
     public func menuNeedsUpdate(_ menu: NSMenu) {
-        guard menu == contextMenu, menu.items.count >= 9 else { return }
-        menu.items[0].title = LocalizationManager.shared.tr(.menuCapture)
-        menu.items[1].title = LocalizationManager.shared.tr(.menuScrollingCapture)
-        menu.items[2].title = LocalizationManager.shared.tr(.menuShowHistory)
-        menu.items[3].title = LocalizationManager.shared.tr(.menuPreferences)
-        menu.items[5].title = LocalizationManager.shared.tr(.menuClearHistory)
-        menu.items[6].title = LocalizationManager.shared.tr(.menuCheckUpdates)
-        menu.items[8].title = LocalizationManager.shared.tr(.menuQuit)
+        guard menu == contextMenu else { return }
+        for item in menu.items where !item.isSeparatorItem {
+            switch item.action {
+            case #selector(captureRegionMenuItemClicked(_:)):
+                item.title = LocalizationManager.shared.tr(.menuCapture)
+            case #selector(scrollingCaptureMenuItemClicked(_:)):
+                item.title = LocalizationManager.shared.tr(.menuScrollingCapture)
+            case #selector(showHistoryMenuItemClicked(_:)):
+                item.title = LocalizationManager.shared.tr(.menuShowHistory)
+            case #selector(settingsMenuItemClicked(_:)):
+                item.title = LocalizationManager.shared.tr(.menuPreferences)
+            case #selector(clearHistoryMenuItemClicked(_:)):
+                item.title = LocalizationManager.shared.tr(.menuClearHistory)
+            case #selector(welcomeGuideMenuItemClicked(_:)):
+                item.title = LocalizationManager.shared.tr(.welcomeGuideButton)
+            case #selector(checkUpdatesMenuItemClicked(_:)):
+                item.title = LocalizationManager.shared.tr(.menuCheckUpdates)
+            case #selector(quitMenuItemClicked(_:)):
+                item.title = LocalizationManager.shared.tr(.menuQuit)
+            default:
+                break
+            }
+        }
     }
 
     public func menuDidClose(_ menu: NSMenu) {

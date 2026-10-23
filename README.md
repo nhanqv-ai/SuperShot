@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.12"><img src="https://img.shields.io/badge/version-v1.0.12-blue.svg?style=flat-square" alt="Version v1.0.12"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.13"><img src="https://img.shields.io/badge/version-v1.0.13-blue.svg?style=flat-square" alt="Version v1.0.13"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -119,9 +119,10 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
-### What's New in v1.0.12
+### What's New in v1.0.13
 
-- **Universal 2 (`arm64` + `x86_64`) Support without Rosetta 2 Alert**: Restores full Universal 2 fat binary support for both Apple Silicon (`arm64`) and Intel (`x86_64`) Macs while replacing Rosetta 2 (`arch -x86_64`) runtime launch checks in `verify_app.sh` / `verify_bundle.sh` with static Mach-O inspection (`lipo -info` + `otool -arch x86_64 -L`), ensuring macOS 26 (Tahoe) on Apple Silicon never shows the *"Support Ending for Intel-based Apps"* notification.
+- **Context Menu Deduplication Fix**: Fixed an index-shift bug in `StatusItemManager.menuNeedsUpdate` (introduced when adding *Welcome & Quick Guide* in `v1.0.9`) that overwrote item 6's title with *Check for Updates...* and caused two *Check for Updates...* rows to appear on right-click. Menu items are now updated by selector action rather than hardcoded array indices.
+- **Universal 2 (`arm64` + `x86_64`) Support without Rosetta 2 Alert**: Full Universal 2 fat binary support for both Apple Silicon (`arm64`) and Intel (`x86_64`) Macs while verifying the `x86_64` slice statically (`lipo -info` + `otool -arch x86_64 -L`) instead of launching via Rosetta 2 on Apple Silicon.
 
 ### What's New in v1.0.10
 
@@ -166,7 +167,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.12.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.13.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -310,9 +311,10 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
-### Điểm mới trong v1.0.12
+### Điểm mới trong v1.0.13
 
-- **Hỗ trợ đầy đủ Universal 2 (`arm64` + `x86_64`) không gây cảnh báo Rosetta 2**: Giữ nguyên kiến trúc Universal 2 chạy gốc trên cả MacBook chip Apple Silicon (`arm64`) lẫn MacBook chip Intel (`x86_64`), đồng thời thay thế lệnh chạy giả lập `arch -x86_64` trong kịch bản kiểm thử bằng kiểm tra tĩnh (`lipo -info` và `otool -arch x86_64 -L`) giúp macOS 26 (Tahoe) không bao giờ bật cảnh báo *"Support Ending for Intel-based Apps"*.
+- **Khắc phục lỗi trùng lặp menu Check for Updates**: Sửa lỗi lệch chỉ số mảng trong `StatusItemManager.menuNeedsUpdate` (phát sinh từ bản `v1.0.9` khi chèn thêm mục *Welcome & Quick Guide* vào vị trí số 6 nhưng chưa cập nhật chỉ số mảng trong `menuNeedsUpdate`, khiến mục số 6 bị ghi đè tiêu đề thành *Check for Updates...*). Hiện tại từng mục menu được ánh xạ trực tiếp theo `action` selector nên không bao giờ bị lệch thứ tự hay trùng lặp.
+- **Hỗ trợ đầy đủ Universal 2 (`arm64` + `x86_64`) không gây cảnh báo Rosetta 2**: Giữ nguyên kiến trúc Universal 2 chạy gốc trên cả MacBook chip Apple Silicon (`arm64`) lẫn MacBook chip Intel (`x86_64`), đồng thời kiểm tra nhánh `x86_64` bằng phương pháp tĩnh (`lipo -info` và `otool -arch x86_64 -L`).
 
 ### Điểm mới trong v1.0.10
 
@@ -357,7 +359,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.12.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.13.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

@@ -39,7 +39,20 @@ public struct StatusItemTests {
         TestHarness.assertTrue(itemTitles.contains(LocalizationManager.shared.tr(.menuShowHistory)), "Context menu contains Show History")
         TestHarness.assertTrue(itemTitles.contains(LocalizationManager.shared.tr(.menuPreferences)), "Context menu contains Preferences...")
         TestHarness.assertTrue(itemTitles.contains(LocalizationManager.shared.tr(.menuClearHistory)), "Context menu contains Clear Unpinned History")
+        TestHarness.assertTrue(itemTitles.contains(LocalizationManager.shared.tr(.welcomeGuideButton)), "Context menu contains Welcome & Quick Guide")
+        TestHarness.assertTrue(itemTitles.contains(LocalizationManager.shared.tr(.menuCheckUpdates)), "Context menu contains Check for Updates...")
         TestHarness.assertTrue(itemTitles.contains(LocalizationManager.shared.tr(.menuQuit)), "Context menu contains Quit SuperShot")
+
+        // Verify menuNeedsUpdate never creates duplicate Check for Updates items or overwrites Welcome & Quick Guide
+        manager.menuNeedsUpdate(menu)
+        let checkUpdatesTitle = LocalizationManager.shared.tr(.menuCheckUpdates)
+        let checkUpdatesCount = menu.items.filter { !$0.isSeparatorItem && $0.title == checkUpdatesTitle }.count
+        TestHarness.assertEqual(checkUpdatesCount, 1, "menuNeedsUpdate maintains exactly 1 Check for Updates menu item")
+        let welcomeTitle = LocalizationManager.shared.tr(.welcomeGuideButton)
+        let welcomeCount = menu.items.filter { !$0.isSeparatorItem && $0.title == welcomeTitle }.count
+        TestHarness.assertEqual(welcomeCount, 1, "menuNeedsUpdate preserves Welcome & Quick Guide menu item title")
+        let nonSeparatorTitles = menu.items.filter { !$0.isSeparatorItem }.map { $0.title }
+        TestHarness.assertEqual(nonSeparatorTitles.count, Set(nonSeparatorTitles).count, "All non-separator context menu items have unique titles after menuNeedsUpdate")
 
         // 3. Menu Item Shortcuts & Key Equivalents
         let prefsItem = menu.items.first(where: { $0.title == LocalizationManager.shared.tr(.menuPreferences) })
