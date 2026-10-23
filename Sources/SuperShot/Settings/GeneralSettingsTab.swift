@@ -5,6 +5,7 @@ import SuperShotCore
 
 public struct GeneralSettingsTab: View {
     @ObservedObject public var appSettings: AppSettings
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     public var hotKeyManager: any HotKeyManaging
     public var launchAtLoginManager: any LaunchAtLoginManaging
     public var autoPasteService: any AutoPasteServicing
@@ -77,6 +78,7 @@ public struct GeneralSettingsTab: View {
                         Text(lang.displayName).tag(lang.rawValue)
                     }
                 }
+                .labelsHidden()
                 .pickerStyle(.menu)
                 .frame(width: 180)
             }
@@ -89,7 +91,7 @@ public struct GeneralSettingsTab: View {
     // MARK: - Permissions
     private var permissionsCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Permissions")
+            Text(localizationManager.effectiveLanguage == .vietnamese ? "Quyền truy cập hệ thống" : "Permissions")
                 .font(.system(size: 12.5, weight: .semibold))
 
             // Screen Recording Row
@@ -115,7 +117,7 @@ public struct GeneralSettingsTab: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                 } else {
-                    Text("Ready")
+                    Text(localizationManager.tr(.permissionGranted))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }
@@ -145,7 +147,7 @@ public struct GeneralSettingsTab: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                 } else {
-                    Text("Ready")
+                    Text(localizationManager.tr(.permissionGranted))
                         .font(.system(size: 11))
                         .foregroundColor(.secondary)
                 }

@@ -147,7 +147,7 @@ public struct SettingsView: View {
     private var footerBar: some View {
         HStack {
             Spacer()
-            Button("Done") {
+            Button(localizationManager.tr(.doneButton)) {
                 onClose?()
             }
             .keyboardShortcut(.defaultAction)

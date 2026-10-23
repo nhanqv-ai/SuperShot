@@ -5,6 +5,7 @@ import SuperShotCore
 public struct HistorySettingsTab: View {
     @ObservedObject public var appSettings: AppSettings
     @ObservedObject public var storageManager: StorageManager
+    @ObservedObject private var localizationManager = LocalizationManager.shared
 
     @State private var showingClearConfirmation: Bool = false
 
@@ -27,7 +28,7 @@ public struct HistorySettingsTab: View {
                 .font(.system(size: 12.5, weight: .semibold))
 
             HStack {
-                Text("Remember:")
+                Text(localizationManager.effectiveLanguage == .vietnamese ? "Lưu trữ:" : "Remember:")
                     .font(.system(size: 11.5))
                     .frame(width: 80, alignment: .leading)
 

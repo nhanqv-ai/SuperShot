@@ -6,7 +6,7 @@ import SuperShotCore
 // MARK: - Live Preview Layout Math Engine
 
 public struct LivePreviewLayoutEngine {
-    public static let defaultPanelSize = CGSize(width: 190, height: 290)
+    public static let defaultPanelSize = CGSize(width: 216, height: 290)
     public static let defaultMargin: CGFloat = 12.0
     public static let screenEdgePadding: CGFloat = 12.0
 
@@ -235,10 +235,39 @@ public final class LiveStitchedPreviewPanel: NSPanel, ScrollingCaptureDelegate {
     }
 }
 
+// MARK: - Scrolling Region Border Window (Non-Interactive Capture Frame Highlight)
+
+public final class ScrollingRegionBorderWindow: NSPanel {
+    public init(selectionRect: CGRect) {
+        let borderFrame = selectionRect.insetBy(dx: -2, dy: -2)
+        super.init(
+            contentRect: borderFrame,
+            styleMask: [.borderless, .nonactivatingPanel],
+            backing: .buffered,
+            defer: false
+        )
+        self.level = .floating
+        self.isOpaque = false
+        self.backgroundColor = .clear
+        self.hasShadow = false
+        self.sharingType = .none // Excluded from CGWindowListCreateImage during scrolling capture
+        self.ignoresMouseEvents = true
+        self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
+
+        let borderView = NSView(frame: NSRect(origin: .zero, size: borderFrame.size))
+        borderView.wantsLayer = true
+        borderView.layer?.borderColor = NSColor.controlAccentColor.cgColor
+        borderView.layer?.borderWidth = 2.0
+        borderView.layer?.cornerRadius = 4.0
+        self.contentView = borderView
+    }
+}
+
 // MARK: - Live Preview SwiftUI Content View
 
 public struct LiveStitchedPreviewContentView: View {
     @ObservedObject public var viewModel: LiveStitchedPreviewViewModel
+    @ObservedObject private var localizationManager = LocalizationManager.shared
 
     public init(viewModel: LiveStitchedPreviewViewModel) {
         self.viewModel = viewModel
@@ -340,6 +369,8 @@ public struct LiveStitchedPreviewContentView: View {
                 Button(action: { viewModel.cancel() }) {
                     Text(LocalizationManager.shared.tr(.actionCancel))
                         .font(.system(size: 11, weight: .medium))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
                         .foregroundColor(.secondary)
                         .frame(maxWidth: .infinity, minHeight: 26)
                         .background(Color.white.opacity(0.08))
@@ -349,8 +380,10 @@ public struct LiveStitchedPreviewContentView: View {
                 .help("Cancel (Esc)")
 
                 Button(action: { viewModel.finish() }) {
-                    Text("Done")
+                    Text(localizationManager.tr(.doneButton))
                         .font(.system(size: 11, weight: .bold))
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.85)
                         .foregroundColor(.white)
                         .frame(maxWidth: .infinity, minHeight: 26)
                         .background(Color.accentColor)

@@ -88,23 +88,68 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     // MARK: - Annotation Drawing Helpers
 
     private func drawBlurOverlay(obj: AnnotationObject, context: CGContext) {
+        let rect = obj.bounds.intersection(bounds)
+        guard rect.width > 1 && rect.height > 1 else { return }
+
         context.saveGState()
+        context.clip(to: rect)
+
         let blockSize: CGFloat = 12.0
-        let cols = max(1, Int(ceil(obj.bounds.width / blockSize)))
-        let rows = max(1, Int(ceil(obj.bounds.height / blockSize)))
-        for r in 0..<rows {
-            for c in 0..<cols {
-                let cell = CGRect(
-                    x: obj.bounds.minX + CGFloat(c) * blockSize,
-                    y: obj.bounds.minY + CGFloat(r) * blockSize,
-                    width: min(blockSize, obj.bounds.maxX - (obj.bounds.minX + CGFloat(c) * blockSize)),
-                    height: min(blockSize, obj.bounds.maxY - (obj.bounds.minY + CGFloat(r) * blockSize))
-                )
-                let shade = ((r + c) % 2 == 0) ? 0.45 : 0.55
-                context.setFillColor(gray: shade, alpha: 0.90)
-                context.fill(cell)
+        let pixelRect = CGRect(
+            x: floor(rect.minX * scale),
+            y: floor(rect.minY * scale),
+            width: max(1, ceil(rect.width * scale)),
+            height: max(1, ceil(rect.height * scale))
+        ).intersection(CGRect(x: 0, y: 0, width: CGFloat(baseImage.width), height: CGFloat(baseImage.height)))
+
+        let smallW = max(1, Int(ceil(rect.width / blockSize)))
+        let smallH = max(1, Int(ceil(rect.height / blockSize)))
+        let colorSpace = baseImage.colorSpace ?? CGColorSpaceCreateDeviceRGB()
+
+        if pixelRect.width >= 1,
+           pixelRect.height >= 1,
+           let cropped = baseImage.cropping(to: pixelRect),
+           let smallCtx = CGContext(
+               data: nil,
+               width: smallW,
+               height: smallH,
+               bitsPerComponent: 8,
+               bytesPerRow: 0,
+               space: colorSpace,
+               bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
+           ) {
+            smallCtx.interpolationQuality = .low
+            smallCtx.draw(cropped, in: CGRect(x: 0, y: 0, width: CGFloat(smallW), height: CGFloat(smallH)))
+            if let pixelated = smallCtx.makeImage() {
+                context.saveGState()
+                context.interpolationQuality = .none
+                context.translateBy(x: rect.minX, y: rect.maxY)
+                context.scaleBy(x: 1.0, y: -1.0)
+                context.draw(pixelated, in: CGRect(x: 0, y: 0, width: rect.width, height: rect.height))
+                context.restoreGState()
+            }
+        } else {
+            let cols = max(1, Int(ceil(rect.width / blockSize)))
+            let rows = max(1, Int(ceil(rect.height / blockSize)))
+            for r in 0..<rows {
+                for c in 0..<cols {
+                    let cell = CGRect(
+                        x: rect.minX + CGFloat(c) * blockSize,
+                        y: rect.minY + CGFloat(r) * blockSize,
+                        width: min(blockSize, rect.maxX - (rect.minX + CGFloat(c) * blockSize)),
+                        height: min(blockSize, rect.maxY - (rect.minY + CGFloat(r) * blockSize))
+                    )
+                    let shade = ((r + c) % 2 == 0) ? 0.45 : 0.55
+                    context.setFillColor(gray: shade, alpha: 0.90)
+                    context.fill(cell)
+                }
             }
         }
+
+        context.setStrokeColor(NSColor.white.withAlphaComponent(0.35).cgColor)
+        context.setLineWidth(1.0)
+        context.setLineDash(phase: 0, lengths: [3, 3])
+        context.stroke(rect)
         context.restoreGState()
     }
 

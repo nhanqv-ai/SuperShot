@@ -19,6 +19,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
     // Active Capture Session Windows & Panels
     public var activeOverlayWindow: CaptureOverlayWindow?
     public var activeStitchedPreviewPanel: LiveStitchedPreviewPanel?
+    public var activeScrollRegionBorderWindow: ScrollingRegionBorderWindow?
     public var activeScrollCanvasWindow: NSWindow?
 
     public func applicationDidFinishLaunching(_ notification: Notification) {
@@ -68,7 +69,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         )
 
         let popoverVC = NSHostingController(rootView: mainShotView)
-        popoverVC.preferredContentSize = NSSize(width: 380, height: 600)
+        popoverVC.preferredContentSize = NSSize(width: 380, height: 560)
 
         statusItemManager = StatusItemManager(
             contentViewController: popoverVC,
@@ -89,6 +90,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         }
         statusItemManager.onClearHistoryRequested = { [weak self] in
             self?.storageManager.clearUnpinnedHistory()
+        }
+        statusItemManager.onCheckForUpdatesRequested = { [weak self] in
+            self?.openSettings(tab: .about)
         }
 
         // 5. Register Global Carbon Hotkeys
@@ -168,6 +172,12 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
     public func startScrollingCapture(selectionRect: CGRect, display: CaptureDisplayInfo) {
         activeOverlayWindow?.close()
         activeOverlayWindow = nil
+        activeScrollRegionBorderWindow?.close()
+        activeScrollRegionBorderWindow = nil
+
+        let borderWin = ScrollingRegionBorderWindow(selectionRect: selectionRect)
+        borderWin.orderFront(nil)
+        self.activeScrollRegionBorderWindow = borderWin
 
         let panel = LiveStitchedPreviewPanel(
             captureManager: ScrollingCaptureManager.shared,
@@ -176,6 +186,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         )
         panel.onFinished = { [weak self] image, _, _ in
             guard let self = self else { return }
+            self.activeScrollRegionBorderWindow?.close()
+            self.activeScrollRegionBorderWindow = nil
             self.activeStitchedPreviewPanel?.close()
             self.activeStitchedPreviewPanel = nil
             self.handleCaptureCompletion(
@@ -186,6 +198,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
             self.presentScrollableAnnotationWindow(image: image, scale: display.scaleFactor)
         }
         panel.onCancelled = { [weak self] in
+            self?.activeScrollRegionBorderWindow?.close()
+            self?.activeScrollRegionBorderWindow = nil
             self?.activeStitchedPreviewPanel?.close()
             self?.activeStitchedPreviewPanel = nil
         }
@@ -424,9 +438,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         AudioServicesPlaySystemSound(1108)
     }
 
-    public func openSettings() {
+    public func openSettings(tab: SettingsTab = .general) {
         statusItemManager?.dismissPopover()
-        settingsWindowController?.showSettings()
+        settingsWindowController?.showSettings(tab: tab)
     }
 
     // MARK: - Lifecycle Termination
@@ -438,6 +452,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
     public func applicationWillTerminate(_ notification: Notification) {
         hotKeyManager?.unregisterAll()
         activeOverlayWindow?.close()
+        activeScrollRegionBorderWindow?.close()
         activeStitchedPreviewPanel?.close()
         statusItemManager?.dismissPopover()
         storageManager?.flushDiskQueue()
