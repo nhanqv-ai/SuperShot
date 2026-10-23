@@ -159,9 +159,11 @@ public final class FloatingToolbarsViewModel: ObservableObject {
     }
 
     public let appSettings: AppSettings
+    public weak var defaultAnchorView: NSView?
     public var onCopyRequested: (() -> Void)?
     public var onSaveRequested: (() -> Void)?
     public var onShareRequested: ((NSView) -> Void)?
+    public var onClearAllRequested: (() -> Void)?
     public var onScrollCaptureRequested: (() -> Void)?
     public var onCancelRequested: (() -> Void)?
     public var onUndoRequested: (() -> Void)?
@@ -188,7 +190,12 @@ public final class FloatingToolbarsViewModel: ObservableObject {
 
     public func triggerCopy() { onCopyRequested?() }
     public func triggerSave() { onSaveRequested?() }
-    public func triggerShare(from view: NSView) { onShareRequested?(view) }
+    public func triggerShare(from view: NSView? = nil) {
+        if let target = view ?? defaultAnchorView {
+            onShareRequested?(target)
+        }
+    }
+    public func triggerClearAll() { onClearAllRequested?() }
     public func triggerScrollCapture() { onScrollCaptureRequested?() }
     public func triggerCancel() { onCancelRequested?() }
     public func triggerUndo() { if canUndo { onUndoRequested?() } }
@@ -571,7 +578,7 @@ public struct ActionShareButton: View {
             isHovered = hovering
         }
         .pointingHandCursor()
-        .help("\(LocalizationManager.shared.tr(.shareButton))")
+        .help(LocalizationManager.shared.tr(.actionShareTooltip))
         .background(ViewAccessor(viewRef: $hostingViewRef))
     }
 }
@@ -777,6 +784,18 @@ public struct ToolbarKeyShortcutHandler {
         // Command + D (Duplicate Selected Object)
         if flags == .command && (keyCode == 2 || event.charactersIgnoringModifiers?.lowercased() == "d") {
             viewModel.triggerDuplicate()
+            return true
+        }
+
+        // Command + E (Share / Export)
+        if flags == .command && (keyCode == 14 || event.charactersIgnoringModifiers?.lowercased() == "e") {
+            viewModel.triggerShare()
+            return true
+        }
+
+        // Command + Shift + K (Clear All Annotations)
+        if flags == [.command, .shift] && (keyCode == 40 || event.charactersIgnoringModifiers?.lowercased() == "k") {
+            viewModel.triggerClearAll()
             return true
         }
 

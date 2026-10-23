@@ -15,7 +15,7 @@ public struct WelcomeView: View {
 
     public var appVersionString: String {
         let bundleVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        return "v\(bundleVersion ?? "1.0.15")"
+        return "v\(bundleVersion ?? "1.0.16")"
     }
 
     public var body: some View {

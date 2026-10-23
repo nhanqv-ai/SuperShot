@@ -203,6 +203,9 @@ struct AdversarialChallenge {
         testShiftKeyAspectRatioSnappingUnderExtremeCoordinatesStress()
         testSettingsTabCyclingWrappingAndModuloStress()
 
+        // M30: Selection Box & Object Resizing, ClearAll Batch Undo/Redo & Share Shortcuts Stress
+        testMilestoneM30EmpiricalStressAndAdversarialChallenge()
+
         let elapsed = Date().timeIntervalSince(startTime)
 
         print("\n\u{001B}[1;35m============================================================\u{001B}[0m")
@@ -2680,6 +2683,308 @@ struct AdversarialChallenge {
         NotificationCenter.default.removeObserver(observer)
 
         ChallengerHarness.assertEqual(receivedDirections, [-1, 1, -1, 1], "Received expected sequence of cycle directions [-1, 1, -1, 1]")
+    }
+
+    // MARK: - 22. Milestone M30 Empirical Stress & Adversarial Challenge
+    private static func testMilestoneM30EmpiricalStressAndAdversarialChallenge() {
+        ChallengerHarness.startSuite("22. Milestone M30 Empirical Stress & Adversarial Challenge")
+
+        let screenBounds = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        guard let sampleCtx = CGContext(
+            data: nil,
+            width: 1920,
+            height: 1080,
+            bitsPerComponent: 8,
+            bytesPerRow: 1920 * 4,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ), let bgImage = sampleCtx.makeImage() else {
+            ChallengerHarness.recordFail("Overlay Context Setup", reason: "Could not create sample context")
+            return
+        }
+
+        // Sub-scenario 22A: Selection Box Resizing Near Bounds & 10pt Size Clamping
+        let display = CaptureDisplayInfo(
+            displayID: 1,
+            name: "TestDisplay",
+            cocoaFrame: screenBounds,
+            cgBounds: screenBounds,
+            scaleFactor: 2.0,
+            isMain: true,
+            pixelSize: CGSize(width: 3840, height: 2160)
+        )
+        let captured = CapturedScreen(displayInfo: display, fullImage: bgImage, timestamp: Date())
+        let overlayView = CaptureOverlayContentView(
+            frame: screenBounds,
+            capturedScreen: captured,
+            appSettings: AppSettings(),
+            windowDelegate: nil
+        )
+        overlayView.selectionRect = CGRect(x: 100, y: 100, width: 100, height: 100)
+
+        // 1. Repeated contraction (100 times Option+Left 10pt)
+        let optShiftLeft = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.option, .shift],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 123
+        )!
+        for _ in 0..<100 {
+            _ = overlayView.handleOverlayKeyDown(with: optShiftLeft)
+        }
+        ChallengerHarness.assertEqual(overlayView.selectionRect.width, 10.0, "100x Option+Shift+Left clamped strictly to 10.0pt minimum width")
+
+        // 2. Repeated contraction (100 times Option+Down 10pt)
+        let optShiftDown = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.option, .shift],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 125
+        )!
+        for _ in 0..<100 {
+            _ = overlayView.handleOverlayKeyDown(with: optShiftDown)
+        }
+        ChallengerHarness.assertEqual(overlayView.selectionRect.height, 10.0, "100x Option+Shift+Down clamped strictly to 10.0pt minimum height")
+
+        // 3. Selection box expansion near screen bounds (maxX, maxY)
+        // Position box at (1900, 1060, 10, 10) in 1920x1080 bounds
+        overlayView.selectionRect = CGRect(x: 1900, y: 1060, width: 10, height: 10)
+        let optShiftRight = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.option, .shift],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 124
+        )!
+        // Expand right 10 times (+100pt requested, but space is only 1920 - 1900 = 20pt)
+        for _ in 0..<10 {
+            _ = overlayView.handleOverlayKeyDown(with: optShiftRight)
+        }
+        ChallengerHarness.assertEqual(overlayView.selectionRect.width, 20.0, "Expansion right clamped strictly at screen maxX (1920 - 1900 = 20pt)")
+        ChallengerHarness.assertEqual(overlayView.selectionRect.maxX, 1920.0, "selectionRect.maxX equals screen bounds maxX")
+
+        // Expand up 10 times (+100pt requested, but space is only 1080 - 1060 = 20pt)
+        let optShiftUp = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.option, .shift],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 126
+        )!
+        for _ in 0..<10 {
+            _ = overlayView.handleOverlayKeyDown(with: optShiftUp)
+        }
+        ChallengerHarness.assertEqual(overlayView.selectionRect.height, 20.0, "Expansion up clamped strictly at screen maxY (1080 - 1060 = 20pt)")
+        ChallengerHarness.assertEqual(overlayView.selectionRect.maxY, 1080.0, "selectionRect.maxY equals screen bounds maxY")
+
+        // 4. Repeated extreme nudging against all 4 screen edges
+        let shiftLeft = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.shift], timestamp: 0, windowNumber: 0, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 123)!
+        for _ in 0..<300 {
+            _ = overlayView.handleOverlayKeyDown(with: shiftLeft)
+        }
+        ChallengerHarness.assertEqual(overlayView.selectionRect.origin.x, 0.0, "Extreme left nudging clamped strictly to bounds.minX (0.0)")
+
+        let shiftDown = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.shift], timestamp: 0, windowNumber: 0, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 125)!
+        for _ in 0..<300 {
+            _ = overlayView.handleOverlayKeyDown(with: shiftDown)
+        }
+        ChallengerHarness.assertEqual(overlayView.selectionRect.origin.y, 0.0, "Extreme down nudging clamped strictly to bounds.minY (0.0)")
+
+        let shiftRight = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.shift], timestamp: 0, windowNumber: 0, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 124)!
+        for _ in 0..<300 {
+            _ = overlayView.handleOverlayKeyDown(with: shiftRight)
+        }
+        ChallengerHarness.assertEqual(overlayView.selectionRect.origin.x, screenBounds.maxX - overlayView.selectionRect.width, "Extreme right nudging clamped strictly to bounds.maxX - width")
+
+        let shiftUp = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [.shift], timestamp: 0, windowNumber: 0, context: nil, characters: "", charactersIgnoringModifiers: "", isARepeat: false, keyCode: 126)!
+        for _ in 0..<300 {
+            _ = overlayView.handleOverlayKeyDown(with: shiftUp)
+        }
+        ChallengerHarness.assertEqual(overlayView.selectionRect.origin.y, screenBounds.maxY - overlayView.selectionRect.height, "Extreme up nudging clamped strictly to bounds.maxY - height")
+
+        // Sub-scenario 22B: Resizing Annotation Objects Under Repeated/Extreme Option+Arrow Key Events
+        let engine = overlayView.annotationEngine
+        _ = engine.clearAll()
+
+        // 1. Multi-tool object creation and resize stress
+        let tools: [AnnotationTool] = [.rectangle, .ellipse, .arrow, .line, .pen, .highlighter, .text, .blur]
+        for (i, tool) in tools.enumerated() {
+            var pts: [CGPoint] = [CGPoint(x: 100 + i * 10, y: 100 + i * 10), CGPoint(x: 200 + i * 10, y: 200 + i * 10)]
+            if tool == .pen || tool == .highlighter {
+                pts.append(CGPoint(x: 150 + i * 10, y: 250 + i * 10))
+            }
+            let obj = AnnotationObject(
+                tool: tool,
+                points: pts,
+                bounds: CGRect(x: 100 + CGFloat(i * 10), y: 100 + CGFloat(i * 10), width: 100, height: 100),
+                colorHex: "#FF3B30",
+                strokeWidth: 4,
+                text: tool == .text ? "Test Label" : ""
+            )
+            engine.addObject(obj)
+            engine.selectedObjectID = obj.id
+
+            // Repeated 50 contractions
+            for _ in 0..<50 {
+                engine.resizeSelected(deltaWidth: -10, deltaHeight: -10, minimumDimension: 10.0)
+            }
+            ChallengerHarness.assertEqual(engine.selectedObject?.bounds.width, 10.0, "\(tool) width clamped to 10.0pt after 50 contractions")
+            ChallengerHarness.assertEqual(engine.selectedObject?.bounds.height, 10.0, "\(tool) height clamped to 10.0pt after 50 contractions")
+
+            // Extreme delta single step
+            let resizedExtreme = engine.resizeSelected(deltaWidth: -999999, deltaHeight: -999999, minimumDimension: 10.0)
+            ChallengerHarness.assertFalse(resizedExtreme, "\(tool) extreme contraction rejected when already at minimum dimension")
+
+            // Expansion with boundary
+            let boundary = CGRect(x: 0, y: 0, width: 500, height: 500)
+            let expanded = engine.resizeSelected(deltaWidth: 10000, deltaHeight: 10000, boundary: boundary)
+            ChallengerHarness.assertTrue(expanded, "\(tool) expanded within boundary")
+            let maxExpectedW = boundary.maxX - (engine.selectedObject?.bounds.minX ?? 0)
+            let maxExpectedH = boundary.maxY - (engine.selectedObject?.bounds.minY ?? 0)
+            ChallengerHarness.assertEqual(engine.selectedObject?.bounds.width, maxExpectedW, "\(tool) width clamped to boundary maxX")
+            ChallengerHarness.assertEqual(engine.selectedObject?.bounds.height, maxExpectedH, "\(tool) height clamped to boundary maxY")
+
+            // Undo restores previous dimensions
+            ChallengerHarness.assertTrue(engine.canUndo, "\(tool) canUndo is true")
+            engine.undo()
+            ChallengerHarness.assertEqual(engine.selectedObject?.bounds.width, 10.0, "\(tool) undo restores contracted dimension 10.0pt")
+        }
+
+        // Sub-scenario 22C: clearAll() Under Empty Canvas, Single Object, and 150+ Objects with Undo/Redo Cycles
+        let cleanEngine = AnnotationEngine()
+
+        // 1. Empty Canvas
+        let emptyCleared = cleanEngine.clearAll()
+        ChallengerHarness.assertEqual(emptyCleared, 0, "clearAll on empty canvas returns 0")
+        ChallengerHarness.assertFalse(cleanEngine.canUndo, "canUndo is false after clearAll on empty canvas")
+        cleanEngine.undo()
+        ChallengerHarness.assertEqual(cleanEngine.objects.count, 0, "Undo on empty clearAll remains 0")
+
+        // 2. Single Object
+        let singleObj = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 50, y: 50, width: 80, height: 60),
+            colorHex: "#007AFF",
+            strokeWidth: 3
+        )
+        cleanEngine.addObject(singleObj)
+        ChallengerHarness.assertEqual(cleanEngine.objects.count, 1, "Single object added")
+        let singleCleared = cleanEngine.clearAll()
+        ChallengerHarness.assertEqual(singleCleared, 1, "clearAll returned 1")
+        ChallengerHarness.assertTrue(cleanEngine.objects.isEmpty, "objects is empty")
+        ChallengerHarness.assertTrue(cleanEngine.canUndo, "canUndo is true")
+        cleanEngine.undo()
+        ChallengerHarness.assertEqual(cleanEngine.objects.count, 1, "undo restores 1 object")
+        ChallengerHarness.assertEqual(cleanEngine.objects.first?.id, singleObj.id, "restored object matches original ID")
+        cleanEngine.redo()
+        ChallengerHarness.assertTrue(cleanEngine.objects.isEmpty, "redo re-clears canvas")
+        cleanEngine.undo() // Leave canvas with 1 object
+
+        // 3. 150+ Objects with Multiple Undo/Redo Cycles & Layer Z-Index Preservation
+        _ = cleanEngine.clearAll()
+        let stressEngine = AnnotationEngine()
+
+        let objectCount = 150
+        var expectedIDs: [UUID] = []
+        for i in 0..<objectCount {
+            let tool = tools[i % tools.count]
+            let obj = AnnotationObject(
+                tool: tool,
+                bounds: CGRect(x: CGFloat(i * 2), y: CGFloat(i * 2), width: 50, height: 50),
+                colorHex: "#34C759",
+                strokeWidth: 2
+            )
+            stressEngine.addObject(obj)
+            expectedIDs.append(obj.id)
+        }
+        ChallengerHarness.assertEqual(stressEngine.objects.count, 150, "150 annotations added to stress engine")
+
+        let countRemoved = stressEngine.clearAll()
+        ChallengerHarness.assertEqual(countRemoved, 150, "clearAll returned 150 removed objects")
+        ChallengerHarness.assertTrue(stressEngine.objects.isEmpty, "Canvas is empty after clearAll")
+        ChallengerHarness.assertNil(stressEngine.selectedObjectID, "selectedObjectID is nil after clearAll")
+
+        // Perform 5 full undo/redo cycles
+        for cycle in 1...5 {
+            ChallengerHarness.assertTrue(stressEngine.canUndo, "Cycle \(cycle): canUndo is true")
+            stressEngine.undo()
+            ChallengerHarness.assertEqual(stressEngine.objects.count, 150, "Cycle \(cycle): undo restored all 150 objects")
+            let restoredIDs = stressEngine.objects.map { $0.id }
+            ChallengerHarness.assertEqual(restoredIDs, expectedIDs, "Cycle \(cycle): layer z-index order 100% preserved after undo")
+
+            ChallengerHarness.assertTrue(stressEngine.canRedo, "Cycle \(cycle): canRedo is true")
+            stressEngine.redo()
+            ChallengerHarness.assertTrue(stressEngine.objects.isEmpty, "Cycle \(cycle): redo re-clears all 150 objects")
+        }
+
+        // Final undo to restore state, then append a new object to truncate redo stack
+        stressEngine.undo()
+        ChallengerHarness.assertEqual(stressEngine.objects.count, 150, "Final undo restored 150 objects")
+        let brandNewObj = AnnotationObject(tool: .rectangle, bounds: CGRect(x: 10, y: 10, width: 20, height: 20))
+        stressEngine.addObject(brandNewObj)
+        ChallengerHarness.assertEqual(stressEngine.objects.count, 151, "New object added, objects count is 151")
+        ChallengerHarness.assertFalse(stressEngine.canRedo, "Redo stack truncated after new action")
+
+        // Sub-scenario 22D: Cmd+E Share Invocation When No Window/Canvas is Focused
+        // 1. ToolbarsViewModel with nil defaultAnchorView and nil onShareRequested
+        let unanchoredVM = FloatingToolbarsViewModel(appSettings: AppSettings())
+        unanchoredVM.triggerShare(from: nil) // Must not crash
+        ChallengerHarness.assertNil(unanchoredVM.defaultAnchorView, "unanchoredVM defaultAnchorView is nil")
+
+        // 2. ToolbarsViewModel with nil defaultAnchorView but with onShareRequested callback
+        var shareCalled = false
+        unanchoredVM.onShareRequested = { _ in shareCalled = true }
+        unanchoredVM.triggerShare(from: nil)
+        ChallengerHarness.assertFalse(shareCalled, "onShareRequested not invoked when no anchor view is available")
+
+        // 3. ToolbarsViewModel with detached anchor view (no window)
+        let detachedView = NSView(frame: NSRect(x: 0, y: 0, width: 100, height: 100))
+        ChallengerHarness.assertNil(detachedView.window, "detachedView has no window")
+        unanchoredVM.defaultAnchorView = detachedView
+        unanchoredVM.triggerShare()
+        ChallengerHarness.assertTrue(shareCalled, "onShareRequested invoked with detached defaultAnchorView safely")
+
+        // 4. Cmd+E Key Event Dispatch via ToolbarKeyShortcutHandler with no key window
+        shareCalled = false
+        let cmdEEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "e",
+            charactersIgnoringModifiers: "e",
+            isARepeat: false,
+            keyCode: 14
+        )!
+        let handled = ToolbarKeyShortcutHandler.handleKeyEvent(event: cmdEEvent, viewModel: unanchoredVM)
+        ChallengerHarness.assertTrue(handled, "Cmd+E handled by ToolbarKeyShortcutHandler without focused window")
+        ChallengerHarness.assertTrue(shareCalled, "Cmd+E successfully triggered share action safely")
     }
 }
 

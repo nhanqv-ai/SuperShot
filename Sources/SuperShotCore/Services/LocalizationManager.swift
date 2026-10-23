@@ -313,6 +313,8 @@ public enum L10nKey: Sendable {
     case resetShortcutTooltip(String)
     case previewCancelTooltip
     case previewDoneTooltip
+    case actionShareTooltip
+    case annotationsCleared
 
     public func localized(for lang: AppLanguage) -> String {
         switch self {
@@ -951,15 +953,15 @@ public enum L10nKey: Sendable {
 
         case .actionShare:
             switch lang {
-            case .vietnamese: return "Chia sẻ"
-            case .german: return "Teilen"
-            case .french: return "Partager"
-            case .spanish: return "Compartir"
-            case .japanese: return "共有"
-            case .simplifiedChinese: return "分享"
-            case .traditionalChinese: return "分享"
-            case .korean: return "공유"
-            default: return "Share"
+            case .vietnamese: return "Chia sẻ (Cmd+E)"
+            case .german: return "Teilen (Cmd+E)"
+            case .french: return "Partager (Cmd+E)"
+            case .spanish: return "Compartir (Cmd+E)"
+            case .japanese: return "共有 (Cmd+E)"
+            case .simplifiedChinese: return "分享 (Cmd+E)"
+            case .traditionalChinese: return "分享 (Cmd+E)"
+            case .korean: return "공유 (Cmd+E)"
+            default: return "Share (Cmd+E)"
             }
 
         case .actionCancel:
@@ -2545,6 +2547,32 @@ public enum L10nKey: Sendable {
             case .traditionalChinese: return "完成 (Return / Enter)"
             case .korean: return "완료 (Return / Enter)"
             default: return "Done (Return / Enter)"
+            }
+
+        case .actionShareTooltip:
+            switch lang {
+            case .vietnamese: return "Chia sẻ (⌘E)"
+            case .german: return "Teilen (⌘E)"
+            case .french: return "Partager (⌘E)"
+            case .spanish: return "Compartir (⌘E)"
+            case .japanese: return "共有 (⌘E)"
+            case .simplifiedChinese: return "分享 (⌘E)"
+            case .traditionalChinese: return "分享 (⌘E)"
+            case .korean: return "공유 (⌘E)"
+            default: return "Share (⌘E)"
+            }
+
+        case .annotationsCleared:
+            switch lang {
+            case .vietnamese: return "Đã xóa toàn bộ chú thích (⌘⇧K)"
+            case .german: return "Alle Anmerkungen gelöscht (⌘⇧K)"
+            case .french: return "Toutes les annotations effacées (⌘⇧K)"
+            case .spanish: return "Todas las anotaciones eliminadas (⌘⇧K)"
+            case .japanese: return "すべての注釈を消去しました (⌘⇧K)"
+            case .simplifiedChinese: return "已清除所有注释 (⌘⇧K)"
+            case .traditionalChinese: return "已清除所有註釋 (⌘⇧K)"
+            case .korean: return "모든 주석 삭제됨 (⌘⇧K)"
+            default: return "Annotations Cleared (⌘⇧K)"
             }
         }
     }

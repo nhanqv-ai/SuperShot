@@ -354,6 +354,79 @@ public final class AnnotationEngine: ObservableObject {
         return removed
     }
 
+    /// Resizes the currently selected vector object by delta width and delta height.
+    /// Clamps to minimumDimension (default: 10.0pt) and optional boundary.
+    /// Pushes an AnnotationAction.resize undo action so changes can be reverted.
+    @discardableResult
+    public func resizeSelected(
+        deltaWidth: CGFloat,
+        deltaHeight: CGFloat,
+        minimumDimension: CGFloat = 10.0,
+        boundary: CGRect? = nil
+    ) -> Bool {
+        guard let id = selectedObjectID, let idx = objects.firstIndex(where: { $0.id == id }) else { return false }
+        let oldObj = objects[idx]
+        let oldBounds = oldObj.bounds
+
+        var newW = max(minimumDimension, oldBounds.width + deltaWidth)
+        var newH = max(minimumDimension, oldBounds.height + deltaHeight)
+
+        if let b = boundary {
+            newW = min(newW, max(minimumDimension, b.maxX - oldBounds.minX))
+            newH = min(newH, max(minimumDimension, b.maxY - oldBounds.minY))
+        }
+
+        guard newW != oldBounds.width || newH != oldBounds.height else { return false }
+
+        var newObj = oldObj
+        newObj.bounds = CGRect(x: oldBounds.minX, y: oldBounds.minY, width: newW, height: newH)
+
+        if (oldObj.tool == .line || oldObj.tool == .arrow) && oldObj.points.count >= 2 {
+            let p1 = oldObj.points[0]
+            let p2 = oldObj.points[1]
+            let newP2 = CGPoint(x: p2.x + (newW - oldBounds.width), y: p2.y + (newH - oldBounds.height))
+            newObj.points = [p1, newP2]
+            newObj.bounds = AnnotationObject.calculateBounds(from: newObj.points, strokeWidth: newObj.strokeWidth)
+        } else if !oldObj.points.isEmpty && oldBounds.width > 0 && oldBounds.height > 0 {
+            let scaleX = newW / oldBounds.width
+            let scaleY = newH / oldBounds.height
+            newObj.points = oldObj.points.map { pt in
+                let relX = (pt.x - oldBounds.minX) * scaleX
+                let relY = (pt.y - oldBounds.minY) * scaleY
+                return CGPoint(x: oldBounds.minX + relX, y: oldBounds.minY + relY)
+            }
+        }
+
+        objects[idx] = newObj
+        let action = AnnotationAction.resize(
+            id: id,
+            oldBounds: oldBounds,
+            newBounds: newObj.bounds,
+            oldPoints: oldObj.points,
+            newPoints: newObj.points
+        )
+        pushUndo(action)
+        return true
+    }
+
+    /// Clears all vector annotations from the canvas with full undo/redo support.
+    /// Returns the number of annotations that were removed.
+    @discardableResult
+    public func clearAll() -> Int {
+        guard !objects.isEmpty else { return 0 }
+        let count = objects.count
+        let currentObjects = objects
+        // Store delete actions in reverse order so undo (.create) reconstructs in forward order
+        let deleteActions = currentObjects.enumerated().reversed().map { idx, obj in
+            AnnotationAction.delete(obj, index: idx)
+        }
+        selectedObjectID = nil
+        objects.removeAll()
+        updateSelectionFlags()
+        pushUndo(.batch(deleteActions))
+        return count
+    }
+
     // MARK: - Command Pattern Undo / Redo
 
     public func undo() {
