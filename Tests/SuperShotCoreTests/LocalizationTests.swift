@@ -81,10 +81,44 @@ public struct LocalizationTests {
         TestHarness.assertEqual(L10nKey.itemCount(3, 10).localized(for: .english), "3 of 10", "English item count")
         TestHarness.assertEqual(L10nKey.versionLabel("1.0.0").localized(for: .english), "Version 1.0.0", "Version label formatting")
 
-        // 4. Zero emoji invariant check across all keys in all languages
+        // 4. v1.0.9 Localization keys coverage across languages
+        let v109Keys: [L10nKey] = [
+            .permissionsSectionTitle,
+            .filenamePreviewLabel,
+            .clearSearchTooltip,
+            .clearSearchButton,
+            .quickCaptureRegion,
+            .quickCaptureScroll,
+            .welcomeTitle,
+            .welcomeSubtitle,
+            .getStartedButton,
+            .welcomeGuideButton,
+            .licenseLabel
+        ]
+        for key in v109Keys {
+            for lang in AppLanguage.allCases {
+                let text = key.localized(for: lang)
+                TestHarness.assertFalse(text.isEmpty, "Key \(key) has non-empty translation in \(lang.rawValue)")
+            }
+        }
+
+        // Spot-check English and Vietnamese for v1.0.9 keys
+        loc.setLanguage(.english)
+        TestHarness.assertEqual(loc.tr(.clearSearchButton), "Clear Search", "Clear Search button translated to English")
+        TestHarness.assertEqual(loc.tr(.welcomeTitle), "Welcome to SuperShot", "Welcome title translated to English")
+        TestHarness.assertEqual(loc.tr(.quickCaptureRegion), "Area Capture (⌥S)", "Area Capture shortcut translated to English")
+        TestHarness.assertEqual(loc.tr(.quickCaptureScroll), "Scrolling Capture (⌥⇧S)", "Scrolling Capture shortcut translated to English")
+
+        loc.setLanguage(.vietnamese)
+        TestHarness.assertEqual(loc.tr(.clearSearchButton), "Xóa tìm kiếm", "Clear Search button translated to Vietnamese")
+        TestHarness.assertEqual(loc.tr(.welcomeTitle), "Chào mừng đến với SuperShot", "Welcome title translated to Vietnamese")
+        TestHarness.assertEqual(loc.tr(.quickCaptureRegion), "Chụp vùng màn hình (⌥S)", "Area Capture shortcut translated to Vietnamese")
+        TestHarness.assertEqual(loc.tr(.quickCaptureScroll), "Chụp cuộn trang (⌥⇧S)", "Scrolling Capture shortcut translated to Vietnamese")
+
+        // 5. Zero emoji invariant check across all keys in all languages
         validateZeroEmojisAcrossDictionary()
 
-        // 5. Reset to system
+        // 6. Reset to system
         loc.setLanguage(.system)
         TestHarness.assertEqual(loc.currentLanguage, .system, "Reset language to system")
     }
@@ -95,7 +129,11 @@ public struct LocalizationTests {
             .toolSelect, .toolRectangle, .toolEllipse, .toolArrow, .toolLine,
             .toolPen, .toolHighlighter, .toolText, .toolBlur, .actionScrollCapture,
             .actionCopy, .actionSave, .pinnedSection, .recentSection, .tabGeneral,
-            .tabCaptureSave, .tabHistory, .tabAbout, .presetRed, .presetGreen
+            .tabCaptureSave, .tabHistory, .tabAbout, .presetRed, .presetGreen,
+            .permissionsSectionTitle, .filenamePreviewLabel, .clearSearchTooltip,
+            .clearSearchButton, .quickCaptureRegion, .quickCaptureScroll,
+            .welcomeTitle, .welcomeSubtitle, .getStartedButton, .welcomeGuideButton,
+            .licenseLabel
         ]
 
         let emojiRanges: [ClosedRange<UInt32>] = [

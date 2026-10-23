@@ -549,6 +549,25 @@ public struct MainShotView: View {
             Text(localizationManager.tr(.refineSearch))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary.opacity(0.8))
+
+            Button(action: {
+                searchText = ""
+            }) {
+                HStack(spacing: 5) {
+                    Image(systemName: "xmark.circle")
+                    Text(localizationManager.tr(.clearSearchButton))
+                }
+                .font(.system(size: 11, weight: .medium))
+                .padding(.horizontal, 10)
+                .padding(.vertical, 5)
+                .background(
+                    RoundedRectangle(cornerRadius: 6)
+                        .fill(Color.accentColor.opacity(0.15))
+                )
+            }
+            .buttonStyle(.plain)
+            .pointingHandCursor()
+            .padding(.top, 4)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -566,6 +585,47 @@ public struct MainShotView: View {
             Text(localizationManager.tr(.emptyHistorySubtitle))
                 .font(.system(size: 11))
                 .foregroundColor(.secondary.opacity(0.8))
+
+            HStack(spacing: 8) {
+                Button(action: {
+                    onDismiss?()
+                    onCaptureRegion?()
+                }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "camera.viewfinder")
+                        Text(localizationManager.tr(.quickCaptureRegion))
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.accentColor.opacity(0.15))
+                    )
+                }
+                .buttonStyle(.plain)
+                .pointingHandCursor()
+
+                Button(action: {
+                    onDismiss?()
+                    onScrollingCapture?()
+                }) {
+                    HStack(spacing: 5) {
+                        Image(systemName: "arrow.up.and.down.text.horizontal")
+                        Text(localizationManager.tr(.quickCaptureScroll))
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.secondary.opacity(0.12))
+                    )
+                }
+                .buttonStyle(.plain)
+                .pointingHandCursor()
+            }
+            .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }

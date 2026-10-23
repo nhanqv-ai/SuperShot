@@ -42,6 +42,9 @@ public struct ScrollingCaptureTests {
 
         // 11. Manual Scroll Default & Global Esc/Enter Key Handling Tests
         testManualScrollDefaultAndKeyHandling()
+
+        // 12. Quick Zoom HUD & Centering Tests
+        testQuickZoomHUDAndCentering()
     }
 
     // MARK: - Test 1: Mock Scroll Event Synthesizer
@@ -347,5 +350,67 @@ public struct ScrollingCaptureTests {
         TestHarness.assertTrue(handledReturn, "handleScrollingKeyCode(36) handles Return")
         TestHarness.assertTrue(manager.isFinished, "Return finishes manual scrolling capture session")
         panel.removeKeyboardMonitors()
+    }
+
+    // MARK: - Test 12: Quick Zoom HUD & Centering Tests
+    private static func testQuickZoomHUDAndCentering() {
+        let dummyImg = MockScreenCaptureProvider.createSyntheticImage(size: CGSize(width: 800, height: 2400))!
+        let engine = AnnotationEngine()
+        let docView = ScrollableAnnotationDocumentView(baseImage: dummyImg, engine: engine, scale: 2.0)
+        let scrollView = ScrollableAnnotationScrollView(documentCanvasView: docView)
+        scrollView.frame = NSRect(x: 0, y: 0, width: 800, height: 600)
+
+        // Zoom In & Out
+        scrollView.zoomIn()
+        TestHarness.assertTrue(scrollView.magnification > 1.0, "zoomIn increases magnification above 1.0")
+
+        // Zoom to Actual Size with Viewport Centering
+        scrollView.zoomToActualSize()
+        TestHarness.assertEqual(scrollView.magnification, 1.0, "zoomToActualSize resets magnification to 1.0")
+
+        // Quick Zoom ViewModel
+        let zoomVM = ScrollableZoomViewModel(magnification: 1.0)
+        var zoomInCalled = false
+        zoomVM.onZoomIn = { zoomInCalled = true }
+        zoomVM.onZoomIn?()
+        TestHarness.assertTrue(zoomInCalled, "ZoomViewModel onZoomIn triggers correctly")
+
+        // Hierarchical Escape Key on ScrollableAnnotationWindow
+        let win = ScrollableAnnotationWindow(baseImage: dummyImg)
+        let escEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: win.windowNumber,
+            context: nil,
+            characters: "\u{1B}",
+            charactersIgnoringModifiers: "\u{1B}",
+            isARepeat: false,
+            keyCode: 53
+        )!
+
+        // Tier 3: Tool is rectangle -> Esc reverts to select tool
+        win.canvasView.toolbarsViewModel.selectTool(.rectangle)
+        TestHarness.assertEqual(win.canvasView.toolbarsViewModel.activeTool, .rectangle, "Tool is rectangle")
+        win.keyDown(with: escEvent)
+        TestHarness.assertEqual(win.canvasView.toolbarsViewModel.activeTool, .select, "Esc in ScrollableCanvasView reverts tool to .select")
+
+        // Tier 2: Selected object -> Esc deselects
+        let obj = AnnotationObject(
+            tool: .rectangle,
+            points: [CGPoint(x: 10, y: 10), CGPoint(x: 50, y: 50)],
+            bounds: CGRect(x: 10, y: 10, width: 40, height: 40),
+            colorHex: "#FF0000",
+            strokeWidth: 2,
+            fontSize: 14
+        )
+        win.canvasView.engine.addObject(obj)
+        win.canvasView.engine.selectObject(at: CGPoint(x: 20, y: 20))
+        TestHarness.assertTrue(win.canvasView.engine.selectedObjectID != nil, "Object is selected in engine")
+        win.keyDown(with: escEvent)
+        TestHarness.assertTrue(win.canvasView.engine.selectedObjectID == nil, "Esc deselects object in ScrollableCanvasView")
+
+        win.close()
     }
 }

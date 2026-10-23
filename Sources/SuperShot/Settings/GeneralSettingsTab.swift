@@ -117,7 +117,7 @@ public struct GeneralSettingsTab: View {
     // MARK: - Permissions
     private var permissionsCard: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text(localizationManager.effectiveLanguage == .vietnamese ? "Quyền truy cập hệ thống" : "Permissions")
+            Text(localizationManager.tr(.permissionsSectionTitle))
                 .font(.system(size: 12.5, weight: .semibold))
 
             // Screen Recording Row
