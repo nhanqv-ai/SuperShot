@@ -101,9 +101,19 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
         self.verticalToolbarHost = vHost
         self.horizontalToolbarHost = hHost
+        toolbarsViewModel.defaultAnchorView = hHost
     }
 
     private func setupBindings() {
+        toolbarsViewModel.onClearAllRequested = { [weak self] in
+            guard let self = self else { return }
+            let count = self.annotationEngine.clearAll()
+            if count > 0 {
+                self.showHUDNotification(text: LocalizationManager.shared.tr(.annotationsCleared))
+                self.needsDisplay = true
+            }
+        }
+
         annotationEngine.$canUndo
             .sink { [weak self] canUndo in
                 self?.toolbarsViewModel.canUndo = canUndo
@@ -784,42 +794,92 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             return true
         }
 
-        // Arrow keys (123: Left, 124: Right, 125: Down, 126: Up) nudging
+        // Arrow keys (123: Left, 124: Right, 125: Down, 126: Up) nudging & Option+Arrow resizing
         let keyCode = event.keyCode
         if keyCode >= 123 && keyCode <= 126 {
             let step: CGFloat = event.modifierFlags.contains(.shift) ? 10.0 : 1.0
-            var dx: CGFloat = 0
-            var dy: CGFloat = 0
-            switch keyCode {
-            case 123: dx = -step // Left
-            case 124: dx = step  // Right
-            case 125: dy = -step // Down
-            case 126: dy = step  // Up
-            default: break
-            }
+            let isOption = event.modifierFlags.contains(.option)
 
-            // If a vector annotation object is selected, nudge the object
-            if annotationEngine.selectedObjectID != nil {
-                annotationEngine.moveSelected(by: CGPoint(x: dx, y: dy))
-                needsDisplay = true
-                return true
-            }
-
-            // Otherwise nudge the entire selection box
-            if !selectionRect.isEmpty {
-                var newRect = selectionRect.offsetBy(dx: dx, dy: dy)
-                newRect.origin.x = max(bounds.minX, min(newRect.origin.x, bounds.maxX - newRect.width))
-                newRect.origin.y = max(bounds.minY, min(newRect.origin.y, bounds.maxY - newRect.height))
-                let actualDx = newRect.origin.x - selectionRect.origin.x
-                let actualDy = newRect.origin.y - selectionRect.origin.y
-                if actualDx != 0 || actualDy != 0 {
-                    for i in 0..<annotationEngine.objects.count {
-                        annotationEngine.objects[i].translate(by: CGPoint(x: actualDx, y: actualDy))
-                    }
-                    selectionRect = newRect
-                    needsDisplay = true
+            if isOption {
+                // Option + Arrow: Resizing
+                var deltaW: CGFloat = 0
+                var deltaH: CGFloat = 0
+                switch keyCode {
+                case 123: deltaW = -step // Left: contract width
+                case 124: deltaW = step  // Right: expand width
+                case 125: deltaH = -step // Down: contract height
+                case 126: deltaH = step  // Up: expand height
+                default: break
                 }
-                return true
+
+                // If a vector annotation object is selected, resize the object
+                if annotationEngine.selectedObjectID != nil {
+                    annotationEngine.resizeSelected(
+                        deltaWidth: deltaW,
+                        deltaHeight: deltaH,
+                        minimumDimension: 10.0,
+                        boundary: selectionRect.isEmpty ? bounds : selectionRect
+                    )
+                    needsDisplay = true
+                    return true
+                }
+
+                // Otherwise resize the selection box
+                if !selectionRect.isEmpty {
+                    var newWidth = selectionRect.width
+                    var newHeight = selectionRect.height
+
+                    if deltaW > 0 {
+                        newWidth = min(bounds.maxX - selectionRect.minX, selectionRect.width + deltaW)
+                    } else if deltaW < 0 {
+                        newWidth = max(10.0, selectionRect.width + deltaW)
+                    }
+
+                    if deltaH > 0 {
+                        newHeight = min(bounds.maxY - selectionRect.minY, selectionRect.height + deltaH)
+                    } else if deltaH < 0 {
+                        newHeight = max(10.0, selectionRect.height + deltaH)
+                    }
+
+                    if newWidth != selectionRect.width || newHeight != selectionRect.height {
+                        selectionRect = CGRect(origin: selectionRect.origin, size: CGSize(width: newWidth, height: newHeight))
+                    }
+                    return true
+                }
+            } else {
+                // Arrow keys: Nudging
+                var dx: CGFloat = 0
+                var dy: CGFloat = 0
+                switch keyCode {
+                case 123: dx = -step // Left
+                case 124: dx = step  // Right
+                case 125: dy = -step // Down
+                case 126: dy = step  // Up
+                default: break
+                }
+
+                // If a vector annotation object is selected, nudge the object
+                if annotationEngine.selectedObjectID != nil {
+                    annotationEngine.moveSelected(by: CGPoint(x: dx, y: dy))
+                    needsDisplay = true
+                    return true
+                }
+
+                // Otherwise nudge the entire selection box
+                if !selectionRect.isEmpty {
+                    var newRect = selectionRect.offsetBy(dx: dx, dy: dy)
+                    newRect.origin.x = max(bounds.minX, min(newRect.origin.x, bounds.maxX - newRect.width))
+                    newRect.origin.y = max(bounds.minY, min(newRect.origin.y, bounds.maxY - newRect.height))
+                    let actualDx = newRect.origin.x - selectionRect.origin.x
+                    let actualDy = newRect.origin.y - selectionRect.origin.y
+                    if actualDx != 0 || actualDy != 0 {
+                        for i in 0..<annotationEngine.objects.count {
+                            annotationEngine.objects[i].translate(by: CGPoint(x: actualDx, y: actualDy))
+                        }
+                        selectionRect = newRect
+                    }
+                    return true
+                }
             }
         }
 

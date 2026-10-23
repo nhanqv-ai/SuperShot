@@ -211,7 +211,7 @@ public struct SettingsViewTests {
         var welcomeDismissed = false
         let welcomeView = WelcomeView(onDismiss: { welcomeDismissed = true })
         let _ = welcomeView.body
-        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.15", "WelcomeView version string is v1.0.15")
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.16", "WelcomeView version string is v1.0.16")
         welcomeView.onDismiss?()
         TestHarness.assertTrue(welcomeDismissed, "WelcomeView onDismiss executes cleanly")
 
@@ -250,9 +250,9 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(L10nKey.tabCaptureSave.localized(for: .french), "Capture & Sauvegarde", "French tabCaptureSave is concise 'Capture & Sauvegarde'")
         TestHarness.assertEqual(SettingsTab.history.localizedTitle, "History", "SettingsTab.history default localizedTitle is 'History'")
 
-        // 12. Version Consistency & Fallback Verification (v1.0.15)
+        // 12. Version Consistency & Fallback Verification (v1.0.16)
         let updateMgr = UpdateManager.shared
-        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.15", "UpdateManager currentVersion fallback is 1.0.15")
+        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.16", "UpdateManager currentVersion fallback is 1.0.16")
 
         // 13. Overlay Cmd+A Fullscreen & Arrow Key Nudging Verification (v1.0.15)
         let colorSpace = CGColorSpaceCreateDeviceRGB()
@@ -372,5 +372,140 @@ public struct SettingsViewTests {
         let shiftUpHandled = overlayView.handleOverlayKeyDown(with: shiftUpEvent)
         TestHarness.assertTrue(shiftUpHandled, "Shift+Up arrow key event handled")
         TestHarness.assertEqual(overlayView.selectionRect.origin.y, 100.0, "Shift+Up arrow nudges selectionRect y by +10px")
+
+        // 14. Option+Arrow Resizing, Cmd+E Share, and Clear All Annotations Verification (v1.0.16)
+        // Option + Right arrow (+1px width)
+        let optRightEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.option],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 124
+        )!
+        let optRightHandled = overlayView.handleOverlayKeyDown(with: optRightEvent)
+        TestHarness.assertTrue(optRightHandled, "Option+Right arrow handled")
+        TestHarness.assertEqual(overlayView.selectionRect.width, 201.0, "Option+Right arrow expands width by 1px")
+
+        // Option + Shift + Right arrow (+10px width)
+        let optShiftRightEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.option, .shift],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 124
+        )!
+        let optShiftRightHandled = overlayView.handleOverlayKeyDown(with: optShiftRightEvent)
+        TestHarness.assertTrue(optShiftRightHandled, "Option+Shift+Right arrow handled")
+        TestHarness.assertEqual(overlayView.selectionRect.width, 211.0, "Option+Shift+Right arrow expands width by 10px")
+
+        // Option + Left arrow (-1px width)
+        let optLeftEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.option],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 123
+        )!
+        let optLeftHandled = overlayView.handleOverlayKeyDown(with: optLeftEvent)
+        TestHarness.assertTrue(optLeftHandled, "Option+Left arrow handled")
+        TestHarness.assertEqual(overlayView.selectionRect.width, 210.0, "Option+Left arrow contracts width by 1px")
+
+        // Option + Up arrow (+1px height)
+        let optUpEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.option],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 126
+        )!
+        let optUpHandled = overlayView.handleOverlayKeyDown(with: optUpEvent)
+        TestHarness.assertTrue(optUpHandled, "Option+Up arrow handled")
+        TestHarness.assertEqual(overlayView.selectionRect.height, 151.0, "Option+Up arrow expands height by 1px")
+
+        // Option + Down arrow (-1px height)
+        let optDownEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.option],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "",
+            charactersIgnoringModifiers: "",
+            isARepeat: false,
+            keyCode: 125
+        )!
+        let optDownHandled = overlayView.handleOverlayKeyDown(with: optDownEvent)
+        TestHarness.assertTrue(optDownHandled, "Option+Down arrow handled")
+        TestHarness.assertEqual(overlayView.selectionRect.height, 150.0, "Option+Down arrow contracts height by 1px")
+
+        // Test Selected Annotation Object Option+Arrow Resizing
+        let engine = overlayView.annotationEngine
+        let rectObj = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 120, y: 120, width: 80, height: 60),
+            colorHex: "#FF3B30",
+            strokeWidth: 3,
+            isSelected: true
+        )
+        engine.addObject(rectObj)
+        TestHarness.assertEqual(engine.selectedObjectID, rectObj.id, "Annotation object selected")
+
+        _ = overlayView.handleOverlayKeyDown(with: optShiftRightEvent)
+        TestHarness.assertEqual(engine.selectedObject?.bounds.width, 90.0, "Option+Shift+Right expands selected object width by 10px")
+
+        // Test Clear All Annotations with Undo
+        TestHarness.assertTrue(!engine.objects.isEmpty, "Engine has annotations before clearAll")
+        let clearedCount = engine.clearAll()
+        TestHarness.assertEqual(clearedCount, 1, "clearAll cleared 1 annotation")
+        TestHarness.assertTrue(engine.objects.isEmpty, "Engine objects array is empty after clearAll")
+        TestHarness.assertTrue(engine.canUndo, "Engine canUndo is true after clearAll")
+        engine.undo()
+        TestHarness.assertEqual(engine.objects.count, 1, "Undoing clearAll restores annotation object")
+        engine.redo()
+        TestHarness.assertTrue(engine.objects.isEmpty, "Redoing clearAll re-clears annotation objects")
+
+        // Test Cmd+E Share Shortcut in ToolbarKeyShortcutHandler
+        var shareTriggered = false
+        overlayView.toolbarsViewModel.onShareRequested = { _ in shareTriggered = true }
+        let cmdEEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: .command,
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "e",
+            charactersIgnoringModifiers: "e",
+            isARepeat: false,
+            keyCode: 14
+        )!
+        let cmdEHandled = ToolbarKeyShortcutHandler.handleKeyEvent(event: cmdEEvent, viewModel: overlayView.toolbarsViewModel)
+        TestHarness.assertTrue(cmdEHandled, "Cmd+E handled by ToolbarKeyShortcutHandler")
+        TestHarness.assertTrue(shareTriggered, "Cmd+E triggers onShareRequested")
+
+        // Test LocalizationManager for v1.0.16 keys
+        TestHarness.assertEqual(locMgr.tr(.annotationsCleared), "Annotations Cleared (⌘⇧K)", "annotationsCleared English string matches")
+        TestHarness.assertEqual(locMgr.tr(.actionShareTooltip), "Share (⌘E)", "actionShareTooltip English string matches")
     }
 }

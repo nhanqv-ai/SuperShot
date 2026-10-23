@@ -47,6 +47,20 @@ public struct SearchBarView: View {
                 .buttonStyle(.plain)
                 .pointingHandCursor()
                 .help(LocalizationManager.shared.tr(.clearSearchTooltip))
+            } else {
+                Text("/")
+                    .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                    .foregroundColor(.secondary.opacity(0.65))
+                    .padding(.horizontal, 5)
+                    .padding(.vertical, 1.5)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Color(nsColor: .separatorColor).opacity(0.18))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 4, style: .continuous)
+                                    .stroke(Color(nsColor: .separatorColor).opacity(0.35), lineWidth: 0.5)
+                            )
+                    )
             }
         }
         .padding(.horizontal, 10)

@@ -214,6 +214,13 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 90 | Stroke Width Shortcuts & ScrollableCanvas HUD | Bracket keys [ and ] step stroke width with HUD pill, copy/save HUD confirmation | M25 | ORIGINAL_REQUEST §R2 |
 | 91 | Localization & Settings Tab Cycling | Full 9-language localization for Welcome feature cards & zoom tooltips, Cmd+[/] tab cycling | M25 | ORIGINAL_REQUEST §R2 |
 | 92 | Version Bump v1.0.10 & Automated Release | Bump 6 files + 1 test file, PR, merge, clean Universal 2 build, zip & dmg release, app relaunch | M26 | ORIGINAL_REQUEST §R3 |
+| 93 | Selection Box & Object Keyboard Resizing | Option + Arrow (1px) and Option + Shift + Arrow (10px) in SelectionBoxView to resize width/height of selection box and selected vector objects | M30 | Explorers 1 & 2 Survey |
+| 94 | Tall Canvas Annotation Keyboard Parity | Arrow key nudging (1px/10px) and Option + Arrow resizing (1px/10px) on selected annotations in ScrollableCanvasView | M30 | Explorer 2 Survey |
+| 95 | Share / Export Keyboard Shortcut | Cmd+E shortcut for share/export in FloatingToolbarsView and ScrollableCanvasView | M30 | Explorer 2 Survey |
+| 96 | 1-Click Clear All Annotations with Undo | Cmd+Shift+K batch clear all annotations with undo/redo integration in AnnotationEngine and HUD pill confirmation | M30 | Explorer 2 Survey |
+| 97 | Search Bar Shortcut Hint Badge | Subtle [ / ] keyboard hint badge in SearchBarView when text.isEmpty | M30 | Explorers 1 & 2 Survey |
+| 98 | LiveGUIDriver Modernization & Expansion | Update LiveGUIDriver.swift for v1.0.16: cover Cmd+A, arrow nudging, Option-Arrow resizing, / shortcut, Cmd+9, dual-language Welcome window | M30 | Explorer 1 Survey |
+| 99 | Version Bump to 1.0.16 & Test Invariant Sync | Update all 7 version locations: Info.plist (1.0.16, build 16), AboutSettingsTab, WelcomeWindow, UpdateManager, Makefile, README.md, SettingsViewTests | M30 | Explorer 3 Survey |
 
 ## Milestones
 
@@ -244,6 +251,10 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M25 | UX Polish, Sizing Helper, Bracket Shortcuts & v1.0.10 Bump | Implement 6 proactive UX refinements, 9-language l10n, bump 6+1 version files to 1.0.10, tests | M24 | DONE |
 | M26 | Automated Release Pipeline v1.0.10 & Live App Relaunch | Git branch, PR create/merge, clean build, Universal 2 zip & dmg release, app relaunch | M25 | DONE |
 | M28 | Proactive UX Polish, Hit-Target Refinement & Version Bump to v1.0.15 | Settings tab truncation fix, explicit contentShape across buttons/pills, Cmd+A / Arrow nudge / '/' shortcuts, version bump to v1.0.15 | M26 | DONE |
+| M29 | Survey & Live GUI Driver Audit | Explorers 1, 2, 3 survey codebase, live GUI driver, build/test, version locations | none | DONE |
+| M30 | Implementation of UX Polish & Version Bump | Implement Features 93-99 in Sources/SuperShot, Sources/SuperShotCore, Tests/, Makefile, README.md, PROJECT.md | M29 | IN_PROGRESS |
+| M31 | Review, Adversarial Challenge & Forensic Audit | Independent review (x2), adversarial stress tests (x2), and forensic audit | M30 | PLANNED |
+| M32 | Live GUI Verification & Release Pipeline | Run LiveGUIDriver, execute make package/dmg, git branch/PR/merge, publish GitHub release v1.0.16, verify PUBLIC | M31 | PLANNED |
 
 ## Interface Contracts
 
@@ -269,5 +280,5 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 - `make lint`: Scans entire repository with `Scripts/lint_emojis.py`, returns exit code 0.
 - `make test`: Compiles and runs all test suites via headless runner, returns exit code 0.
 - `make app`: Produces `SuperShot.app` in workspace root with Universal 2 binaries.
-- `make verify-app`: Runs 8-step bundle integrity and headless launch under native arm64 and Rosetta 2 x86_64, returns exit code 0.
+- `make verify-app`: Runs 8-step bundle integrity, lipo Universal 2 check, static otool x86_64 linkage check, and headless launch under native arm64, returns exit code 0.
 - `make package`: Produces `SuperShot-v1.0.0.zip` cleanly.

@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.15"><img src="https://img.shields.io/badge/version-v1.0.15-blue.svg?style=flat-square" alt="Version v1.0.15"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.16"><img src="https://img.shields.io/badge/version-v1.0.16-blue.svg?style=flat-square" alt="Version v1.0.16"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -119,6 +119,15 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
+### What's New in v1.0.16
+
+- **Selection Box & Object Keyboard Resizing (`Option + Arrow`)**: Power users can now adjust the width and height of the selection region and selected vector annotations directly from the keyboard with 1-pixel precision (`Option + Arrow`) or 10-pixel steps (`Option + Shift + Arrow`).
+- **Tall Canvas Annotation Keyboard Parity**: Full keyboard parity on stitched tall screenshots (`ScrollableAnnotationWindow`)—nudge selected annotations using Arrow keys (with Shift for 10pt) and resize with `Option + Arrow`.
+- **Keyboard Shortcut for Share / Export (`Cmd + E`)**: Trigger macOS native Share Sheet / export picker instantly using standard `Cmd + E` (`⌘E`) in both capture overlay and tall scrolling canvases.
+- **1-Click Clear All Annotations with Undo (`Cmd + Shift + K`)**: Instantly clear all annotations on the canvas using `Cmd + Shift + K` (`⌘⇧K`) with on-screen HUD confirmation pill and full multi-level Undo/Redo integration.
+- **Search Bar Shortcut Hint Badge `[ / ]`**: Added an elegant, subtle `[ / ]` shortcut hint badge on the trailing edge of the history search bar when empty, making the `/` search shortcut immediately discoverable.
+- **Universal 2 (`arm64` + `x86_64`) Binary Packaging**: Full Universal 2 build verified statically via `lipo` and `otool` without Rosetta 2 execution.
+
 ### What's New in v1.0.15
 
 - **Settings Tab Bar Truncation Fix Across All Languages**: Eliminated tab label clipping across all 9 languages with `.minimumScaleFactor(0.78)` and standard concise titles (`History` in English, `Historial` in Spanish, and `Capture & Sauvegarde` in French).
@@ -175,7 +184,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.15.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.16.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -319,6 +328,15 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
+### Điểm mới trong v1.0.16
+
+- **Thay đổi kích thước khung chọn & hình vẽ bằng bàn phím (`Option + Mũi tên`)**: Hỗ trợ tăng giảm chiều rộng và chiều cao của khung chọn cũng như hình chú thích đang chọn trực tiếp từ bàn phím với độ chính xác 1px (`Option + Mũi tên`) hoặc 10px (`Option + Shift + Mũi tên`).
+- **Đồng bộ thao tác bàn phím trên khung vẽ cuộn dài**: Đầy đủ tính năng di chuyển (nudge) và thay đổi kích thước hình chú thích trên ảnh cuộn dài qua phím Mũi tên và `Option + Mũi tên`.
+- **Phím tắt Chia sẻ / Xuất ảnh nhanh (`Cmd + E`)**: Mở bảng chia sẻ macOS (Share Sheet) tức thì bằng tổ hợp phím `Cmd + E` (`⌘E`) trên cả màn hình chụp lớp phủ lẫn khung vẽ cuộn.
+- **Xóa toàn bộ chú thích 1 chạm kèm Hoàn tác (`Cmd + Shift + K`)**: Xóa sạch toàn bộ hình vẽ trên màn hình bằng `Cmd + Shift + K` (`⌘⇧K`) kèm huy hiệu thông báo HUD và hỗ trợ hoàn tác đầy đủ với `Cmd + Z`.
+- **Huy hiệu gợi ý phím tắt `[ / ]` trên ô tìm kiếm**: Bổ sung huy hiệu `[ / ]` tinh tế ở góc phải ô tìm kiếm khi chưa nhập chữ giúp người dùng dễ dàng nhận biết phím tắt tìm kiếm nhanh.
+- **Đóng gói Universal 2 (`arm64` + `x86_64`) chuẩn xác**: Bản phân phối nhị phân Universal 2 chạy gốc mượt mà trên cả chip Apple Silicon lẫn Intel.
+
 ### Điểm mới trong v1.0.15
 
 - **Khắc phục triệt để tràn chữ trên thanh Tab Cài đặt (Preferences)**: Tự động co giãn chữ thông minh `.minimumScaleFactor(0.78)` và chuẩn hóa tiêu đề gọn gàng trên mọi ngôn ngữ (`History` trong tiếng Anh, `Historial` trong tiếng Tây Ban Nha và `Capture & Sauvegarde` trong tiếng Pháp), loại bỏ hoàn toàn dấu ba chấm cắt chữ.
@@ -375,7 +393,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.15.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.16.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

@@ -873,6 +873,18 @@ public final class ScrollableCanvasView: NSView {
             self.onShareRequested?(anchorView)
         }
 
+        toolbarsViewModel.defaultAnchorView = self
+
+        toolbarsViewModel.onClearAllRequested = { [weak self] in
+            guard let self = self else { return }
+            self.documentView.commitActiveTextEditing()
+            let count = self.engine.clearAll()
+            if count > 0 {
+                self.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.annotationsCleared))
+                self.documentView.needsDisplay = true
+            }
+        }
+
         toolbarsViewModel.onCancelRequested = { [weak self] in
             self?.documentView.commitActiveTextEditing()
             self?.onCloseRequested?()
@@ -1050,6 +1062,57 @@ public final class ScrollableAnnotationWindow: NSWindow {
         if flags == .command && (keyCode == 2 || event.charactersIgnoringModifiers?.lowercased() == "d"),
            canvasView.engine.selectedObjectID != nil {
             canvasView.engine.duplicateSelected(within: canvasView.documentView.bounds)
+            canvasView.documentView.needsDisplay = true
+            return
+        }
+
+        // Cmd+E: Share / Export
+        if flags == .command && (keyCode == 14 || event.charactersIgnoringModifiers?.lowercased() == "e") {
+            canvasView.toolbarsViewModel.triggerShare(from: canvasView)
+            return
+        }
+
+        // Cmd+Shift+K: Clear All Annotations
+        if flags == [.command, .shift] && (keyCode == 40 || event.charactersIgnoringModifiers?.lowercased() == "k") {
+            let count = canvasView.engine.clearAll()
+            if count > 0 {
+                canvasView.showHUDNotification(text: LocalizationManager.shared.tr(.annotationsCleared))
+                canvasView.documentView.needsDisplay = true
+            }
+            return
+        }
+
+        // Arrow keys (123: Left, 124: Right, 125: Down, 126: Up) nudging & Option+Arrow resizing on selected annotation
+        if canvasView.engine.selectedObjectID != nil && keyCode >= 123 && keyCode <= 126 {
+            let step: CGFloat = flags.contains(.shift) ? 10.0 : 1.0
+            if flags.contains(.option) {
+                var deltaW: CGFloat = 0
+                var deltaH: CGFloat = 0
+                switch keyCode {
+                case 123: deltaW = -step // Left: contract width
+                case 124: deltaW = step  // Right: expand width
+                case 125: deltaH = -step // Down: contract height
+                case 126: deltaH = step  // Up: expand height
+                default: break
+                }
+                canvasView.engine.resizeSelected(
+                    deltaWidth: deltaW,
+                    deltaHeight: deltaH,
+                    minimumDimension: 10.0,
+                    boundary: canvasView.documentView.bounds
+                )
+            } else {
+                var dx: CGFloat = 0
+                var dy: CGFloat = 0
+                switch keyCode {
+                case 123: dx = -step // Left
+                case 124: dx = step  // Right
+                case 125: dy = step  // Down (flipped canvas: positive Y is down)
+                case 126: dy = -step // Up (flipped canvas: negative Y is up)
+                default: break
+                }
+                canvasView.engine.moveSelected(by: CGPoint(x: dx, y: dy))
+            }
             canvasView.documentView.needsDisplay = true
             return
         }
