@@ -6,24 +6,25 @@ import SuperShotCore
 public struct AboutSettingsTab: View {
     @ObservedObject public var appSettings: AppSettings
     @ObservedObject private var localizationManager = LocalizationManager.shared
+    @ObservedObject public var updateManager: UpdateManager
     public var storageManager: StorageManager
     public var hotKeyManager: any HotKeyManaging
     public var launchAtLoginManager: any LaunchAtLoginManaging
 
     @State private var showingResetAllConfirmation: Bool = false
-    @State private var isCheckingForUpdates: Bool = false
-    @State private var updateStatusMessage: String? = nil
 
     public init(
         appSettings: AppSettings,
         storageManager: StorageManager,
         hotKeyManager: any HotKeyManaging = HotKeyManager.shared,
-        launchAtLoginManager: any LaunchAtLoginManaging = LaunchAtLoginManager.shared
+        launchAtLoginManager: any LaunchAtLoginManaging = LaunchAtLoginManager.shared,
+        updateManager: UpdateManager = UpdateManager.shared
     ) {
         self.appSettings = appSettings
         self.storageManager = storageManager
         self.hotKeyManager = hotKeyManager
         self.launchAtLoginManager = launchAtLoginManager
+        self.updateManager = updateManager
     }
 
     public var body: some View {
@@ -58,7 +59,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.2"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.3"
                 Text(LocalizationManager.shared.tr(.versionLabel(version)))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
@@ -119,33 +120,19 @@ public struct AboutSettingsTab: View {
 
             HStack {
                 Button(action: {
-                    isCheckingForUpdates = true
-                    updateStatusMessage = nil
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
-                        isCheckingForUpdates = false
-                        updateStatusMessage = LocalizationManager.shared.tr(.upToDate)
-                    }
+                    updateManager.checkForUpdates(userInitiated: true)
                 }) {
                     HStack(spacing: 4) {
-                        if isCheckingForUpdates {
-                            ProgressView()
-                                .controlSize(.small)
-                                .scaleEffect(0.6)
-                        } else {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                        }
-                        Text(isCheckingForUpdates ? LocalizationManager.shared.tr(.checkingForUpdates) : LocalizationManager.shared.tr(.menuCheckUpdates))
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                        Text(LocalizationManager.shared.tr(.menuCheckUpdates))
                     }
                 }
                 .buttonStyle(.bordered)
                 .controlSize(.small)
+                .disabled(updateManager.isBusy)
                 .pointingHandCursor()
 
-                if let msg = updateStatusMessage {
-                    Text(msg)
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundColor(.green)
-                }
+                updateStatusView
 
                 Spacer()
 
@@ -203,4 +190,89 @@ public struct AboutSettingsTab: View {
         LocalizationManager.shared.setLanguage(code: "system")
         hotKeyManager.registerDefaults()
     }
+
+    @ViewBuilder
+    private var updateStatusView: some View {
+        switch updateManager.status {
+        case .idle:
+            EmptyView()
+        case .checking:
+            HStack(spacing: 4) {
+                ProgressView()
+                    .controlSize(.small)
+                    .scaleEffect(0.6)
+                Text(LocalizationManager.shared.tr(.checkingForUpdates))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+        case .upToDate:
+            Text(LocalizationManager.shared.tr(.upToDate))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundColor(.green)
+        case .updateAvailable(let release):
+            HStack(spacing: 6) {
+                Text(localizationManager.effectiveLanguage == .vietnamese ? "Có bản cập nhật: \(release.tagName)" : "Update available: \(release.tagName)")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.accentColor)
+
+                Button(action: {
+                    if release.zipAssetURL != nil {
+                        updateManager.startDownloadAndInstall(release: release)
+                    } else {
+                        NSWorkspace.shared.open(release.htmlURL)
+                    }
+                }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.down.circle")
+                            .font(.system(size: 10))
+                        Text(LocalizationManager.shared.tr(.downloadUpdate))
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.mini)
+                .pointingHandCursor()
+
+                Button(action: {
+                    NSWorkspace.shared.open(release.htmlURL)
+                }) {
+                    Image(systemName: "arrow.up.forward.square")
+                        .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .pointingHandCursor()
+            }
+        case .downloading(let progress):
+            HStack(spacing: 4) {
+                ProgressView()
+                    .controlSize(.small)
+                    .scaleEffect(0.6)
+                Text(String(format: "%.0f%%", progress * 100))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+            }
+        case .readyToRestart:
+            HStack(spacing: 6) {
+                Text(LocalizationManager.shared.tr(.installAndRestart))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.accentColor)
+                Button(action: {
+                    updateManager.restartApp()
+                }) {
+                    Text(LocalizationManager.shared.tr(.installAndRestart))
+                        .font(.system(size: 10, weight: .medium))
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.mini)
+                .pointingHandCursor()
+            }
+        case .error(let msg):
+            Text(msg)
+                .font(.system(size: 11))
+                .foregroundColor(.red)
+                .lineLimit(1)
+        }
+    }
 }
+

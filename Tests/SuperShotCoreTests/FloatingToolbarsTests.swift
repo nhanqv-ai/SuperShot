@@ -176,6 +176,55 @@ public struct FloatingToolbarsTests {
         let handledCmdS = ToolbarKeyShortcutHandler.handleKeyEvent(event: eventCmdS, viewModel: vm)
         TestHarness.assertTrue(handledCmdS, "Cmd+S should be handled")
         TestHarness.assertTrue(saveCalled, "Cmd+S must trigger onSaveRequested")
+
+        // Keypad Enter (keyCode 76)
+        copyCalled = false
+        let eventKeypadEnter = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "\r",
+            charactersIgnoringModifiers: "\r",
+            isARepeat: false,
+            keyCode: 76
+        )!
+        let handledKeypadEnter = ToolbarKeyShortcutHandler.handleKeyEvent(event: eventKeypadEnter, viewModel: vm)
+        TestHarness.assertTrue(handledKeypadEnter, "Keypad Enter key should be handled")
+        TestHarness.assertTrue(copyCalled, "Keypad Enter key must trigger onCopyRequested")
+
+        // Mnemonic single-letter tool shortcuts (V, R, C/E, A, L, P, H, T, B)
+        let letterMappings: [(String, AnnotationToolType)] = [
+            ("v", .select),
+            ("r", .rectangle),
+            ("c", .ellipse),
+            ("e", .ellipse),
+            ("a", .arrow),
+            ("l", .line),
+            ("p", .pen),
+            ("h", .highlighter),
+            ("t", .text),
+            ("b", .blur)
+        ]
+        for (char, expectedTool) in letterMappings {
+            let ev = NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: char,
+                charactersIgnoringModifiers: char,
+                isARepeat: false,
+                keyCode: 0
+            )!
+            let handled = ToolbarKeyShortcutHandler.handleKeyEvent(event: ev, viewModel: vm)
+            TestHarness.assertTrue(handled, "Mnemonic shortcut '\(char)' should be handled")
+            TestHarness.assertEqual(vm.activeTool, expectedTool, "Mnemonic '\(char)' must select \(expectedTool)")
+        }
     }
 
     // 7. Reviewer 1 Polish: ColorPreset.parseRGB Guard

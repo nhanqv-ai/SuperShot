@@ -73,6 +73,9 @@ struct VerificationRunner {
         // 16b. AutoPaste & Settings Empirical Stress Tests (Challenger M4.2)
         AutoPasteSettingsStressTests.run(sandboxDir: sandboxURL.appendingPathComponent("AutoPasteSettingsStressTest"))
 
+        // 16c. UpdateManager & GitHub Releases Verification Tests (M7.1)
+        UpdateManagerTests.run(sandboxDir: sandboxURL.appendingPathComponent("UpdateManagerTest"))
+
         // 17. Tier 2: Boundary & Corner Cases Tests
         BoundaryTests.run(sandboxDir: sandboxURL.appendingPathComponent("BoundaryTest"))
 

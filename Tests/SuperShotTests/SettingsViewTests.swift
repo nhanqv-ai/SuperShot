@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import AppKit
 import SuperShotCore
 import SuperShot
 
@@ -81,5 +82,27 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(loadedSettings.jpegQuality, 0.85, "Loaded JPEG quality matches 0.85")
         TestHarness.assertTrue(loadedSettings.autoSaveEnabled, "Loaded autoSaveEnabled is true")
         TestHarness.assertEqual(loadedSettings.autoSaveDirectory.path, customDir.path, "Loaded autoSaveDirectory matches custom path")
+
+        // 5. SettingsWindowController Title Localization & Escape Key Dismissal
+        let storage = StorageManager(baseDirectory: sandboxDir)
+        let controller = SettingsWindowController(appSettings: settings, storageManager: storage)
+        TestHarness.assertEqual(controller.window?.title, LocalizationManager.shared.tr(.menuPreferences), "Window title is localized using menuPreferences")
+
+        controller.showSettings(tab: .general)
+        TestHarness.assertTrue(controller.window?.isVisible == true, "Settings window is visible")
+        let escEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "\u{1B}",
+            charactersIgnoringModifiers: "\u{1B}",
+            isARepeat: false,
+            keyCode: 53
+        )!
+        controller.window?.keyDown(with: escEvent)
+        TestHarness.assertFalse(controller.window?.isVisible == true, "Settings window closed after Escape key")
     }
 }

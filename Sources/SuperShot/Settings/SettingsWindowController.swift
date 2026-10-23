@@ -33,13 +33,13 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         self.permissionManager = permissionManager
         self.onPresentationDismissalRequested = onPresentationDismissalRequested
 
-        let window = NSWindow(
+        let window = SettingsWindow(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 530),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        window.title = "SuperShot Preferences"
+        window.title = LocalizationManager.shared.tr(.menuPreferences)
         window.isReleasedWhenClosed = false
         window.level = .normal
         window.setContentSize(NSSize(width: 520, height: 530))
@@ -104,6 +104,7 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         setupContentView(initialTab: tab)
 
         guard let window = self.window else { return }
+        window.title = LocalizationManager.shared.tr(.menuPreferences)
 
         if !hasBeenCentered && !window.isVisible {
             window.center()
@@ -116,5 +117,21 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
 
     public func windowWillClose(_ notification: Notification) {
         setupContentView()
+    }
+}
+
+// MARK: - Settings Window with Escape Key Dismissal
+
+private final class SettingsWindow: NSWindow {
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 {
+            close()
+            return
+        }
+        super.keyDown(with: event)
+    }
+
+    override func cancelOperation(_ sender: Any?) {
+        close()
     }
 }

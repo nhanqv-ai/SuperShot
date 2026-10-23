@@ -680,8 +680,8 @@ public struct ToolbarKeyShortcutHandler {
             return true
         }
 
-        // 2. Return (Copy & Dismiss)
-        if keyCode == 36 && flags.isEmpty {
+        // 2. Return / Keypad Enter (Copy & Dismiss)
+        if (keyCode == 36 || keyCode == 76) && flags.isEmpty {
             viewModel.triggerCopy()
             return true
         }
@@ -728,6 +728,22 @@ public struct ToolbarKeyShortcutHandler {
             case 26: viewModel.selectTool(.highlighter); return true
             case 28: viewModel.selectTool(.text); return true
             case 25: viewModel.selectTool(.blur); return true
+            default: break
+            }
+        }
+
+        // 9. Single-letter mnemonic shortcuts (Tool Selection)
+        if flags.isEmpty, let char = event.charactersIgnoringModifiers?.lowercased() {
+            switch char {
+            case "v": viewModel.selectTool(.select); return true
+            case "r": viewModel.selectTool(.rectangle); return true
+            case "c", "e": viewModel.selectTool(.ellipse); return true
+            case "a": viewModel.selectTool(.arrow); return true
+            case "l": viewModel.selectTool(.line); return true
+            case "p": viewModel.selectTool(.pen); return true
+            case "h": viewModel.selectTool(.highlighter); return true
+            case "t": viewModel.selectTool(.text); return true
+            case "b": viewModel.selectTool(.blur); return true
             default: break
             }
         }

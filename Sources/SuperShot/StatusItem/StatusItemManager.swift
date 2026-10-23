@@ -170,7 +170,7 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
         let prefSize = vc.preferredContentSize
         popover.contentSize = prefSize.width > 0 && prefSize.height > 0
             ? prefSize
-            : NSSize(width: 380, height: 600)
+            : NSSize(width: 380, height: 560)
     }
 
     // MARK: - Status Item Action Handling
