@@ -11,7 +11,7 @@ FRAMEWORKS_DIR = $(BUNDLE_DIR)/Frameworks
 RESOURCES_DIR = $(BUNDLE_DIR)/Resources
 BUILD_DIR = .build
 
-# Detect or select a valid SDK supporting both arm64 and x86_64
+# Detect or select a valid macOS SDK
 ifneq ($(wildcard /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk),)
     SDK_PATH := /Library/Developer/CommandLineTools/SDKs/MacOSX15.4.sdk
 else ifneq ($(wildcard /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk),)
@@ -28,12 +28,11 @@ CODESIGN = codesign
 INSTALL_NAME_TOOL = install_name_tool
 LIPO = lipo
 
-# Architecture targets (Universal 2: Apple Silicon arm64 + Intel x86_64)
+# Architecture target (Native Apple Silicon arm64 only)
 TARGET_ARM64 = arm64-apple-macos13.0
-TARGET_X86_64 = x86_64-apple-macos13.0
 HOST_ARCH = $(shell uname -m)
 TARGET_HOST = $(HOST_ARCH)-apple-macos13.0
-VERSION = 1.0.10
+VERSION = 1.0.11
 PACKAGE_ZIP = SuperShot-v$(VERSION).zip
 PACKAGE_DMG = SuperShot-v$(VERSION).dmg
 DMG_STAGING_DIR = $(BUILD_DIR)/dmg-staging
@@ -59,8 +58,8 @@ help:
 	@echo "  make icon        - Programmatically generate AppIcon.icns"
 	@echo "  make app         - Assemble and codesign standalone SuperShot.app bundle"
 	@echo "  make bundle      - Assemble and codesign standalone SuperShot.app bundle (alias for app)"
-	@echo "  make package     - Assemble, codesign, and package Universal 2 zip archive"
-	@echo "  make dmg         - Assemble and package Universal 2 DMG disk image"
+	@echo "  make package     - Assemble, codesign, and package Apple Silicon (arm64) zip archive"
+	@echo "  make dmg         - Assemble and package Apple Silicon (arm64) DMG disk image"
 	@echo "  make verify-app  - Verify SuperShot.app bundle integrity & headless launch"
 	@echo "  make lint        - Verify strict 0-emoji constraint"
 	@echo "  make test        - Run automated test suite"
@@ -68,14 +67,14 @@ help:
 	@echo "  make adversarial - Run adversarial stress test suite"
 	@echo "  make clean       - Remove build artifacts and app bundle"
 
-# Compile Debug Binary / Module (Universal 2: arm64 + x86_64)
+# Compile Debug Binary / Module (Native Apple Silicon arm64)
 build: lint
 	@if [ -f $(BUILD_DIR)/modules/SuperShotCore.swiftmodule ]; then rm -f $(BUILD_DIR)/modules/SuperShotCore.swiftmodule; fi
 	@if [ -f $(BUILD_DIR)/modules/SuperShot.swiftmodule ]; then rm -f $(BUILD_DIR)/modules/SuperShot.swiftmodule; fi
 	@mkdir -p $(BUILD_DIR)/modules/SuperShotCore.swiftmodule $(BUILD_DIR)/modules/SuperShot.swiftmodule
-	@mkdir -p $(BUILD_DIR)/lib/arm64 $(BUILD_DIR)/lib/x86_64 $(BUILD_DIR)/bin/arm64 $(BUILD_DIR)/bin/x86_64
+	@mkdir -p $(BUILD_DIR)/lib/arm64 $(BUILD_DIR)/bin/arm64
 	@if [ -n "$(CORE_SRCS)" ]; then \
-		echo "Compiling SuperShotCore slices (Debug)..."; \
+		echo "Compiling SuperShotCore (Debug, arm64)..."; \
 		$(SWIFTC) $(SWIFTC_FLAGS_DEBUG) -target $(TARGET_ARM64) \
 			-emit-library \
 			-emit-module -emit-module-path $(BUILD_DIR)/modules/SuperShotCore.swiftmodule/arm64-apple-macos.swiftmodule \
@@ -84,21 +83,10 @@ build: lint
 			-Xlinker -install_name -Xlinker @rpath/libSuperShotCore.dylib \
 			$(CORE_SRCS) \
 			-o $(BUILD_DIR)/lib/arm64/libSuperShotCore.dylib; \
-		$(SWIFTC) $(SWIFTC_FLAGS_DEBUG) -target $(TARGET_X86_64) \
-			-emit-library \
-			-emit-module -emit-module-path $(BUILD_DIR)/modules/SuperShotCore.swiftmodule/x86_64-apple-macos.swiftmodule \
-			-module-name SuperShotCore \
-			-parse-as-library \
-			-Xlinker -install_name -Xlinker @rpath/libSuperShotCore.dylib \
-			$(CORE_SRCS) \
-			-o $(BUILD_DIR)/lib/x86_64/libSuperShotCore.dylib; \
-		echo "Merging SuperShotCore dynamic library with lipo..."; \
-		$(LIPO) -create -output $(BUILD_DIR)/lib/libSuperShotCore.dylib \
-			$(BUILD_DIR)/lib/arm64/libSuperShotCore.dylib \
-			$(BUILD_DIR)/lib/x86_64/libSuperShotCore.dylib; \
+		cp -f $(BUILD_DIR)/lib/arm64/libSuperShotCore.dylib $(BUILD_DIR)/lib/libSuperShotCore.dylib; \
 	fi
 	@if [ -n "$(APP_SRCS)" ]; then \
-		echo "Compiling SuperShot module slices (Debug)..."; \
+		echo "Compiling SuperShot module (Debug, arm64)..."; \
 		$(SWIFTC) $(SWIFTC_FLAGS_DEBUG) -target $(TARGET_ARM64) \
 			-emit-library \
 			-emit-module -emit-module-path $(BUILD_DIR)/modules/SuperShot.swiftmodule/arm64-apple-macos.swiftmodule \
@@ -110,24 +98,10 @@ build: lint
 			-Xlinker -install_name -Xlinker @rpath/libSuperShot.dylib \
 			$(APP_SRCS) \
 			-o $(BUILD_DIR)/lib/arm64/libSuperShot.dylib; \
-		$(SWIFTC) $(SWIFTC_FLAGS_DEBUG) -target $(TARGET_X86_64) \
-			-emit-library \
-			-emit-module -emit-module-path $(BUILD_DIR)/modules/SuperShot.swiftmodule/x86_64-apple-macos.swiftmodule \
-			-module-name SuperShot \
-			-parse-as-library \
-			-I $(BUILD_DIR)/modules \
-			-L $(BUILD_DIR)/lib/x86_64 \
-			-lSuperShotCore \
-			-Xlinker -install_name -Xlinker @rpath/libSuperShot.dylib \
-			$(APP_SRCS) \
-			-o $(BUILD_DIR)/lib/x86_64/libSuperShot.dylib; \
-		echo "Merging SuperShot module library with lipo..."; \
-		$(LIPO) -create -output $(BUILD_DIR)/lib/libSuperShot.dylib \
-			$(BUILD_DIR)/lib/arm64/libSuperShot.dylib \
-			$(BUILD_DIR)/lib/x86_64/libSuperShot.dylib; \
+		cp -f $(BUILD_DIR)/lib/arm64/libSuperShot.dylib $(BUILD_DIR)/lib/libSuperShot.dylib; \
 	fi
 	@if [ -n "$(APP_SRCS)" ] && grep -r -q '@main' Sources/SuperShot 2>/dev/null; then \
-		echo "Compiling $(APP_NAME) executable slices (Debug)..."; \
+		echo "Compiling $(APP_NAME) executable (Debug, arm64)..."; \
 		$(SWIFTC) $(SWIFTC_FLAGS_DEBUG) -target $(TARGET_ARM64) \
 			-I $(BUILD_DIR)/modules \
 			-L $(BUILD_DIR)/lib/arm64 \
@@ -136,29 +110,18 @@ build: lint
 			-parse-as-library \
 			$(APP_SRCS) \
 			-o $(BUILD_DIR)/bin/arm64/$(APP_NAME); \
-		$(SWIFTC) $(SWIFTC_FLAGS_DEBUG) -target $(TARGET_X86_64) \
-			-I $(BUILD_DIR)/modules \
-			-L $(BUILD_DIR)/lib/x86_64 \
-			-lSuperShotCore \
-			-Xlinker -rpath -Xlinker $(BUILD_DIR)/lib \
-			-parse-as-library \
-			$(APP_SRCS) \
-			-o $(BUILD_DIR)/bin/x86_64/$(APP_NAME); \
-		echo "Merging $(APP_NAME) executable with lipo..."; \
-		$(LIPO) -create -output $(BUILD_DIR)/bin/$(APP_NAME) \
-			$(BUILD_DIR)/bin/arm64/$(APP_NAME) \
-			$(BUILD_DIR)/bin/x86_64/$(APP_NAME); \
+		cp -f $(BUILD_DIR)/bin/arm64/$(APP_NAME) $(BUILD_DIR)/bin/$(APP_NAME); \
 	fi
 	@echo "Build complete."
 
-# Compile Release Binary / Module (Universal 2: arm64 + x86_64)
+# Compile Release Binary / Module (Native Apple Silicon arm64)
 release: lint
 	@if [ -f $(BUILD_DIR)/modules/SuperShotCore.swiftmodule ]; then rm -f $(BUILD_DIR)/modules/SuperShotCore.swiftmodule; fi
 	@if [ -f $(BUILD_DIR)/modules/SuperShot.swiftmodule ]; then rm -f $(BUILD_DIR)/modules/SuperShot.swiftmodule; fi
 	@mkdir -p $(BUILD_DIR)/modules/SuperShotCore.swiftmodule $(BUILD_DIR)/modules/SuperShot.swiftmodule
-	@mkdir -p $(BUILD_DIR)/lib/arm64 $(BUILD_DIR)/lib/x86_64 $(BUILD_DIR)/bin/arm64 $(BUILD_DIR)/bin/x86_64
+	@mkdir -p $(BUILD_DIR)/lib/arm64 $(BUILD_DIR)/bin/arm64
 	@if [ -n "$(CORE_SRCS)" ]; then \
-		echo "Compiling SuperShotCore slices (Release)..."; \
+		echo "Compiling SuperShotCore (Release, arm64)..."; \
 		$(SWIFTC) $(SWIFTC_FLAGS_RELEASE) -target $(TARGET_ARM64) \
 			-emit-library \
 			-emit-module -emit-module-path $(BUILD_DIR)/modules/SuperShotCore.swiftmodule/arm64-apple-macos.swiftmodule \
@@ -167,21 +130,10 @@ release: lint
 			-Xlinker -install_name -Xlinker @rpath/libSuperShotCore.dylib \
 			$(CORE_SRCS) \
 			-o $(BUILD_DIR)/lib/arm64/libSuperShotCore.dylib; \
-		$(SWIFTC) $(SWIFTC_FLAGS_RELEASE) -target $(TARGET_X86_64) \
-			-emit-library \
-			-emit-module -emit-module-path $(BUILD_DIR)/modules/SuperShotCore.swiftmodule/x86_64-apple-macos.swiftmodule \
-			-module-name SuperShotCore \
-			-parse-as-library \
-			-Xlinker -install_name -Xlinker @rpath/libSuperShotCore.dylib \
-			$(CORE_SRCS) \
-			-o $(BUILD_DIR)/lib/x86_64/libSuperShotCore.dylib; \
-		echo "Merging SuperShotCore dynamic library with lipo..."; \
-		$(LIPO) -create -output $(BUILD_DIR)/lib/libSuperShotCore.dylib \
-			$(BUILD_DIR)/lib/arm64/libSuperShotCore.dylib \
-			$(BUILD_DIR)/lib/x86_64/libSuperShotCore.dylib; \
+		cp -f $(BUILD_DIR)/lib/arm64/libSuperShotCore.dylib $(BUILD_DIR)/lib/libSuperShotCore.dylib; \
 	fi
 	@if [ -n "$(APP_SRCS)" ]; then \
-		echo "Compiling SuperShot module slices (Release)..."; \
+		echo "Compiling SuperShot module (Release, arm64)..."; \
 		$(SWIFTC) $(SWIFTC_FLAGS_RELEASE) -target $(TARGET_ARM64) \
 			-emit-library \
 			-emit-module -emit-module-path $(BUILD_DIR)/modules/SuperShot.swiftmodule/arm64-apple-macos.swiftmodule \
@@ -193,24 +145,10 @@ release: lint
 			-Xlinker -install_name -Xlinker @rpath/libSuperShot.dylib \
 			$(APP_SRCS) \
 			-o $(BUILD_DIR)/lib/arm64/libSuperShot.dylib; \
-		$(SWIFTC) $(SWIFTC_FLAGS_RELEASE) -target $(TARGET_X86_64) \
-			-emit-library \
-			-emit-module -emit-module-path $(BUILD_DIR)/modules/SuperShot.swiftmodule/x86_64-apple-macos.swiftmodule \
-			-module-name SuperShot \
-			-parse-as-library \
-			-I $(BUILD_DIR)/modules \
-			-L $(BUILD_DIR)/lib/x86_64 \
-			-lSuperShotCore \
-			-Xlinker -install_name -Xlinker @rpath/libSuperShot.dylib \
-			$(APP_SRCS) \
-			-o $(BUILD_DIR)/lib/x86_64/libSuperShot.dylib; \
-		echo "Merging SuperShot module library with lipo..."; \
-		$(LIPO) -create -output $(BUILD_DIR)/lib/libSuperShot.dylib \
-			$(BUILD_DIR)/lib/arm64/libSuperShot.dylib \
-			$(BUILD_DIR)/lib/x86_64/libSuperShot.dylib; \
+		cp -f $(BUILD_DIR)/lib/arm64/libSuperShot.dylib $(BUILD_DIR)/lib/libSuperShot.dylib; \
 	fi
 	@if [ -n "$(APP_SRCS)" ] && grep -r -q '@main' Sources/SuperShot 2>/dev/null; then \
-		echo "Compiling $(APP_NAME) binary slices (Release)..."; \
+		echo "Compiling $(APP_NAME) binary (Release, arm64)..."; \
 		$(SWIFTC) $(SWIFTC_FLAGS_RELEASE) -target $(TARGET_ARM64) \
 			-I $(BUILD_DIR)/modules \
 			-L $(BUILD_DIR)/lib/arm64 \
@@ -219,18 +157,7 @@ release: lint
 			-parse-as-library \
 			$(APP_SRCS) \
 			-o $(BUILD_DIR)/bin/arm64/$(APP_NAME); \
-		$(SWIFTC) $(SWIFTC_FLAGS_RELEASE) -target $(TARGET_X86_64) \
-			-I $(BUILD_DIR)/modules \
-			-L $(BUILD_DIR)/lib/x86_64 \
-			-lSuperShotCore \
-			-Xlinker -rpath -Xlinker $(BUILD_DIR)/lib \
-			-parse-as-library \
-			$(APP_SRCS) \
-			-o $(BUILD_DIR)/bin/x86_64/$(APP_NAME); \
-		echo "Merging $(APP_NAME) executable with lipo..."; \
-		$(LIPO) -create -output $(BUILD_DIR)/bin/$(APP_NAME) \
-			$(BUILD_DIR)/bin/arm64/$(APP_NAME) \
-			$(BUILD_DIR)/bin/x86_64/$(APP_NAME); \
+		cp -f $(BUILD_DIR)/bin/arm64/$(APP_NAME) $(BUILD_DIR)/bin/$(APP_NAME); \
 	fi
 	@echo "Release build complete."
 
@@ -244,15 +171,15 @@ $(BUILD_DIR)/Resources/AppIcon.icns: Scripts/generate_icon.swift
 	$(BUILD_DIR)/bin/generate_icon $@
 	@echo "AppIcon generation complete: $@"
 
-# Standalone Application Bundle Packaging (Universal 2: arm64 + x86_64)
+# Standalone Application Bundle Packaging (Native Apple Silicon arm64)
 app: lint icon
-	@echo "Packaging SuperShot.app standalone application bundle..."
+	@echo "Packaging SuperShot.app standalone application bundle (Native Apple Silicon arm64)..."
 	@mkdir -p $(MACOS_DIR) $(FRAMEWORKS_DIR) $(RESOURCES_DIR)
 	@if [ -f $(BUILD_DIR)/modules/SuperShotCore.swiftmodule ]; then rm -f $(BUILD_DIR)/modules/SuperShotCore.swiftmodule; fi
 	@if [ -f $(BUILD_DIR)/modules/SuperShot.swiftmodule ]; then rm -f $(BUILD_DIR)/modules/SuperShot.swiftmodule; fi
 	@mkdir -p $(BUILD_DIR)/modules/SuperShotCore.swiftmodule $(BUILD_DIR)/modules/SuperShot.swiftmodule
-	@mkdir -p $(BUILD_DIR)/lib/arm64 $(BUILD_DIR)/lib/x86_64 $(BUILD_DIR)/bin/arm64 $(BUILD_DIR)/bin/x86_64
-	@echo "Compiling SuperShotCore dynamic library slices (arm64 + x86_64)..."
+	@mkdir -p $(BUILD_DIR)/lib/arm64 $(BUILD_DIR)/bin/arm64
+	@echo "Compiling SuperShotCore dynamic library (arm64)..."
 	$(SWIFTC) $(SWIFTC_FLAGS_RELEASE) -target $(TARGET_ARM64) \
 		-emit-library \
 		-emit-module -emit-module-path $(BUILD_DIR)/modules/SuperShotCore.swiftmodule/arm64-apple-macos.swiftmodule \
@@ -261,20 +188,9 @@ app: lint icon
 		-Xlinker -install_name -Xlinker @rpath/libSuperShotCore.dylib \
 		$(CORE_SRCS) \
 		-o $(BUILD_DIR)/lib/arm64/libSuperShotCore.dylib
-	$(SWIFTC) $(SWIFTC_FLAGS_RELEASE) -target $(TARGET_X86_64) \
-		-emit-library \
-		-emit-module -emit-module-path $(BUILD_DIR)/modules/SuperShotCore.swiftmodule/x86_64-apple-macos.swiftmodule \
-		-module-name SuperShotCore \
-		-parse-as-library \
-		-Xlinker -install_name -Xlinker @rpath/libSuperShotCore.dylib \
-		$(CORE_SRCS) \
-		-o $(BUILD_DIR)/lib/x86_64/libSuperShotCore.dylib
-	@echo "Merging SuperShotCore dynamic library with lipo..."
-	$(LIPO) -create -output $(BUILD_DIR)/lib/libSuperShotCore.dylib \
-		$(BUILD_DIR)/lib/arm64/libSuperShotCore.dylib \
-		$(BUILD_DIR)/lib/x86_64/libSuperShotCore.dylib
+	@cp -f $(BUILD_DIR)/lib/arm64/libSuperShotCore.dylib $(BUILD_DIR)/lib/libSuperShotCore.dylib
 	@if [ -n "$(APP_SRCS)" ]; then \
-		echo "Compiling SuperShot standalone executable slices (arm64 + x86_64)..."; \
+		echo "Compiling SuperShot standalone executable (arm64)..."; \
 		$(SWIFTC) $(SWIFTC_FLAGS_RELEASE) -target $(TARGET_ARM64) \
 			-I $(BUILD_DIR)/modules \
 			-L $(BUILD_DIR)/lib/arm64 \
@@ -283,18 +199,7 @@ app: lint icon
 			-Xlinker -rpath -Xlinker @executable_path/../Frameworks \
 			$(APP_SRCS) \
 			-o $(BUILD_DIR)/bin/arm64/$(APP_NAME); \
-		$(SWIFTC) $(SWIFTC_FLAGS_RELEASE) -target $(TARGET_X86_64) \
-			-I $(BUILD_DIR)/modules \
-			-L $(BUILD_DIR)/lib/x86_64 \
-			-lSuperShotCore \
-			-parse-as-library \
-			-Xlinker -rpath -Xlinker @executable_path/../Frameworks \
-			$(APP_SRCS) \
-			-o $(BUILD_DIR)/bin/x86_64/$(APP_NAME); \
-		echo "Merging SuperShot standalone executable with lipo..."; \
-		$(LIPO) -create -output $(MACOS_DIR)/$(APP_NAME) \
-			$(BUILD_DIR)/bin/arm64/$(APP_NAME) \
-			$(BUILD_DIR)/bin/x86_64/$(APP_NAME); \
+		cp -f $(BUILD_DIR)/bin/arm64/$(APP_NAME) $(MACOS_DIR)/$(APP_NAME); \
 		chmod 755 $(MACOS_DIR)/$(APP_NAME); \
 	else \
 		echo "Notice: No App sources in Sources/SuperShot yet. Skipping standalone binary compilation."; \
@@ -327,20 +232,20 @@ app: lint icon
 bundle: app
 
 package: app
-	@echo "Packaging distributable Universal 2 archive: $(PACKAGE_ZIP)..."
+	@echo "Packaging distributable Apple Silicon (arm64) archive: $(PACKAGE_ZIP)..."
 	@rm -f $(PACKAGE_ZIP)
 	@ditto -c -k --sequesterRsrc --keepParent $(BUNDLE_NAME) $(PACKAGE_ZIP)
-	@echo "Universal 2 distribution archive created: $(PACKAGE_ZIP)"
+	@echo "Apple Silicon (arm64) distribution archive created: $(PACKAGE_ZIP)"
 
 dmg: app
-	@echo "Packaging distributable Universal 2 DMG: $(PACKAGE_DMG)..."
+	@echo "Packaging distributable Apple Silicon (arm64) DMG: $(PACKAGE_DMG)..."
 	@rm -rf $(DMG_STAGING_DIR) $(PACKAGE_DMG)
 	@mkdir -p $(DMG_STAGING_DIR)
 	@cp -R $(BUNDLE_NAME) $(DMG_STAGING_DIR)/
 	@ln -s /Applications $(DMG_STAGING_DIR)/Applications
 	@hdiutil create -volname "$(APP_NAME)" -srcfolder "$(DMG_STAGING_DIR)" -ov -format UDZO $(PACKAGE_DMG)
 	@rm -rf $(DMG_STAGING_DIR)
-	@echo "Universal 2 distribution DMG created: $(PACKAGE_DMG)"
+	@echo "Apple Silicon (arm64) distribution DMG created: $(PACKAGE_DMG)"
 
 # Standalone App Bundle Verification
 verify-app: bundle
