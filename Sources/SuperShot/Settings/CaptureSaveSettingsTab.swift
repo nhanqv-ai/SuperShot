@@ -200,17 +200,27 @@ public struct CaptureSaveSettingsTab: View {
             // Add Custom Preset Row
             HStack(spacing: 8) {
                 // Live Color Preview Swatch
-                RoundedRectangle(cornerRadius: 4)
-                    .fill(ColorPreset.isValid(hex: newPresetHex) ? Color(hex: ColorPreset.normalize(hex: newPresetHex)) : Color.clear)
-                    .frame(width: 24, height: 24)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 4)
-                            .stroke(Color.primary.opacity(0.2), lineWidth: 1)
-                    )
+                ZStack {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(ColorPreset.isValid(hex: newPresetHex) ? Color(hex: ColorPreset.normalize(hex: newPresetHex)) : Color.clear)
+                    if !ColorPreset.isValid(hex: newPresetHex) {
+                        Image(systemName: "paintpalette")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary.opacity(0.5))
+                    }
+                }
+                .frame(width: 24, height: 24)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 4)
+                        .stroke(Color.primary.opacity(0.2), lineWidth: 1)
+                )
 
                 TextField("#RRGGBB", text: $newPresetHex)
                     .textFieldStyle(.roundedBorder)
                     .frame(width: 95)
+                    .onSubmit {
+                        addNewPreset()
+                    }
 
                 // Eyedropper Button
                 Button(action: activateEyedropper) {
@@ -226,16 +236,7 @@ public struct CaptureSaveSettingsTab: View {
                 .help(LocalizationManager.shared.tr(.eyedropperTooltip))
 
                 Button(LocalizationManager.shared.tr(.addPreset)) {
-                    if ColorPreset.isValid(hex: newPresetHex) {
-                        let normalized = ColorPreset.normalize(hex: newPresetHex)
-                        let newP = ColorPreset(name: LocalizationManager.shared.tr(.customColorPreset), hex: normalized)
-                        if appSettings.addPreset(newP) {
-                            newPresetHex = ""
-                            showingHexError = false
-                        }
-                    } else {
-                        showingHexError = true
-                    }
+                    addNewPreset()
                 }
                 .controlSize(.small)
                 .pointingHandCursor()
@@ -284,6 +285,21 @@ public struct CaptureSaveSettingsTab: View {
                 self.newPresetHex = hex
                 self.showingHexError = false
             }
+        }
+    }
+
+    private func addNewPreset() {
+        guard !newPresetHex.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+        guard appSettings.presets.count < AppSettings.maxPresetsCount else { return }
+        if ColorPreset.isValid(hex: newPresetHex) {
+            let normalized = ColorPreset.normalize(hex: newPresetHex)
+            let newP = ColorPreset(name: LocalizationManager.shared.tr(.customColorPreset), hex: normalized)
+            if appSettings.addPreset(newP) {
+                newPresetHex = ""
+                showingHexError = false
+            }
+        } else {
+            showingHexError = true
         }
     }
 }

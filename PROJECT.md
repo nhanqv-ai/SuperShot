@@ -256,8 +256,17 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 132 | Popover Keyboard Shortcut Hint Footer Bar & Tooltip | Subtle footer hint bar using quickSelectHint and clearHistory tooltip with shortcut discovery | M46 | Cycle 13 Backlog |
 | 133 | Native Eyedropper & Live Swatch Preview in Settings | 24x24 live preview swatch and NSColorSampler eyedropper in CaptureSaveSettingsTab | M46 | Cycle 13 Backlog |
 | 134 | Localization Parity for Tall Canvas & Color Presets | 9-language localization parity for tall canvas window title, save dialog, and custom preset naming | M46 | Cycle 13 Backlog |
-| 135 | VoiceOver Accessibility & Layout Scaling Safeguards | Combine ShotRowView into accessible element and protect capacity labels against clipping with minimumScaleFactor | M46 | Cycle 13 Backlog |
 | 136 | Canonical Version Bump to v1.0.20 | Increment version to 1.0.20 (Build 20) across all 8 canonical project locations | M46 | Cycle 13 Backlog |
+| 137 | Native Drag-and-Drop for History Rows | Support .onDrag with NSItemProvider fileURL and NSImage registration | M50 | Cycle 14 Backlog |
+| 138 | Re-Annotate Keyboard Shortcut & Context Menu Parity | Cmd+Shift+A (⌘⇧A) in localKeyMonitor to open vector editor and (⌘⇧A) in context menu | M50 | Cycle 14 Backlog |
+| 139 | Perceptible Keyboard Copy Confirmation Delay | 180ms delay before overlay dismissal on Return or Cmd+C so HUD pill is perceived | M50 | Cycle 14 Backlog |
+| 140 | Vector Canvas Mutation HUD Pills | HUD pills on Undo (⌘Z), Redo (⌘⇧Z), and Duplicate (⌘D) in overlay and tall canvas | M50 | Cycle 14 Backlog |
+| 141 | Adaptive Popover Footer Shortcut Hint | Dynamically adapt footer hint when pinned items exist (⌥1-9: Pinned · 1-9: Recent) with keyboard icon | M50 | Cycle 14 Backlog |
+| 142 | Welcome Window Safe Area Bleed & Permission Deep Linking | .ignoresSafeArea() on WelcomeView and deep link to System Settings on permission grant | M50 | Cycle 14 Backlog |
+| 143 | Hex Input Return-Key Preset Creation & Swatch Placeholder | .onSubmit preset creation and subtle paintpalette placeholder in swatch | M50 | Cycle 14 Backlog |
+| 144 | VoiceOver Accessibility Role & Traits in Settings | .accessibilityRole(.tab) and .isSelected trait on SettingsTabButton | M50 | Cycle 14 Backlog |
+| 145 | Localization Hygiene & Button Alignment | 9-language parity for presets and text tool, and flush-left Reset button alignment | M50 | Cycle 14 Backlog |
+| 146 | Canonical Version Bump to v1.0.21 | Synchronize v1.0.21 (Build 21) across all canonical files, README, and test suites | M50 | Cycle 14 Backlog |
 
 ## Milestones
 
@@ -305,9 +314,13 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M43 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M42 | DONE |
 | M44 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.19 -> public repo check -> app relaunch | M43 | DONE |
 | M45 | Survey & Live GUI Driver Audit | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UX/feature opportunities, verify release invariants (v1.0.20) | none | DONE |
-| M46 | Implementation of Proactive UX Polish & Version Bump | Implement Features 127-136, 0 emojis, bump 8 locations to 1.0.20, make lint, make test, make adversarial, make app, verify_bundle | M45 | IN_PROGRESS |
-| M47 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M46 | PLANNED |
-| M48 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.20 -> public repo check -> app relaunch | M47 | PLANNED |
+| M46 | Implementation of Proactive UX Polish & Version Bump | Implement Features 127-136, 0 emojis, bump 8 locations to 1.0.20, make lint, make test, make adversarial, make app, verify_bundle | M45 | DONE |
+| M47 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M46 | DONE |
+| M48 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.20 -> public repo check -> app relaunch | M47 | DONE |
+| M49 | Survey & Live GUI Driver Audit | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UX/feature opportunities, verify release invariants (v1.0.21) | none | DONE |
+| M50 | Implementation of Proactive UX Polish & Version Bump | Implement Features 137-146, 0 emojis, bump 8 locations to 1.0.21, make lint, make test, make adversarial, make app, verify_bundle | M49 | IN_PROGRESS |
+| M51 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M50 | PLANNED |
+| M52 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.21 -> public repo check -> app relaunch | M51 | PLANNED |
 
 ## Interface Contracts
 

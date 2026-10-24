@@ -68,6 +68,9 @@ public struct ColorPalettePopoverView: View {
                         .onChange(of: hexInputText) { newValue in
                             handleHexInputChange(newValue)
                         }
+                        .onSubmit {
+                            saveCurrentColorAsPreset()
+                        }
                 }
                 .padding(.horizontal, 6)
                 .padding(.vertical, 4)
@@ -177,7 +180,7 @@ public struct ColorPalettePopoverView: View {
             return
         }
         let hex = ColorPreset.normalize(hex: appSettings.activeColorHex)
-        let preset = ColorPreset(name: "Preset \(appSettings.presets.count + 1)", hex: hex)
+        let preset = ColorPreset(name: LocalizationManager.shared.tr(.customColorPreset), hex: hex)
         let added = appSettings.addPreset(preset)
         if !added {
             feedbackMessage = LocalizationManager.shared.tr(.maxPresetsReached)

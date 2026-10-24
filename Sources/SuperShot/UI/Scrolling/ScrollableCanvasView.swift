@@ -482,8 +482,9 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
             height: max(obj.fontSize + 12, obj.bounds.height)
         )
         let field = NSTextField(frame: fieldFrame)
-        field.stringValue = obj.text == "Text" ? "" : obj.text
-        field.placeholderString = "Text"
+        let defaultPlaceholder = LocalizationManager.shared.tr(.toolText)
+        field.stringValue = (obj.text == "Text" || obj.text == defaultPlaceholder) ? "" : obj.text
+        field.placeholderString = defaultPlaceholder
         field.font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
         field.textColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
         field.isBordered = true
@@ -874,12 +875,14 @@ public final class ScrollableCanvasView: NSView {
         toolbarsViewModel.onUndoRequested = { [weak self] in
             self?.documentView.commitActiveTextEditing()
             self?.engine.undo()
+            self?.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.hudUndo))
             self?.documentView.needsDisplay = true
         }
 
         toolbarsViewModel.onRedoRequested = { [weak self] in
             self?.documentView.commitActiveTextEditing()
             self?.engine.redo()
+            self?.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.hudRedo))
             self?.documentView.needsDisplay = true
         }
 
@@ -888,6 +891,7 @@ public final class ScrollableCanvasView: NSView {
             self.documentView.commitActiveTextEditing()
             if self.engine.selectedObjectID != nil {
                 self.engine.duplicateSelected(within: self.documentView.bounds)
+                self.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.hudDuplicate))
                 self.documentView.needsDisplay = true
             }
         }
@@ -1081,12 +1085,16 @@ public final class ScrollableAnnotationWindow: NSWindow {
         // Cmd+Z: Undo
         if flags == .command && keyCode == 6 {
             canvasView.engine.undo()
+            canvasView.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.hudUndo))
+            canvasView.documentView.needsDisplay = true
             return
         }
 
         // Cmd+Shift+Z: Redo
         if flags == [.command, .shift] && keyCode == 6 {
             canvasView.engine.redo()
+            canvasView.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.hudRedo))
+            canvasView.documentView.needsDisplay = true
             return
         }
 
@@ -1106,6 +1114,7 @@ public final class ScrollableAnnotationWindow: NSWindow {
         if flags == .command && (keyCode == 2 || event.charactersIgnoringModifiers?.lowercased() == "d"),
            canvasView.engine.selectedObjectID != nil {
             canvasView.engine.duplicateSelected(within: canvasView.documentView.bounds)
+            canvasView.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.hudDuplicate))
             canvasView.documentView.needsDisplay = true
             return
         }
