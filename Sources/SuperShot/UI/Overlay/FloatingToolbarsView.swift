@@ -213,6 +213,9 @@ public final class FloatingToolbarsViewModel: ObservableObject {
     public func triggerRedo() { if canRedo { onRedoRequested?() } }
     public func triggerDuplicate() { onDuplicateRequested?() }
 
+    @Published public var isTextTargetActive: Bool = false
+    public var selectedFontSize: CGFloat?
+
     public func decreaseStrokeWidth() {
         let current = appSettings.activeStrokeWidth
         let newWidth = max(1.0, current - 1.0)
@@ -225,6 +228,22 @@ public final class FloatingToolbarsViewModel: ObservableObject {
         let newWidth = min(16.0, current + 1.0)
         appSettings.activeStrokeWidth = newWidth
         onStrokeWidthSelected?(newWidth)
+    }
+
+    public func decreaseFontSize() {
+        let current = selectedFontSize ?? appSettings.activeFontSize
+        let newSize = max(10.0, current - 2.0)
+        appSettings.activeFontSize = newSize
+        selectedFontSize = newSize
+        onFontSizeSelected?(newSize)
+    }
+
+    public func increaseFontSize() {
+        let current = selectedFontSize ?? appSettings.activeFontSize
+        let newSize = min(72.0, current + 2.0)
+        appSettings.activeFontSize = newSize
+        selectedFontSize = newSize
+        onFontSizeSelected?(newSize)
     }
 }
 
@@ -842,14 +861,23 @@ public struct ToolbarKeyShortcutHandler {
             }
         }
 
-        // 10. Bracket shortcuts [ and ] (Stroke Width Adjustment)
+        // 10. Bracket shortcuts [ and ] (Stroke Width or Font Size Adjustment)
         if flags.isEmpty {
             let chars = event.charactersIgnoringModifiers ?? ""
+            let isText = viewModel.isTextTargetActive || viewModel.activeTool == .text
             if keyCode == 33 || chars == "[" {
-                viewModel.decreaseStrokeWidth()
+                if isText {
+                    viewModel.decreaseFontSize()
+                } else {
+                    viewModel.decreaseStrokeWidth()
+                }
                 return true
             } else if keyCode == 30 || chars == "]" {
-                viewModel.increaseStrokeWidth()
+                if isText {
+                    viewModel.increaseFontSize()
+                } else {
+                    viewModel.increaseStrokeWidth()
+                }
                 return true
             }
         }

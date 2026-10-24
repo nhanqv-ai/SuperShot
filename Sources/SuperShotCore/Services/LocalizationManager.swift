@@ -359,6 +359,14 @@ public enum L10nKey: Sendable {
     case hudNudge(Int)
     case hudResize(Int, Int)
 
+    // UX & Ergonomics Polish (v1.0.24 / Cycle 17)
+    case quickCopy
+    case quickCopyButton
+    case fontSizeHUD(Int)
+    case zoomFitWindowTooltip
+    case copiedDimensionsHUD
+    case copiedFilePath
+
 
     public func localized(for lang: AppLanguage) -> String {
         switch self {
@@ -2998,6 +3006,71 @@ public enum L10nKey: Sendable {
 
         case .hudResize(let w, let h):
             return "\(w) x \(h) px"
+
+        case .quickCopy, .quickCopyButton:
+            switch lang {
+            case .vietnamese: return "Sao chép"
+            case .german: return "Kopieren"
+            case .french: return "Copier"
+            case .spanish: return "Copiar"
+            case .japanese: return "コピー"
+            case .simplifiedChinese: return "复制"
+            case .traditionalChinese: return "複製"
+            case .korean: return "복사"
+            default: return "Copy"
+            }
+
+        case .fontSizeHUD(let pt):
+            switch lang {
+            case .vietnamese: return "Cỡ chữ: \(pt)pt"
+            case .german: return "Schriftgröße: \(pt)pt"
+            case .french: return "Taille police: \(pt)pt"
+            case .spanish: return "Tamaño fuente: \(pt)pt"
+            case .japanese: return "フォントサイズ: \(pt)pt"
+            case .simplifiedChinese: return "字号: \(pt)pt"
+            case .traditionalChinese: return "字級: \(pt)pt"
+            case .korean: return "글꼴 크기: \(pt)pt"
+            default: return "Font Size: \(pt)pt"
+            }
+
+        case .zoomFitWindowTooltip:
+            switch lang {
+            case .vietnamese: return "Vừa cửa sổ (⌘9)"
+            case .german: return "An Fenster anpassen (⌘9)"
+            case .french: return "Ajuster à la fenêtre (⌘9)"
+            case .spanish: return "Ajustar a la ventana (⌘9)"
+            case .japanese: return "ウィンドウに合わせる (⌘9)"
+            case .simplifiedChinese: return "适应窗口 (⌘9)"
+            case .traditionalChinese: return "符合視窗 (⌘9)"
+            case .korean: return "창에 맞추기 (⌘9)"
+            default: return "Fit to Window (⌘9)"
+            }
+
+        case .copiedDimensionsHUD:
+            switch lang {
+            case .vietnamese: return "Đã sao chép kích thước"
+            case .german: return "Abmessungen kopiert"
+            case .french: return "Dimensions copiées"
+            case .spanish: return "Dimensiones copiadas"
+            case .japanese: return "寸法をコピーしました"
+            case .simplifiedChinese: return "已复制尺寸"
+            case .traditionalChinese: return "已複製尺寸"
+            case .korean: return "치수 복사됨"
+            default: return "Copied Dimensions"
+            }
+
+        case .copiedFilePath:
+            switch lang {
+            case .vietnamese: return "Đã sao chép đường dẫn"
+            case .german: return "Dateipfad kopiert"
+            case .french: return "Chemin du fichier copié"
+            case .spanish: return "Ruta de archivo copiada"
+            case .japanese: return "ファイルパスをコピーしました"
+            case .simplifiedChinese: return "已复制文件路径"
+            case .traditionalChinese: return "已複製檔案路徑"
+            case .korean: return "파일 경로 복사됨"
+            default: return "Copied File Path"
+            }
         }
     }
 }

@@ -26,6 +26,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     private var trackingAreaRef: NSTrackingArea?
     private var isDraggingOnCanvas: Bool = false
     public var isPointOverFloatingToolbar: ((CGPoint) -> Bool)?
+    public var onQuickCopyRequested: (() -> Void)?
     private var cancellables = Set<AnyCancellable>()
     public private(set) var toolHUDText: String? = nil
 
@@ -430,10 +431,15 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         commitActiveTextEditing()
         let point = convert(event.locationInWindow, from: nil)
 
-        // Double click on text object initiates in-place text editing
-        if event.clickCount == 2, let clickedObj = engine.selectObject(at: point), clickedObj.tool == .text {
-            startInlineTextEditing(for: clickedObj)
-            updateCanvasCursor(with: event)
+        // Double click handling
+        if event.clickCount == 2 {
+            if let clickedObj = engine.selectObject(at: point), clickedObj.tool == .text {
+                startInlineTextEditing(for: clickedObj)
+                updateCanvasCursor(with: event)
+                return
+            }
+            // Double-click on empty canvas triggers quick copy & dismiss
+            onQuickCopyRequested?()
             return
         }
 
@@ -580,6 +586,17 @@ public final class ScrollableAnnotationScrollView: NSScrollView {
         onMagnificationChanged?(magnification)
     }
 
+    public func zoomToFitWindow() {
+        guard let doc = documentCanvasView, doc.bounds.width > 0, doc.bounds.height > 0 else { return }
+        let visibleW = max(50.0, contentSize.width - 20)
+        let visibleH = max(50.0, contentSize.height - 20)
+        let scaleW = visibleW / doc.bounds.width
+        let scaleH = visibleH / doc.bounds.height
+        let fitScale = min(scaleW, scaleH)
+        magnification = max(minMagnification, min(maxMagnification, fitScale))
+        onMagnificationChanged?(magnification)
+    }
+
     // MARK: - Viewport Keyboard Navigation
 
     public func scrollBy(deltaX: CGFloat, deltaY: CGFloat) {
@@ -626,6 +643,11 @@ public final class ScrollableZoomViewModel: ObservableObject {
     public var onZoomOut: (() -> Void)?
     public var onActualSize: (() -> Void)?
     public var onFitWidth: (() -> Void)?
+    public var onFitWindow: (() -> Void)?
+    public var onFitToWindow: (() -> Void)? {
+        get { onFitWindow }
+        set { onFitWindow = newValue }
+    }
 
     public init(magnification: CGFloat = 1.0) {
         self.magnification = magnification
@@ -685,15 +707,15 @@ public struct ScrollableZoomControlsView: View {
             .pointingHandCursor()
             .help(LocalizationManager.shared.tr(.zoomFitWidthTooltip))
 
-            Button(action: { viewModel.onActualSize?() }) {
-                Image(systemName: "1.magnifyingglass")
+            Button(action: { viewModel.onFitWindow?() }) {
+                Image(systemName: "rectangle.inset.filled")
                     .font(.system(size: 11, weight: .medium))
                     .frame(width: 24, height: 24)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help(LocalizationManager.shared.tr(.zoomActualSizeTooltip))
+            .help(LocalizationManager.shared.tr(.zoomFitWindowTooltip))
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
@@ -776,6 +798,13 @@ public final class ScrollableCanvasView: NSView {
         zModel.onFitWidth = { [weak sView] in
             sView?.zoomToFitWidth()
         }
+        zModel.onFitWindow = { [weak sView] in
+            sView?.zoomToFitWindow()
+        }
+
+        docView.onQuickCopyRequested = { [weak self] in
+            self?.toolbarsViewModel.triggerCopy()
+        }
 
         docView.isPointOverFloatingToolbar = { [weak self, weak vToolbar, weak hToolbar, weak zHUD] winPt in
             guard let self = self else { return false }
@@ -827,6 +856,12 @@ public final class ScrollableCanvasView: NSView {
             }
             .store(in: &cancellables)
 
+        engine.$selectedObjectID
+            .sink { [weak self] _ in
+                self?.updateTextTargetState()
+            }
+            .store(in: &cancellables)
+
         toolbarsViewModel.onToolChanged = { [weak self] toolType in
             guard let self = self else { return }
             self.documentView.commitActiveTextEditing()
@@ -842,6 +877,7 @@ public final class ScrollableCanvasView: NSView {
             case .blur: self.engine.activeTool = .blur
             }
             self.documentView.updateCanvasCursor()
+            self.updateTextTargetState()
             self.documentView.showToolSelectionHUD(tool: toolType)
         }
 
@@ -867,10 +903,11 @@ public final class ScrollableCanvasView: NSView {
         toolbarsViewModel.onFontSizeSelected = { [weak self] size in
             guard let self = self else { return }
             self.documentView.currentFontSize = size
-            if self.engine.selectedObjectID != nil {
+            if let sel = self.engine.selectedObject, sel.tool == .text {
                 self.engine.updateSelectedFontSize(size)
                 self.documentView.needsDisplay = true
             }
+            self.showFontSizeHUD(size: Int(round(size)))
         }
 
         toolbarsViewModel.onUndoRequested = { [weak self] in
@@ -948,6 +985,24 @@ public final class ScrollableCanvasView: NSView {
 
     public func showStrokeWidthHUD(width: Int) {
         documentView.showStrokeWidthHUD(width: width)
+    }
+
+    public func showFontSizeHUD(size: Int) {
+        showHUDNotification(text: LocalizationManager.shared.tr(.fontSizeHUD(size)))
+    }
+
+    public func zoomToFitWindow() {
+        scrollView.zoomToFitWindow()
+    }
+
+    public func updateTextTargetState() {
+        let isTextSelected = (engine.selectedObject?.tool == .text)
+        toolbarsViewModel.isTextTargetActive = isTextSelected || (toolbarsViewModel.activeTool == .text)
+        if isTextSelected, let sel = engine.selectedObject {
+            toolbarsViewModel.selectedFontSize = sel.fontSize
+        } else {
+            toolbarsViewModel.selectedFontSize = nil
+        }
     }
 
     public func copyToClipboard() {
@@ -1041,6 +1096,11 @@ public final class ScrollableAnnotationWindow: NSWindow {
 
         canvas.onCloseRequested = { [weak self] in
             self?.close()
+        }
+        canvas.onCopyRequested = { [weak self] in
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) {
+                self?.close()
+            }
         }
     }
 
@@ -1306,7 +1366,7 @@ public final class ScrollableAnnotationWindow: NSWindow {
                 return
             }
             if chars == "9" || keyCode == 25 || keyCode == 92 {
-                canvasView.scrollView.zoomToFitWidth()
+                canvasView.zoomToFitWindow()
                 return
             }
         }

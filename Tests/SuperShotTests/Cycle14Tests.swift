@@ -166,7 +166,7 @@ public struct Cycle14Tests {
         // ---------------------------------------------------------------------
         let welcomeView = WelcomeView()
         let _ = welcomeView.body
-        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.23", "F6: WelcomeView reports version v1.0.23")
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.24", "F6: WelcomeView reports version v1.0.24")
 
         // Test PermissionManager open settings methods
         PermissionManager.shared.openScreenRecordingSettings()
@@ -216,9 +216,9 @@ public struct Cycle14Tests {
         // ---------------------------------------------------------------------
         // F10: Canonical Version Bump to v1.0.21 / Build 21
         // ---------------------------------------------------------------------
-        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.23", "F10: UpdateManager currentVersion is 1.0.23")
-        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.23")
-        TestHarness.assertTrue(diagString.contains("SuperShot v1.0.23"), "F10: Diagnostic string contains v1.0.23")
-        TestHarness.assertTrue(diagString.contains("Build 23"), "F10: Diagnostic string contains Build 23")
+        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.24", "F10: UpdateManager currentVersion is 1.0.24")
+        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.24")
+        TestHarness.assertTrue(diagString.contains("SuperShot v1.0.24"), "F10: Diagnostic string contains v1.0.24")
+        TestHarness.assertTrue(diagString.contains("Build 24"), "F10: Diagnostic string contains Build 24")
     }
 }

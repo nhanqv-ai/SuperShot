@@ -537,23 +537,7 @@ public struct ToolbarPositionCalculator {
         var originX = selectionRect.minX
         var originY = selectionRect.maxY + 6.0
 
-        // When horizontal toolbar flips above selectionRect.maxY in bottom-screen selections,
-        // position the dimension badge above horizontalToolbar.maxY + 6pt to prevent overlap
-        let horizFlipped = (selectionRect.minY - spacing - horizontalToolbarSize.height < screenBounds.minY + margin)
-        if horizFlipped {
-            let horizFrame = calculateHorizontalToolbarFrame(selectionRect: selectionRect, screenBounds: screenBounds)
-            if horizFrame.minY >= selectionRect.maxY {
-                originY = horizFrame.maxY + 6.0
-            }
-        }
-
-        if originY + badgeSize.height > screenBounds.maxY - margin {
-            originY = selectionRect.maxY - badgeSize.height - 6.0
-            if originY < selectionRect.minY {
-                originY = selectionRect.minY - badgeSize.height - 6.0
-            }
-        }
-
+        // 1. Horizontal boundary clamping first to anchor accurate collision testing
         if originX + badgeSize.width > screenBounds.maxX - margin {
             originX = screenBounds.maxX - badgeSize.width - margin
         }
@@ -561,6 +545,49 @@ public struct ToolbarPositionCalculator {
             originX = screenBounds.minX + margin
         }
 
+        let horizFrame = calculateHorizontalToolbarFrame(selectionRect: selectionRect, screenBounds: screenBounds)
+
+        // 2. Bottom-screen selections: When horizontal toolbar flips above selectionRect.maxY,
+        // position dimension badge above horizontalToolbar.maxY + 6pt to prevent overlap
+        let horizFlippedAbove = (selectionRect.minY - spacing - horizontalToolbarSize.height < screenBounds.minY + margin)
+        if horizFlippedAbove && horizFrame.minY >= selectionRect.maxY - 0.1 {
+            originY = max(originY, horizFrame.maxY + 6.0)
+        }
+
+        // 3. Top-screen selections: When badge exceeds screenBounds.maxY, position below to prevent clipping & collision
+        if originY + badgeSize.height > screenBounds.maxY - margin {
+            // Attempt 1: Place inside selection box near top if it fits and does not collide with horizontal toolbar
+            let insideTopY = selectionRect.maxY - badgeSize.height - 6.0
+            let candidateInsideRect = CGRect(x: originX, y: insideTopY, width: badgeSize.width, height: badgeSize.height)
+            let collidesWithHoriz = candidateInsideRect.insetBy(dx: -6.0, dy: -6.0).intersects(horizFrame)
+
+            if insideTopY >= selectionRect.minY && !collidesWithHoriz {
+                originY = insideTopY
+            } else {
+                // Attempt 2: If inside placement is impossible or collides, place strictly below horizontal toolbar
+                let belowHorizY = horizFrame.minY - 6.0 - badgeSize.height
+                if belowHorizY >= screenBounds.minY + margin {
+                    originY = belowHorizY
+                } else {
+                    // Attempt 3: If below toolbar doesn't fit on screen, place below selection box
+                    let belowSelectionY = selectionRect.minY - badgeSize.height - 6.0
+                    let candidateBelowRect = CGRect(x: originX, y: belowSelectionY, width: badgeSize.width, height: badgeSize.height)
+                    if belowSelectionY >= screenBounds.minY + margin && !candidateBelowRect.insetBy(dx: -6.0, dy: -6.0).intersects(horizFrame) {
+                        originY = belowSelectionY
+                    } else {
+                        // Attempt 4: Vertical space constrained; position above horizontal toolbar if room exists
+                        let aboveHorizY = horizFrame.maxY + 6.0
+                        if aboveHorizY + badgeSize.height <= screenBounds.maxY - margin {
+                            originY = aboveHorizY
+                        } else {
+                            originY = screenBounds.maxY - badgeSize.height - margin
+                        }
+                    }
+                }
+            }
+        }
+
+        // 4. Vertical boundary clamping
         if originY < screenBounds.minY + margin {
             originY = screenBounds.minY + margin
         }
@@ -568,7 +595,19 @@ public struct ToolbarPositionCalculator {
             originY = screenBounds.maxY - badgeSize.height - margin
         }
 
-        return CGRect(origin: CGPoint(x: originX, y: originY), size: badgeSize)
+        // 5. Final safety check: if candidate badge frame still intersects horizFrame, resolve horizontally
+        var badgeRect = CGRect(origin: CGPoint(x: originX, y: originY), size: badgeSize)
+        if badgeRect.intersects(horizFrame) {
+            let leftOfHorizX = horizFrame.minX - spacing - badgeSize.width
+            let rightOfHorizX = horizFrame.maxX + spacing
+            if leftOfHorizX >= screenBounds.minX + margin {
+                badgeRect.origin.x = leftOfHorizX
+            } else if rightOfHorizX + badgeSize.width <= screenBounds.maxX - margin {
+                badgeRect.origin.x = rightOfHorizX
+            }
+        }
+
+        return badgeRect
     }
 
     public static func calculateVerticalToolbarFrame(

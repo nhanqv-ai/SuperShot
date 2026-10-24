@@ -293,6 +293,16 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 170 | LiveGUIDriverV1023 On-Screen GUI Driver Updates | Update Live GUI Driver to V1023, run on-screen audit, capture 47+ Retina snapshots into scratch/v1023_audit_screenshots/ | M59 | Cycle 16 Backlog |
 | 171 | Canonical Version Bump to v1.0.23 | Synchronize version 1.0.23 (Build 23) across all 8 canonical locations & downstream test assertions | M60 | Cycle 16 Backlog |
 | 172 | Automated Release Pipeline (PR #23, Merge, Universal 2, GitHub Release, Public Repo, App Relaunch) | Git feature branch, PR #23 creation, squash/merge to main, Universal 2 zip/dmg build, GitHub Release v1.0.23, public repo verification, and live app relaunch | M60 | Cycle 16 Backlog |
+| 173 | Quick Copy Action Pill on Dimension Badge | Clickable "Copy" pill adjacent to dimension badge with pointingHand cursor, hover highlight, and 1-click clipboard copy | M61 | Cycle 17 Backlog |
+| 174 | Spacebar Repositioning (Space + Drag) | Holding Space during selection creation pans the active origin while preserving width/height | M61 | Cycle 17 Backlog |
+| 175 | Font Size Stepping Shortcuts ([ / ]) & HUD Pill | Dedicated bracket shortcuts for text annotations stepping font size 10pt-72pt with transient HUD indicator | M61 | Cycle 17 Backlog |
+| 176 | Fit to Window Button in Scrollable Canvas | Replace redundant zoom button with "Fit to Window" action (rectangle.inset.filled) calculating optimal document scale | M61 | Cycle 17 Backlog |
+| 177 | Hover Highlight on Dimension Badge & Quick Copy Pill | Visual hover affordance and pointer feedback for dimension badge and quick copy pill | M61 | Cycle 17 Backlog |
+| 178 | Direct Keyboard Shortcuts: Copy File Path & Dimensions | Dedicated Cmd+Shift+C (path) and Cmd+Option+C (dimensions) shortcuts with contextual toast feedback in MainShotView | M61 | Cycle 17 Backlog |
+| 179 | Double-Click Quick Copy Parity on Stitched Canvas | Double-clicking empty canvas in ScrollableAnnotationWindow triggers instant copy to clipboard and window dismissal | M61 | Cycle 17 Backlog |
+| 180 | Zero-Emoji Multilingual Localization (9 Languages) | Complete zero-emoji localized strings for quick copy, font size HUD, fit window tooltip, and copy notifications | M61 | Cycle 17 Backlog |
+| 181 | Live On-Screen GUI Driver Updates (v1.0.24) | Update Live GUIDriver to V1024, execute 5 interactive surfaces, and verify Retina snapshots | M62 | Cycle 17 Backlog |
+| 182 | Automated Release Pipeline (PR #24, Universal 2, GitHub Release v1.0.24) | Feature branch, PR #24, squash/merge, Universal 2 zip/dmg, GitHub Release v1.0.24, public verification, and app relaunch | M64 | Cycle 17 Backlog |
 
 ## Milestones
 
@@ -353,8 +363,11 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M56 | Automated Release Pipeline v1.0.22 & Live App Relaunch | Git branch -> PR #22 -> merge -> Universal 2 build -> GitHub release v1.0.22 -> public repo check -> app relaunch | M55 | DONE |
 | M57 | Survey & Live GUI Driver Audit (v1.0.23) | Explorers 1, 2, 3 survey codebase, Live GUI driver, git/release baseline | none | DONE |
 | M58 | Proactive UX & Feature Polish | Implement F1–F11, 0 emojis, add Cycle16Tests.swift, unit test pass | M57 | DONE |
-| M59 | Live On-Screen GUI Execution & Verification | Implement & run LiveGUIDriverV1023.swift, verify 56 Retina snapshots, run make lint, make test, make adversarial | M58 | DONE |
-| M60 | Canonical Version Bump, PR #23, Release & App Relaunch | Synchronize 8 canonical files to 1.0.23 / Build 23, update downstream tests, create PR #23, merge into main, Universal 2 release, public repo check, relaunch SuperShot.app | M59 | IN_PROGRESS |
+| M60 | Canonical Version Bump, PR #23, Release & App Relaunch | Synchronize 8 canonical files to 1.0.23 / Build 23, update downstream tests, create PR #23, merge into main, Universal 2 release, public repo check, relaunch SuperShot.app | M59 | DONE |
+| M61 | UX & Feature Polish Implementation | Implement Features 173–180, 0 emojis, add Cycle17Tests.swift, unit test pass | M60 | DONE |
+| M62 | Live On-Screen GUI Execution & Verification | Implement & run LiveGUIDriverV1024.swift, verify 56+ Retina snapshots, run make lint, make test, make adversarial | M61 | DONE |
+| M63 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M62 | DONE |
+| M64 | Canonical Version Bump, PR #24, Release & App Relaunch | Synchronize 8 canonical files to 1.0.24 / Build 24, update downstream tests, create PR #24, merge into main, Universal 2 release, public repo check, relaunch SuperShot.app | M63 | DONE |
 
 ## Interface Contracts
 

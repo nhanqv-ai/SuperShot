@@ -24,6 +24,8 @@ public struct MainShotView: View {
     @State private var hostWindow: NSWindow? = nil
     @State private var copiedItemId: UUID? = nil
     @State private var showCopiedToast: Bool = false
+    @State private var copiedToastMessage: String = ""
+    @State private var copiedToastIcon: String = ""
     @State private var copyFeedbackTask: Task<Void, Never>? = nil
     @State private var showDeletedToast: Bool = false
     @State private var deleteFeedbackTask: Task<Void, Never>? = nil
@@ -104,10 +106,10 @@ public struct MainShotView: View {
 
                 if showCopiedToast {
                     HStack(spacing: 6) {
-                        Image(systemName: "checkmark.circle.fill")
+                        Image(systemName: copiedToastIcon.isEmpty ? "checkmark.circle.fill" : copiedToastIcon)
                             .foregroundColor(.green)
                             .font(.system(size: 11, weight: .semibold))
-                        Text(localizationManager.tr(.copiedToClipboard))
+                        Text(copiedToastMessage.isEmpty ? localizationManager.tr(.copiedToClipboard) : copiedToastMessage)
                             .font(.system(size: 11, weight: .medium))
                             .foregroundColor(.primary)
                     }
@@ -805,10 +807,12 @@ public struct MainShotView: View {
         triggerCopyFeedback(for: item.id)
     }
 
-    public func triggerCopyFeedback(for itemId: UUID) {
+    public func triggerCopyFeedback(for itemId: UUID, message: String? = nil, icon: String? = nil) {
         copyFeedbackTask?.cancel()
         withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
             copiedItemId = itemId
+            copiedToastMessage = message ?? ""
+            copiedToastIcon = icon ?? ""
             showCopiedToast = true
         }
         copyFeedbackTask = Task { @MainActor in
@@ -819,9 +823,33 @@ public struct MainShotView: View {
                         self.copiedItemId = nil
                     }
                     self.showCopiedToast = false
+                    self.copiedToastMessage = ""
+                    self.copiedToastIcon = ""
                 }
             }
         }
+    }
+
+    public func copySelectedFilePath() {
+        guard let idx = selectedIndex, idx >= 0 && idx < visibleItems.count else { return }
+        let item = visibleItems[idx]
+        ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+        let url = storageManager.getImageURL(for: item)
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(url.path, forType: .string)
+        triggerCopyFeedback(for: item.id, message: localizationManager.tr(.copiedFilePath), icon: "doc.on.doc.fill")
+    }
+
+    public func copySelectedDimensions() {
+        guard let idx = selectedIndex, idx >= 0 && idx < visibleItems.count else { return }
+        let item = visibleItems[idx]
+        ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+        let dims = item.dimensionsString
+        let pb = NSPasteboard.general
+        pb.clearContents()
+        pb.setString(dims, forType: .string)
+        triggerCopyFeedback(for: item.id, message: localizationManager.tr(.copiedDimensionsHUD), icon: "ruler.fill")
     }
 
     public func triggerDeleteFeedback() {
@@ -1123,6 +1151,18 @@ public struct MainShotView: View {
                     annotateItem(visibleItems[idx])
                     return nil
                 }
+            }
+
+            // 8d. Cmd+Shift+C: Copy selected item's file path to clipboard
+            if flags.contains([.command, .shift]) && !flags.contains(.option) && (event.keyCode == 8 || event.charactersIgnoringModifiers?.lowercased() == "c") {
+                copySelectedFilePath()
+                return nil
+            }
+
+            // 8e. Cmd+Option+C: Copy selected item's dimensions to clipboard
+            if flags.contains([.command, .option]) && !flags.contains(.shift) && (event.keyCode == 8 || event.charactersIgnoringModifiers?.lowercased() == "c") {
+                copySelectedDimensions()
+                return nil
             }
 
             // 9. Cmd+C: Copy selected item to clipboard without auto-paste
