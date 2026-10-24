@@ -1,5 +1,6 @@
 import Foundation
 import CoreGraphics
+import AppKit
 import SuperShotCore
 import SuperShot
 
@@ -215,5 +216,82 @@ public struct HistoryPopoverTests {
         TestHarness.assertTrue(saveWithShortcut.contains("(⌘S)"), "Save button contains (⌘S) shortcut")
         TestHarness.assertTrue(pinWithShortcut.contains("(⌘P)"), "Pin button contains (⌘P) shortcut")
         TestHarness.assertTrue(deleteWithShortcut.contains("(⌫)"), "Delete button contains (⌫) shortcut")
+
+        // 13. Differentiated Section Shortcuts, Badges, Fast Navigation & Unpinned Purge Toast (v1.0.19)
+        let opt1Event = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: .option,
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "¡",
+            charactersIgnoringModifiers: "1",
+            isARepeat: false,
+            keyCode: 18
+        )!
+        let parsedOpt1 = ShortcutNavigator.parseSectionShortcut(from: opt1Event, searchFieldHasFocus: false)
+        TestHarness.assertEqual(parsedOpt1?.section, .pinned, "Option+1 parses as .pinned section")
+        TestHarness.assertEqual(parsedOpt1?.digit, 1, "Option+1 parses digit 1")
+
+        let cmd2Event = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: .command,
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "2",
+            charactersIgnoringModifiers: "2",
+            isARepeat: false,
+            keyCode: 19
+        )!
+        let parsedCmd2 = ShortcutNavigator.parseSectionShortcut(from: cmd2Event, searchFieldHasFocus: false)
+        TestHarness.assertEqual(parsedCmd2?.section, .recent, "Cmd+2 parses as .recent section")
+        TestHarness.assertEqual(parsedCmd2?.digit, 2, "Cmd+2 parses digit 2")
+
+        let bare3Event = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "3",
+            charactersIgnoringModifiers: "3",
+            isARepeat: false,
+            keyCode: 20
+        )!
+        let parsedBare3 = ShortcutNavigator.parseSectionShortcut(from: bare3Event, searchFieldHasFocus: false)
+        TestHarness.assertEqual(parsedBare3?.section, .recent, "Bare 3 parses as .recent section")
+        TestHarness.assertEqual(parsedBare3?.digit, 3, "Bare 3 parses digit 3")
+
+        let searchFocusBare3 = ShortcutNavigator.parseSectionShortcut(from: bare3Event, searchFieldHasFocus: true)
+        TestHarness.assertTrue(searchFocusBare3 == nil, "Bare 3 returns nil when searchFieldHasFocus is true")
+
+        let searchFocusOpt1 = ShortcutNavigator.parseSectionShortcut(from: opt1Event, searchFieldHasFocus: true)
+        TestHarness.assertEqual(searchFocusOpt1?.section, .pinned, "Option+1 triggers even when searchFieldHasFocus is true")
+
+        // Badge string generation
+        let dummyPinned = [hoverA, hoverB]
+        let dummyRecent = [hoverC]
+        TestHarness.assertEqual(ShortcutNavigator.badgeString(for: hoverA, pinnedItems: dummyPinned, recentItems: dummyRecent), "⌥1", "Pinned 0 badge is ⌥1")
+        TestHarness.assertEqual(ShortcutNavigator.badgeString(for: hoverB, pinnedItems: dummyPinned, recentItems: dummyRecent), "⌥2", "Pinned 1 badge is ⌥2")
+        TestHarness.assertEqual(ShortcutNavigator.badgeString(for: hoverC, pinnedItems: dummyPinned, recentItems: dummyRecent), "1", "Recent 0 badge is 1")
+
+        // Target item resolution
+        let targetPinned1 = ShortcutNavigator.targetItem(forSectionShortcut: (.pinned, 1), pinnedItems: dummyPinned, recentItems: dummyRecent)
+        TestHarness.assertEqual(targetPinned1?.id, hoverA.id, "Target item for (.pinned, 1) resolves to hoverA")
+        let targetRecent1 = ShortcutNavigator.targetItem(forSectionShortcut: (.recent, 1), pinnedItems: dummyPinned, recentItems: dummyRecent)
+        TestHarness.assertEqual(targetRecent1?.id, hoverC.id, "Target item for (.recent, 1) resolves to hoverC")
+        let targetOutOfRange = ShortcutNavigator.targetItem(forSectionShortcut: (.recent, 5), pinnedItems: dummyPinned, recentItems: dummyRecent)
+        TestHarness.assertNil(targetOutOfRange, "Out of range section digit resolves to nil")
+
+        // Clear unpinned feedback toast execution
+        mainViewForKeyboard.triggerClearAllFeedback()
+
+        // Localization key check
+        let clearedToastText = LocalizationManager.shared.tr(.unpinnedHistoryCleared)
+        TestHarness.assertEqual(clearedToastText, "Unpinned history cleared", "unpinnedHistoryCleared string in English")
     }
 }

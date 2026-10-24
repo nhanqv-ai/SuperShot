@@ -55,6 +55,20 @@ public struct CaptureSaveSettingsTab: View {
                         }
                         .controlSize(.small)
                         .pointingHandCursor()
+
+                        Button(action: {
+                            NSWorkspace.shared.selectFile(nil, inFileViewerRootedAtPath: appSettings.autoSaveDirectory.path)
+                        }) {
+                            HStack(spacing: 3) {
+                                Image(systemName: "folder")
+                                    .font(.system(size: 10))
+                                Text(LocalizationManager.shared.tr(.openInFinder))
+                                    .font(.system(size: 11))
+                            }
+                        }
+                        .controlSize(.small)
+                        .pointingHandCursor()
+                        .help(LocalizationManager.shared.tr(.openInFinder))
                     }
 
                     HStack {

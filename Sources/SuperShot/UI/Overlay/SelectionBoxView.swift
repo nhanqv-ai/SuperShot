@@ -34,6 +34,8 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         }
     }
 
+    private var initialResizingRect: CGRect = .zero
+
     private var verticalToolbarHost: NSHostingView<VerticalAnnotationToolbarView>?
     private var horizontalToolbarHost: NSHostingView<HorizontalActionToolbarView>?
     private var activeTextField: NSTextField?
@@ -942,6 +944,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         // 1. Selection Box Grab Handles always take priority for resizing the region
         if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
             let anchor = SelectionBoxGeometry.anchorPoint(for: handle, in: selectionRect)
+            initialResizingRect = selectionRect
             dragMode = .resizing(handle: handle, anchorPoint: anchor)
             updateCanvasCursor(at: point)
             return
@@ -1052,33 +1055,17 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             }
             selectionRect = newRect
         case .resizing(let handle, let anchor):
-            switch handle {
-            case .topLeft, .topRight, .bottomLeft, .bottomRight:
-                if event.modifierFlags.contains(.shift) {
-                    let dx = currentPoint.x - anchor.x
-                    let dy = currentPoint.y - anchor.y
-                    let side = max(abs(dx), abs(dy))
-                    let squarePoint = CGPoint(
-                        x: anchor.x + (dx >= 0 ? side : -side),
-                        y: anchor.y + (dy >= 0 ? side : -side)
-                    )
-                    selectionRect = SelectionBoxGeometry.normalizeRect(p1: anchor, p2: squarePoint, bounds: bounds)
-                } else {
-                    selectionRect = SelectionBoxGeometry.normalizeRect(p1: anchor, p2: currentPoint, bounds: bounds)
-                }
-            case .topCenter, .bottomCenter:
-                let y1 = min(anchor.y, currentPoint.y)
-                let y2 = max(anchor.y, currentPoint.y)
-                let clampedY1 = max(bounds.minY, min(y1, bounds.maxY))
-                let clampedY2 = max(bounds.minY, min(y2, bounds.maxY))
-                selectionRect = CGRect(x: selectionRect.origin.x, y: clampedY1, width: selectionRect.width, height: max(1.0, clampedY2 - clampedY1))
-            case .middleLeft, .middleRight:
-                let x1 = min(anchor.x, currentPoint.x)
-                let x2 = max(anchor.x, currentPoint.x)
-                let clampedX1 = max(bounds.minX, min(x1, bounds.maxX))
-                let clampedX2 = max(bounds.minX, min(x2, bounds.maxX))
-                selectionRect = CGRect(x: clampedX1, y: selectionRect.origin.y, width: max(1.0, clampedX2 - clampedX1), height: selectionRect.height)
-            }
+            let isShift = event.modifierFlags.contains(.shift)
+            let isOption = event.modifierFlags.contains(.option)
+            selectionRect = SelectionBoxGeometry.calculateResizedRect(
+                handle: handle,
+                currentPoint: currentPoint,
+                anchor: anchor,
+                bounds: bounds,
+                currentRect: initialResizingRect.isEmpty ? selectionRect : initialResizingRect,
+                shiftKeyPressed: isShift,
+                optionKeyPressed: isOption
+            )
         }
         updateCanvasCursor(at: currentPoint)
     }
@@ -1118,6 +1105,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             }
         }
         dragMode = .none
+        initialResizingRect = .zero
         updateToolbarPositions()
         updateCanvasCursor(at: point)
         needsDisplay = true
@@ -1141,6 +1129,21 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         case .creating(let startPoint):
             if let lastPt = currentMousePoint {
                 updateCreatingSelection(startPoint: startPoint, currentPoint: lastPt, modifierFlags: event.modifierFlags)
+                needsDisplay = true
+            }
+        case .resizing(let handle, let anchor):
+            if let lastPt = currentMousePoint {
+                let isShift = event.modifierFlags.contains(.shift)
+                let isOption = event.modifierFlags.contains(.option)
+                selectionRect = SelectionBoxGeometry.calculateResizedRect(
+                    handle: handle,
+                    currentPoint: lastPt,
+                    anchor: anchor,
+                    bounds: bounds,
+                    currentRect: initialResizingRect.isEmpty ? selectionRect : initialResizingRect,
+                    shiftKeyPressed: isShift,
+                    optionKeyPressed: isOption
+                )
                 needsDisplay = true
             }
         default:

@@ -1,5 +1,6 @@
 import Foundation
 import AppKit
+import Carbon
 import SuperShotCore
 import SuperShot
 
@@ -27,7 +28,10 @@ public struct StatusItemTests {
         TestHarness.assertNotNil(manager.statusItem.button, "Status item button created")
         TestHarness.assertNotNil(manager.statusItem.button?.image, "Status item icon configured")
         TestHarness.assertTrue(manager.statusItem.button?.image?.isTemplate == true, "Icon is configured as template")
-        TestHarness.assertEqual(manager.statusItem.button?.toolTip, "SuperShot - Screenshot & Annotate (Option+S)", "Default tooltip contains shortcut")
+        let appTitle = LocalizationManager.shared.tr(.appTitle)
+        let action = LocalizationManager.shared.tr(.menuCapture)
+        let shortcut = mockHotKey.shortcut(for: .inPlaceCapture)?.displayString ?? "⌥S"
+        TestHarness.assertEqual(manager.statusItem.button?.toolTip, "\(appTitle) - \(action) (\(shortcut))", "Default tooltip contains shortcut")
 
         // 2. Context Menu Structure & Items
         let menu = manager.contextMenu
@@ -83,5 +87,39 @@ public struct StatusItemTests {
             _ = prefsItem?.target?.perform(action, with: nil)
         }
         TestHarness.assertTrue(settingsTriggered, "Preferences menu click fires onOpenSettingsRequested")
+
+        // 6. Dynamic Localized Status Item ToolTip (F9)
+        LocalizationManager.shared.setLanguage(.vietnamese)
+        TestHarness.assertEqual(manager.statusItem.button?.toolTip, "SuperShot - Chụp màn hình (⌥S)", "Status item tooltip dynamically updates on language change")
+        LocalizationManager.shared.setLanguage(.english)
+        TestHarness.assertEqual(manager.statusItem.button?.toolTip, "SuperShot - Capture Screen (⌥S)", "Status item tooltip returns to English on language change")
+
+        // 7. Integration: HotKeyManager.shared registration with StatusItemManager (no deadlock)
+        let realHotKey = HotKeyManager.shared
+        let liveStatusItemManager = StatusItemManager(
+            contentViewController: dummyVC,
+            storageManager: storage,
+            appSettings: settings,
+            hotKeyManager: realHotKey,
+            previousAppTracker: previousApp
+        )
+
+        let registered = realHotKey.register(
+            action: .inPlaceCapture,
+            keyCode: UInt32(kVK_ANSI_S),
+            modifiers: UInt32(optionKey)
+        )
+        TestHarness.assertTrue(registered, "HotKeyManager.shared registers inPlaceCapture successfully")
+        let liveTooltip = liveStatusItemManager.statusItem.button?.toolTip
+        TestHarness.assertNotNil(liveTooltip, "StatusItemManager tooltip is present")
+        TestHarness.assertTrue(liveTooltip?.contains("⌥S") == true, "StatusItemManager tooltip updated to '⌥S' without deadlock")
+
+        // Unregister and ensure notification handler executes without deadlock
+        realHotKey.unregister(action: .inPlaceCapture)
+        let unregTooltip = liveStatusItemManager.statusItem.button?.toolTip
+        TestHarness.assertNotNil(unregTooltip, "StatusItemManager tooltip is present after unregister")
+
+        // Restore default hotkeys for subsequent tests
+        realHotKey.registerDefaults()
     }
 }

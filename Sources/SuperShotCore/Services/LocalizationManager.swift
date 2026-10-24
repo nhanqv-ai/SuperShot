@@ -50,6 +50,7 @@ public enum AppLanguage: String, CaseIterable, Identifiable, Codable, Sendable {
 /// Centralized localization manager providing dynamic runtime translation across 9 languages.
 public final class LocalizationManager: ObservableObject, @unchecked Sendable {
     public static let shared = LocalizationManager()
+    public static let languageDidChangeNotification = Notification.Name("SuperShotLanguageDidChangeNotification")
 
     private let lock = NSLock()
 
@@ -67,9 +68,10 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
 
     public func setLanguage(_ language: AppLanguage) {
         lock.lock()
-        defer { lock.unlock() }
         self.currentLanguage = language
         self.effectiveLanguage = resolveEffectiveLanguage(language)
+        lock.unlock()
+        NotificationCenter.default.post(name: LocalizationManager.languageDidChangeNotification, object: self)
     }
 
     public func setLanguage(code: String) {
@@ -247,6 +249,7 @@ public enum L10nKey: Sendable {
     // Settings Tab 3: History Management
     case historyCapacity
     case historyCapacityUnit
+    case rememberLabel
     case pinProtectionTitle
     case pinProtectionDesc
     case storageStatistics
@@ -326,6 +329,7 @@ public enum L10nKey: Sendable {
     // Live Progress, Deletion Feedback & Diagnostics (v1.0.18)
     case framesCount(Int)
     case screenshotDeleted
+    case unpinnedHistoryCleared
     case copiedDiagnostics
 
     public func localized(for lang: AppLanguage) -> String {
@@ -1817,6 +1821,19 @@ public enum L10nKey: Sendable {
             default: return "screenshots"
             }
 
+        case .rememberLabel:
+            switch lang {
+            case .vietnamese: return "Lưu trữ:"
+            case .german: return "Merken:"
+            case .french: return "Mémoriser :"
+            case .spanish: return "Recordar:"
+            case .japanese: return "記憶数:"
+            case .simplifiedChinese: return "保存数量:"
+            case .traditionalChinese: return "保存數量:"
+            case .korean: return "보관 수:"
+            default: return "Remember:"
+            }
+
         case .pinProtectionTitle:
             switch lang {
             case .vietnamese: return "Bảo vệ ảnh chụp đã ghim"
@@ -2676,6 +2693,19 @@ public enum L10nKey: Sendable {
             case .traditionalChinese: return "已刪除螢幕截圖"
             case .korean: return "스크린샷 삭제됨"
             default: return "Screenshot Deleted"
+            }
+
+        case .unpinnedHistoryCleared:
+            switch lang {
+            case .vietnamese: return "Đã xóa lịch sử chưa ghim"
+            case .german: return "Nicht angehefteter Verlauf gelöscht"
+            case .french: return "Historique non épinglé effacé"
+            case .spanish: return "Historial no fijado borrado"
+            case .japanese: return "固定解除した履歴を消去しました"
+            case .simplifiedChinese: return "已清除未固定历史"
+            case .traditionalChinese: return "已清除未固定歷史"
+            case .korean: return "고정되지 않은 기록 삭제됨"
+            default: return "Unpinned history cleared"
             }
 
         case .copiedDiagnostics:

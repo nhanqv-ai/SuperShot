@@ -57,4 +57,85 @@ public struct ShortcutNavigator {
         }
         return nil
     }
+
+    // MARK: - Differentiated Section Shortcuts (v1.0.19)
+
+    /// Target section for differentiated shortcuts.
+    public enum ShortcutSection: Sendable, Equatable {
+        case pinned
+        case recent
+    }
+
+    /// Evaluates an NSEvent to determine section-aware shortcut:
+    /// - Option + 1..9: target pinned items
+    /// - Command + 1..9: target normal / recent history items
+    /// - Bare 1..9 (when search field is not focused): target normal / recent history items
+    public static func parseSectionShortcut(
+        from event: NSEvent,
+        searchFieldHasFocus: Bool
+    ) -> (section: ShortcutSection, digit: Int)? {
+        guard event.type == .keyDown else { return nil }
+
+        guard let chars = event.charactersIgnoringModifiers,
+              chars.count == 1,
+              let char = chars.first,
+              let digit = char.wholeNumberValue,
+              digit >= 1 && digit <= 9 else {
+            return nil
+        }
+
+        let flags = event.modifierFlags
+        let hasCommand = flags.contains(.command)
+        let hasControl = flags.contains(.control)
+        let hasOption = flags.contains(.option)
+
+        // Ignore if Control modifier is active
+        guard !hasControl else { return nil }
+
+        if hasOption && !hasCommand {
+            return (.pinned, digit)
+        } else if hasCommand && !hasOption {
+            return (.recent, digit)
+        } else if !hasOption && !hasCommand && !searchFieldHasFocus {
+            return (.recent, digit)
+        }
+
+        return nil
+    }
+
+    /// Resolves the target item for a section shortcut.
+    public static func targetItem(
+        forSectionShortcut resolved: (section: ShortcutSection, digit: Int),
+        pinnedItems: [ShotItem],
+        recentItems: [ShotItem]
+    ) -> ShotItem? {
+        let index = resolved.digit - 1
+        guard index >= 0 else { return nil }
+
+        switch resolved.section {
+        case .pinned:
+            guard index < pinnedItems.count else { return nil }
+            return pinnedItems[index]
+        case .recent:
+            guard index < recentItems.count else { return nil }
+            return recentItems[index]
+        }
+    }
+
+    /// Resolves the display badge for an item based on its section and position.
+    /// Pinned items: ⌥1..⌥9
+    /// Recent items: 1..9
+    public static func badgeString(
+        for item: ShotItem,
+        pinnedItems: [ShotItem],
+        recentItems: [ShotItem]
+    ) -> String? {
+        if let pinnedIdx = pinnedItems.firstIndex(where: { $0.id == item.id }), pinnedIdx < 9 {
+            return "⌥\(pinnedIdx + 1)"
+        }
+        if let recentIdx = recentItems.firstIndex(where: { $0.id == item.id }), recentIdx < 9 {
+            return "\(recentIdx + 1)"
+        }
+        return nil
+    }
 }
