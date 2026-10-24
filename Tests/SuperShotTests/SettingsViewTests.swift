@@ -211,7 +211,7 @@ public struct SettingsViewTests {
         var welcomeDismissed = false
         let welcomeView = WelcomeView(onDismiss: { welcomeDismissed = true })
         let _ = welcomeView.body
-        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.17", "WelcomeView version string is v1.0.17")
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.18", "WelcomeView version string is v1.0.18")
         welcomeView.onDismiss?()
         TestHarness.assertTrue(welcomeDismissed, "WelcomeView onDismiss executes cleanly")
 
@@ -250,9 +250,9 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(L10nKey.tabCaptureSave.localized(for: .french), "Capture & Sauvegarde", "French tabCaptureSave is concise 'Capture & Sauvegarde'")
         TestHarness.assertEqual(SettingsTab.history.localizedTitle, "History", "SettingsTab.history default localizedTitle is 'History'")
 
-        // 12. Version Consistency & Fallback Verification (v1.0.17)
+        // 12. Version Consistency & Fallback Verification (v1.0.18)
         let updateMgr = UpdateManager.shared
-        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.17", "UpdateManager currentVersion fallback is 1.0.17")
+        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.18", "UpdateManager currentVersion fallback is 1.0.18")
 
         // 13. Overlay Cmd+A Fullscreen & Arrow Key Nudging Verification (v1.0.15)
         let colorSpace = CGColorSpaceCreateDeviceRGB()
@@ -507,5 +507,55 @@ public struct SettingsViewTests {
         // Test LocalizationManager for v1.0.16 keys
         TestHarness.assertEqual(locMgr.tr(.annotationsCleared), "Annotations Cleared (⌘⇧K)", "annotationsCleared English string matches")
         TestHarness.assertEqual(locMgr.tr(.actionShareTooltip), "Share (⌘E)", "actionShareTooltip English string matches")
+
+        // 17. Diagnostic String Formatting & Control+Tab Cycling Verification (v1.0.18)
+        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.18")
+        TestHarness.assertTrue(diagString.hasPrefix("SuperShot v1.0.18"), "Diagnostic string starts with 'SuperShot v1.0.18'")
+        TestHarness.assertTrue(diagString.contains("macOS"), "Diagnostic string contains 'macOS'")
+        TestHarness.assertTrue(diagString.contains("Build"), "Diagnostic string contains 'Build'")
+
+        TestHarness.assertEqual(locMgr.tr(.copiedDiagnostics), "Diagnostic Info Copied", "copiedDiagnostics English string matches")
+
+        // Test Control+Tab and Control+Shift+Tab Notification Posting
+        var cycleDirection: Int? = nil
+        let ctrlTabObserver = NotificationCenter.default.addObserver(
+            forName: .settingsCycleTab,
+            object: nil,
+            queue: .main
+        ) { notif in
+            cycleDirection = notif.userInfo?["direction"] as? Int
+        }
+
+        let ctrlTabEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: .control,
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "\t",
+            charactersIgnoringModifiers: "\t",
+            isARepeat: false,
+            keyCode: 48
+        )!
+        controller.window?.keyDown(with: ctrlTabEvent)
+        TestHarness.assertEqual(cycleDirection, 1, "Control+Tab cycles to next tab (direction 1)")
+
+        let ctrlShiftTabEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.control, .shift],
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "\t",
+            charactersIgnoringModifiers: "\t",
+            isARepeat: false,
+            keyCode: 48
+        )!
+        controller.window?.keyDown(with: ctrlShiftTabEvent)
+        TestHarness.assertEqual(cycleDirection, -1, "Control+Shift+Tab cycles to previous tab (direction -1)")
+
+        NotificationCenter.default.removeObserver(ctrlTabObserver)
     }
 }

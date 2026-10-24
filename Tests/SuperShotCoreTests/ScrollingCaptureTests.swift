@@ -45,6 +45,9 @@ public struct ScrollingCaptureTests {
 
         // 12. Quick Zoom HUD & Centering Tests
         testQuickZoomHUDAndCentering()
+
+        // 13. Live Preview Real-Time Frame Counter & Progress Badge Tests (v1.0.18)
+        testRealTimeFrameCountBadgeFormatting()
     }
 
     // MARK: - Test 1: Mock Scroll Event Synthesizer
@@ -425,5 +428,41 @@ public struct ScrollingCaptureTests {
         TestHarness.assertTrue(win.canvasView.engine.selectedObjectID == nil, "Esc deselects object in ScrollableCanvasView")
 
         win.close()
+    }
+
+    // MARK: - Test 13: Live Preview Real-Time Frame Counter & Progress Badge (v1.0.18)
+    private static func testRealTimeFrameCountBadgeFormatting() {
+        let vm = LiveStitchedPreviewViewModel()
+        TestHarness.assertEqual(vm.frameCount, 0, "Initial frameCount is 0")
+
+        let progress1 = ScrollingProgress(
+            frameCount: 1,
+            currentWidthPx: 600,
+            currentHeightPx: 900,
+            mode: .manual,
+            isAtBottom: false,
+            isMaxHeightReached: false
+        )
+        vm.update(progress: progress1, cgImage: nil)
+        TestHarness.assertEqual(vm.frameCount, 1, "Updated frameCount is 1")
+        let str1 = LocalizationManager.shared.tr(.framesCount(vm.frameCount))
+        TestHarness.assertEqual(str1, "1 frames", "Formatted frameCount string is '1 frames'")
+
+        let progress12 = ScrollingProgress(
+            frameCount: 12,
+            currentWidthPx: 600,
+            currentHeightPx: 4800,
+            mode: .manual,
+            isAtBottom: false,
+            isMaxHeightReached: false
+        )
+        vm.update(progress: progress12, cgImage: nil)
+        TestHarness.assertEqual(vm.frameCount, 12, "Updated frameCount is 12")
+        let str12 = LocalizationManager.shared.tr(.framesCount(vm.frameCount))
+        TestHarness.assertEqual(str12, "12 frames", "Formatted frameCount string is '12 frames'")
+
+        // Test in Vietnamese
+        let viStr12 = L10nKey.framesCount(12).localized(for: .vietnamese)
+        TestHarness.assertEqual(viStr12, "12 khung hình", "Vietnamese framesCount format is '12 khung hình'")
     }
 }

@@ -548,6 +548,8 @@ public struct AnnotationEngineTests {
         // Multi-level cascading duplication
         let dup2 = engine.duplicateSelected(offset: CGPoint(x: 16, y: 16))
         let dup3 = engine.duplicateSelected(offset: CGPoint(x: 16, y: 16))
+        TestHarness.assertNotNil(dup2, "dup2 is non-nil")
+        TestHarness.assertNotNil(dup3, "dup3 is non-nil")
         TestHarness.assertEqual(engine.objects.count, 4, "Cascading duplications produced 4 objects")
 
         engine.undo() // reverts dup3

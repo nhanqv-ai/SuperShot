@@ -28,6 +28,7 @@ public struct FloatingToolbarsTests {
         testContextAwareCursorResolution()
         testHierarchicalEscapeKeyAndToolHUD()
         testStrokeWidthBracketShortcutsAndHUD()
+        testAlternateToolMnemonics()
     }
 
     // 1. Tool Mapping & Counts
@@ -633,6 +634,88 @@ public struct FloatingToolbarsTests {
         let handledRight = ToolbarKeyShortcutHandler.handleKeyEvent(event: bracketRightEvent, viewModel: viewModel)
         TestHarness.assertTrue(handledRight, "Bracket right key ] handled")
         TestHarness.assertEqual(appSettings.activeStrokeWidth, 5.0, "Bracket right key incremented stroke width to 5.0")
+    }
+
+    // 18. Alternate Tool Mnemonics & Parity Verification (v1.0.18)
+    private static func testAlternateToolMnemonics() {
+        TestHarness.assertEqual(AnnotationToolType.ellipse.alternateMnemonicKey, "E", "Ellipse alternateMnemonicKey is E")
+        TestHarness.assertEqual(AnnotationToolType.blur.alternateMnemonicKey, "M", "Blur alternateMnemonicKey is M")
+        TestHarness.assertNil(AnnotationToolType.select.alternateMnemonicKey, "Select has no alternate mnemonic")
+        TestHarness.assertNil(AnnotationToolType.rectangle.alternateMnemonicKey, "Rectangle has no alternate mnemonic")
+
+        let viewModel = FloatingToolbarsViewModel()
+
+        // Test alternate mnemonic 'm' selects .blur
+        let mEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "m",
+            charactersIgnoringModifiers: "m",
+            isARepeat: false,
+            keyCode: 46
+        )!
+        viewModel.selectTool(.select)
+        let handledM = ToolbarKeyShortcutHandler.handleKeyEvent(event: mEvent, viewModel: viewModel)
+        TestHarness.assertTrue(handledM, "Key 'm' handled by ToolbarKeyShortcutHandler")
+        TestHarness.assertEqual(viewModel.activeTool, .blur, "Key 'm' selects .blur tool")
+
+        // Test primary mnemonic 'b' selects .blur
+        let bEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "b",
+            charactersIgnoringModifiers: "b",
+            isARepeat: false,
+            keyCode: 11
+        )!
+        viewModel.selectTool(.select)
+        let handledB = ToolbarKeyShortcutHandler.handleKeyEvent(event: bEvent, viewModel: viewModel)
+        TestHarness.assertTrue(handledB, "Key 'b' handled by ToolbarKeyShortcutHandler")
+        TestHarness.assertEqual(viewModel.activeTool, .blur, "Key 'b' selects .blur tool")
+
+        // Test alternate mnemonic 'e' selects .ellipse
+        let eEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "e",
+            charactersIgnoringModifiers: "e",
+            isARepeat: false,
+            keyCode: 14
+        )!
+        viewModel.selectTool(.select)
+        let handledE = ToolbarKeyShortcutHandler.handleKeyEvent(event: eEvent, viewModel: viewModel)
+        TestHarness.assertTrue(handledE, "Key 'e' handled by ToolbarKeyShortcutHandler")
+        TestHarness.assertEqual(viewModel.activeTool, .ellipse, "Key 'e' selects .ellipse tool")
+
+        // Test primary mnemonic 'c' selects .ellipse
+        let cEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "c",
+            charactersIgnoringModifiers: "c",
+            isARepeat: false,
+            keyCode: 8
+        )!
+        viewModel.selectTool(.select)
+        let handledC = ToolbarKeyShortcutHandler.handleKeyEvent(event: cEvent, viewModel: viewModel)
+        TestHarness.assertTrue(handledC, "Key 'c' handled by ToolbarKeyShortcutHandler")
+        TestHarness.assertEqual(viewModel.activeTool, .ellipse, "Key 'c' selects .ellipse tool")
     }
 
     // Helper: Synthetic CGImage Creator

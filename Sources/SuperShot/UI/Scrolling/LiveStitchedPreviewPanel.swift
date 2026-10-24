@@ -446,6 +446,27 @@ public struct LiveStitchedPreviewContentView: View {
                             .foregroundColor(.secondary)
                     }
                 }
+
+                if viewModel.frameCount > 0 {
+                    VStack {
+                        HStack {
+                            HStack(spacing: 3) {
+                                Image(systemName: "photo.stack")
+                                    .font(.system(size: 9, weight: .semibold))
+                                Text(LocalizationManager.shared.tr(.framesCount(viewModel.frameCount)))
+                                    .font(.system(size: 9.5, weight: .semibold, design: .monospaced))
+                            }
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(Color.black.opacity(0.72))
+                            .cornerRadius(4)
+                            .padding(6)
+                            Spacer()
+                        }
+                        Spacer()
+                    }
+                }
             }
             .frame(height: 155)
             .clipped()

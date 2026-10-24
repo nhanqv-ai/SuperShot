@@ -159,6 +159,26 @@ public struct LocalizationTests {
         TestHarness.assertEqual(loc.tr(.layerBringForward), "Tiến lên một lớp (⌘])", "Layer bring forward Vietnamese")
         TestHarness.assertEqual(loc.tr(.layerSendBackward), "Lùi lại một lớp (⌘[)", "Layer send backward Vietnamese")
         TestHarness.assertEqual(loc.tr(.zoomHUD(125)), "Thu phóng: 125%", "Zoom HUD Vietnamese")
+        TestHarness.assertEqual(loc.tr(.framesCount(8)), "8 khung hình", "Frames count Vietnamese")
+        TestHarness.assertEqual(loc.tr(.screenshotDeleted), "Đã xóa ảnh chụp", "Screenshot deleted Vietnamese")
+        TestHarness.assertEqual(loc.tr(.copiedDiagnostics), "Đã sao chép thông tin chẩn đoán", "Copied diagnostics Vietnamese")
+
+        loc.setLanguage(.english)
+        TestHarness.assertEqual(loc.tr(.framesCount(8)), "8 frames", "Frames count English")
+        TestHarness.assertEqual(loc.tr(.screenshotDeleted), "Screenshot Deleted", "Screenshot deleted English")
+        TestHarness.assertEqual(loc.tr(.copiedDiagnostics), "Diagnostic Info Copied", "Copied diagnostics English")
+
+        let v1018Keys: [L10nKey] = [
+            .framesCount(5),
+            .screenshotDeleted,
+            .copiedDiagnostics
+        ]
+        for key in v1018Keys {
+            for lang in AppLanguage.allCases {
+                let text = key.localized(for: lang)
+                TestHarness.assertFalse(text.isEmpty, "v1.0.18 Key \(key) has non-empty translation in \(lang.rawValue)")
+            }
+        }
 
         // 6. Zero emoji invariant check across all keys in all languages
         validateZeroEmojisAcrossDictionary()
@@ -187,7 +207,8 @@ public struct LocalizationTests {
             .strokeWidthHUD(4), .resetShortcutTooltip("Option+S"),
             .previewCancelTooltip, .previewDoneTooltip,
             .layerBringToFront, .layerSendToBack, .layerBringForward, .layerSendBackward,
-            .zoomHUD(125), .captureOverlayInstruction, .directAutoPaste
+            .zoomHUD(125), .captureOverlayInstruction, .directAutoPaste,
+            .framesCount(10), .screenshotDeleted, .copiedDiagnostics
         ]
 
         let emojiRanges: [ClosedRange<UInt32>] = [

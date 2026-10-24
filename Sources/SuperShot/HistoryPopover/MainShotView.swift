@@ -24,6 +24,8 @@ public struct MainShotView: View {
     @State private var copiedItemId: UUID? = nil
     @State private var showCopiedToast: Bool = false
     @State private var copyFeedbackTask: Task<Void, Never>? = nil
+    @State private var showDeletedToast: Bool = false
+    @State private var deleteFeedbackTask: Task<Void, Never>? = nil
 
     public init(
         storageManager: StorageManager,
@@ -106,6 +108,34 @@ public struct MainShotView: View {
                     .overlay(
                         Capsule()
                             .stroke(Color.green.opacity(0.4), lineWidth: 1)
+                    )
+                    .padding(.bottom, 12)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.85).combined(with: .opacity),
+                        removal: .opacity
+                    ))
+                    .zIndex(100)
+                }
+
+                if showDeletedToast {
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash.fill")
+                            .foregroundColor(.red)
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(localizationManager.tr(.screenshotDeleted))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color(nsColor: .windowBackgroundColor))
+                            .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 3)
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.red.opacity(0.4), lineWidth: 1)
                     )
                     .padding(.bottom, 12)
                     .transition(.asymmetric(
@@ -429,7 +459,10 @@ public struct MainShotView: View {
                                 onCopy: { copyItem($0) },
                                 onSave: { saveItem($0) },
                                 onTogglePin: { storageManager.togglePin(id: $0.id) },
-                                onDelete: { storageManager.deleteItem(id: $0.id) },
+                                onDelete: {
+                                    storageManager.deleteItem(id: $0.id)
+                                    triggerDeleteFeedback()
+                                },
                                 onHoverChange: { hoveredItem, hovering in
                                     if hovering, let idx = visibleItems.firstIndex(where: { $0.id == hoveredItem.id }) {
                                         shouldScrollToSelection = false
@@ -455,7 +488,10 @@ public struct MainShotView: View {
                                 onCopy: { copyItem($0) },
                                 onSave: { saveItem($0) },
                                 onTogglePin: { storageManager.togglePin(id: $0.id) },
-                                onDelete: { storageManager.deleteItem(id: $0.id) },
+                                onDelete: {
+                                    storageManager.deleteItem(id: $0.id)
+                                    triggerDeleteFeedback()
+                                },
                                 onHoverChange: { hoveredItem, hovering in
                                     if hovering, let idx = visibleItems.firstIndex(where: { $0.id == hoveredItem.id }) {
                                         shouldScrollToSelection = false
@@ -694,6 +730,21 @@ public struct MainShotView: View {
         }
     }
 
+    public func triggerDeleteFeedback() {
+        deleteFeedbackTask?.cancel()
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            showDeletedToast = true
+        }
+        deleteFeedbackTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            if !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    self.showDeletedToast = false
+                }
+            }
+        }
+    }
+
     public func saveItem(_ item: ShotItem) {
         ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
         guard let data = storageManager.getImageData(for: item) else { return }
@@ -741,6 +792,8 @@ public struct MainShotView: View {
                 guard let eventWin = event.window, eventWin === host, host.isKeyWindow else { return event }
             }
 
+            let targetWin = hostWindow ?? NSApp.keyWindow
+            let hasMarkedText = (targetWin?.firstResponder as? NSTextView)?.hasMarkedText() ?? false
             let isSearchFocused = (hostWindow?.firstResponder is NSTextView)
             let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
 
@@ -775,8 +828,8 @@ public struct MainShotView: View {
                 }
             }
 
-            // 3. Down Arrow (125) - Circular cycling with live preview update
-            if event.keyCode == 125 {
+            // 3. Down Arrow (125) - Circular cycling with live preview update (yield to IME if active)
+            if event.keyCode == 125 && !hasMarkedText {
                 let newIdx = ShortcutNavigator.stepDown(currentIndex: selectedIndex, visibleCount: visibleItems.count)
                 shouldScrollToSelection = true
                 selectedIndex = newIdx
@@ -789,8 +842,8 @@ public struct MainShotView: View {
                 return nil
             }
 
-            // 4. Up Arrow (126) - Circular cycling with live preview update
-            if event.keyCode == 126 {
+            // 4. Up Arrow (126) - Circular cycling with live preview update (yield to IME if active)
+            if event.keyCode == 126 && !hasMarkedText {
                 let newIdx = ShortcutNavigator.stepUp(currentIndex: selectedIndex, visibleCount: visibleItems.count)
                 shouldScrollToSelection = true
                 selectedIndex = newIdx
@@ -814,18 +867,19 @@ public struct MainShotView: View {
                 }
             }
 
-            // 5b. Return (36) or Keypad Enter (76): Select / copy item
-            if (event.keyCode == 36 || event.keyCode == 76) && flags.isEmpty {
+            // 5b. Return (36) or Keypad Enter (76): Select / copy item (yield to IME if active)
+            if (event.keyCode == 36 || event.keyCode == 76) && flags.isEmpty && !hasMarkedText {
                 handleReturnKey()
                 return nil
             }
 
             // 6. Delete (51) / Forward Delete (117): Remove selected history item
-            if (event.keyCode == 51 || event.keyCode == 117) && (!isSearchFocused || flags.contains(.command)) {
+            if (event.keyCode == 51 || event.keyCode == 117) && (!isSearchFocused || flags.contains(.command)) && !hasMarkedText {
                 if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
                     let item = visibleItems[idx]
                     ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                     storageManager.deleteItem(id: item.id)
+                    triggerDeleteFeedback()
                     if visibleItems.count > 1 {
                         selectedIndex = min(idx, visibleItems.count - 2)
                     } else {

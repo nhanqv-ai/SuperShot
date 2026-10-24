@@ -41,7 +41,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     public var currentMousePoint: CGPoint?
     private var trackingAreaRef: NSTrackingArea?
     private var cancellables = Set<AnyCancellable>()
-    private var toolHUDText: String? = nil
+    public private(set) var toolHUDText: String? = nil
     private var toolHUDTimer: Timer? = nil
 
     public init(
@@ -190,6 +190,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         toolbarsViewModel.onCopyRequested = { [weak self] in
             guard let self = self, !self.selectionRect.isEmpty else { return }
             self.commitActiveTextEditing()
+            self.showHUDNotification(text: LocalizationManager.shared.tr(.copiedToClipboard))
             self.windowDelegate?.captureDelegate?.overlayDidConfirmSelection(
                 rect: self.selectionRect,
                 display: self.capturedScreen.displayInfo

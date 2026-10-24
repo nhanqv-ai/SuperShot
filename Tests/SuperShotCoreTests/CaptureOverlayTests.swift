@@ -2,6 +2,7 @@ import Foundation
 import CoreGraphics
 import AppKit
 import SuperShotCore
+import SuperShot
 
 public struct CaptureOverlayTests {
     public static func run() {
@@ -33,6 +34,9 @@ public struct CaptureOverlayTests {
 
         // 9. Aspect Ratio Detection & Shift-Key Lock (v1.0.10)
         testAspectRatioAndShiftLock()
+
+        // 10. In-Place Capture Quick Copy Confirmation (v1.0.18)
+        testQuickCopyConfirmation()
     }
 
     // --- Test 1: Mock ScreenCaptureManager ---
@@ -368,5 +372,33 @@ public struct CaptureOverlayTests {
         TestHarness.assertEqual(centerSquareRect.height, 100.0, "Center-out square height is 100")
         TestHarness.assertEqual(centerSquareRect.midX, center.x, "Center-out square midX matches center point")
         TestHarness.assertEqual(centerSquareRect.midY, center.y, "Center-out square midY matches center point")
+    }
+
+    // --- Test 10: In-Place Capture Quick Copy Confirmation (v1.0.18) ---
+    private static func testQuickCopyConfirmation() {
+        let display = CaptureDisplayInfo(
+            displayID: 1,
+            name: "Main",
+            cocoaFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            cgBounds: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            scaleFactor: 2.0,
+            isMain: true,
+            pixelSize: CGSize(width: 2880, height: 1800)
+        )
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let ctx = CGContext(data: nil, width: 100, height: 100, bitsPerComponent: 8, bytesPerRow: 400, space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
+        let dummyImage = ctx.makeImage()!
+        let captured = CapturedScreen(displayInfo: display, fullImage: dummyImage)
+
+        let contentView = CaptureOverlayContentView(
+            frame: NSRect(x: 0, y: 0, width: 1440, height: 900),
+            capturedScreen: captured
+        )
+        contentView.selectionRect = CGRect(x: 100, y: 100, width: 200, height: 150)
+        TestHarness.assertTrue(contentView.toolHUDText == nil, "Initial toolHUDText is nil")
+
+        // Trigger onCopyRequested
+        contentView.toolbarsViewModel.onCopyRequested?()
+        TestHarness.assertEqual(contentView.toolHUDText, LocalizationManager.shared.tr(.copiedToClipboard), "onCopyRequested sets toolHUDText to copiedToClipboard HUD text")
     }
 }
