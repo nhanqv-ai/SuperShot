@@ -154,6 +154,7 @@ public enum L10nKey: Sendable {
     case resetPresets
     case maxPresetsReached
     case invalidHexCode
+    case customColorPreset
     case presetRed
     case presetOrange
     case presetYellow
@@ -168,6 +169,7 @@ public enum L10nKey: Sendable {
     case actionCopy
     case actionSave
     case actionShare
+    case actionAnnotate
     case actionCancel
     case copiedToClipboard
     case savedToFile
@@ -181,6 +183,8 @@ public enum L10nKey: Sendable {
     case scrollBottomReached
     case liveStitchedPreview
     case stitchedHeight(Int)
+    case saveTallScreenshotTitle
+    case tallScreenshotWindowTitle
 
     // History Popover & MainShotView
     case pinnedSection
@@ -824,6 +828,19 @@ public enum L10nKey: Sendable {
             default: return "Invalid HEX color format"
             }
 
+        case .customColorPreset:
+            switch lang {
+            case .vietnamese: return "Tự chọn"
+            case .german: return "Benutzerdefiniert"
+            case .french: return "Personnalisé"
+            case .spanish: return "Personalizado"
+            case .japanese: return "カスタム"
+            case .simplifiedChinese: return "自定义"
+            case .traditionalChinese: return "自訂"
+            case .korean: return "사용자 정의"
+            default: return "Custom"
+            }
+
         case .presetRed:
             switch lang {
             case .vietnamese: return "Đỏ"
@@ -980,6 +997,19 @@ public enum L10nKey: Sendable {
             default: return "Share (Cmd+E)"
             }
 
+        case .actionAnnotate:
+            switch lang {
+            case .vietnamese: return "Thêm chú thích..."
+            case .german: return "Kommentieren..."
+            case .french: return "Annoter..."
+            case .spanish: return "Anotar..."
+            case .japanese: return "注釈を付ける..."
+            case .simplifiedChinese: return "添加批注..."
+            case .traditionalChinese: return "新增標註..."
+            case .korean: return "주석 추가..."
+            default: return "Annotate..."
+            }
+
         case .actionCancel:
             switch lang {
             case .vietnamese: return "Hủy (Esc)"
@@ -1121,6 +1151,32 @@ public enum L10nKey: Sendable {
             case .traditionalChinese: return "總高度: \(h) px"
             case .korean: return "총 높이: \(h) px"
             default: return "Total Height: \(h) px"
+            }
+
+        case .saveTallScreenshotTitle:
+            switch lang {
+            case .vietnamese: return "Lưu ảnh chụp cuộn dài đã ghép"
+            case .german: return "Langes zusammengesetztes Bildschirmfoto speichern"
+            case .french: return "Enregistrer la capture d'écran longue assemblée"
+            case .spanish: return "Guardar captura de pantalla larga combinada"
+            case .japanese: return "結合した縦長スクリーンショットを保存"
+            case .simplifiedChinese: return "保存拼接长截图"
+            case .traditionalChinese: return "儲存拼接長截圖"
+            case .korean: return "스티칭된 긴 스크린샷 저장"
+            default: return "Save Tall Stitched Screenshot"
+            }
+
+        case .tallScreenshotWindowTitle:
+            switch lang {
+            case .vietnamese: return "SuperShot — Ảnh chụp cuộn dài"
+            case .german: return "SuperShot — Langes Scroll-Bildschirmfoto"
+            case .french: return "SuperShot — Capture d'écran longue avec défilement"
+            case .spanish: return "SuperShot — Captura con desplazamiento largo"
+            case .japanese: return "SuperShot — 縦長スクロールスクリーンショット"
+            case .simplifiedChinese: return "SuperShot — 滚动长截图"
+            case .traditionalChinese: return "SuperShot — 捲動長截圖"
+            case .korean: return "SuperShot — 긴 스크롤 스크린샷"
+            default: return "SuperShot — Tall Scrolling Screenshot"
             }
 
         case .pinnedSection:

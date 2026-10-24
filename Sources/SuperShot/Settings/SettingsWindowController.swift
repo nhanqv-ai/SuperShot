@@ -133,6 +133,10 @@ private final class SettingsWindow: NSWindow {
             return
         }
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags == .command && (event.keyCode == 13 || event.charactersIgnoringModifiers?.lowercased() == "w") {
+            close()
+            return
+        }
         if flags == .command,
            let chars = event.charactersIgnoringModifiers,
            let firstChar = chars.first,

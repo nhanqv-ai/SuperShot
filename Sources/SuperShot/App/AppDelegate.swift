@@ -71,6 +71,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
             },
             onTriggerScrollingCapture: { [weak self] in
                 self?.triggerScrollingCapture()
+            },
+            onAnnotateItem: { [weak self] item in
+                self?.openInAnnotationWindow(item: item)
             }
         )
 
@@ -257,6 +260,13 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         NSApp.activate(ignoringOtherApps: true)
     }
 
+    public func openInAnnotationWindow(item: ShotItem) {
+        statusItemManager?.dismissPopover()
+        guard let cgImage = storageManager.loadCGImage(for: item) else { return }
+        let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+        presentScrollableAnnotationWindow(image: cgImage, scale: scale)
+    }
+
     // MARK: - CaptureOverlayWindowDelegate
 
     public func overlayDidCancel() {
@@ -284,8 +294,17 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
             captureType: .region,
             sourceApp: previousAppTracker.previousApp?.localizedName
         )
-        overlay.close()
-        activeOverlayWindow = nil
+        if ProcessInfo.processInfo.environment["SUPER_SHOT_HEADLESS"] != nil {
+            overlay.close()
+            self.activeOverlayWindow = nil
+        } else {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self, weak overlay] in
+                overlay?.close()
+                if self?.activeOverlayWindow === overlay {
+                    self?.activeOverlayWindow = nil
+                }
+            }
+        }
     }
 
     public func overlayDidTriggerSave(rect: CGRect, display: CaptureDisplayInfo) {

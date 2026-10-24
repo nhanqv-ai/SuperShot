@@ -96,5 +96,12 @@ public struct HotKeyManagerTests {
         TestHarness.assertEqual(customD.displayString, "⌥⇧D", "Custom key D formats cleanly as ⌥⇧D")
         let customF5 = HotKeyShortcut(keyCode: UInt32(kVK_F5), carbonModifiers: UInt32(cmdKey))
         TestHarness.assertEqual(customF5.displayString, "⌘F5", "Custom key F5 formats cleanly as ⌘F5")
+
+        // 6. Dynamic Shortcut Synchronization Helpers (v1.0.20)
+        TestHarness.assertEqual(HotKeyAction.captureRegion, HotKeyAction.inPlaceCapture, "HotKeyAction.captureRegion is alias of inPlaceCapture")
+        TestHarness.assertEqual(inPlaceShortcut?.keyEquivalentCharacter, "s", "In-place shortcut keyEquivalentCharacter is lowercase 's'")
+        TestHarness.assertEqual(inPlaceShortcut?.cocoaModifiers, [.option], "In-place shortcut cocoaModifiers is [.option]")
+        TestHarness.assertEqual(scrollShortcut?.keyEquivalentCharacter, "s", "Scroll shortcut keyEquivalentCharacter is lowercase 's'")
+        TestHarness.assertEqual(scrollShortcut?.cocoaModifiers, [.option, .shift], "Scroll shortcut cocoaModifiers is [.option, .shift]")
     }
 }

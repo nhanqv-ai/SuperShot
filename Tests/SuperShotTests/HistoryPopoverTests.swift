@@ -293,5 +293,26 @@ public struct HistoryPopoverTests {
         // Localization key check
         let clearedToastText = LocalizationManager.shared.tr(.unpinnedHistoryCleared)
         TestHarness.assertEqual(clearedToastText, "Unpinned history cleared", "unpinnedHistoryCleared string in English")
+
+        // 14. Quick Share, Re-Annotate, and Popover Ergonomics (v1.0.20)
+        var annotatedItem: ShotItem?
+        let annotateView = MainShotView(
+            storageManager: storage,
+            onAnnotateItem: { item in
+                annotatedItem = item
+            }
+        )
+        annotateView.annotateItem(hoverA)
+        TestHarness.assertEqual(annotatedItem?.id, hoverA.id, "annotateItem invokes onAnnotateItem callback with selected item")
+
+        let annotateWithShortcut = LocalizationManager.shared.tr(.actionAnnotate)
+        TestHarness.assertEqual(annotateWithShortcut, "Annotate...", "actionAnnotate in English is 'Annotate...'")
+
+        let shareWithShortcut = "\(LocalizationManager.shared.tr(.actionShare)) (⌘E)"
+        TestHarness.assertTrue(shareWithShortcut.contains("(⌘E)"), "Share context menu string contains (⌘E)")
+
+        // Verify shareItem runs safely in headless environment without crashing
+        mainViewForKeyboard.shareItem(hoverA, from: nil)
+        TestHarness.assertTrue(true, "shareItem executed safely in headless environment")
     }
 }

@@ -262,8 +262,22 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
             switch item.action {
             case #selector(captureRegionMenuItemClicked(_:)):
                 item.title = LocalizationManager.shared.tr(.menuCapture)
+                if let shortcut = hotKeyManager.shortcut(for: .captureRegion) {
+                    let char = shortcut.keyEquivalentCharacter
+                    if !char.isEmpty {
+                        item.keyEquivalent = char
+                        item.keyEquivalentModifierMask = shortcut.cocoaModifiers
+                    }
+                }
             case #selector(scrollingCaptureMenuItemClicked(_:)):
                 item.title = LocalizationManager.shared.tr(.menuScrollingCapture)
+                if let shortcut = hotKeyManager.shortcut(for: .scrollingCapture) {
+                    let char = shortcut.keyEquivalentCharacter
+                    if !char.isEmpty {
+                        item.keyEquivalent = char
+                        item.keyEquivalentModifierMask = shortcut.cocoaModifiers
+                    }
+                }
             case #selector(showHistoryMenuItemClicked(_:)):
                 item.title = LocalizationManager.shared.tr(.menuShowHistory)
             case #selector(settingsMenuItemClicked(_:)):

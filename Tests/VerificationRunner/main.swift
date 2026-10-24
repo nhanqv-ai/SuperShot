@@ -85,6 +85,9 @@ struct VerificationRunner {
         // 19. Tier 4: Real-World Workload Scenarios Tests
         WorkloadTests.run(sandboxDir: sandboxURL.appendingPathComponent("WorkloadTest"))
 
+        // 20. Cycle 13 UX Polish, Ergonomics & Localization Tests (v1.0.20)
+        Cycle13Tests.run(sandboxDir: sandboxURL.appendingPathComponent("Cycle13Test"))
+
         let elapsed = Date().timeIntervalSince(startTimestamp)
         print("\nVerification completed in \(String(format: "%.3f", elapsed)) seconds.")
 

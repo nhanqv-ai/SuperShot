@@ -7,6 +7,8 @@ public enum HotKeyAction: UInt32, CaseIterable, Codable, Sendable {
     case inPlaceCapture = 1
     case scrollingCapture = 2
 
+    public static let captureRegion: HotKeyAction = .inPlaceCapture
+
     public var identifier: String {
         switch self {
         case .inPlaceCapture: return "inPlaceCapture"
@@ -23,6 +25,17 @@ public struct HotKeyShortcut: Equatable, Codable, Sendable {
     public init(keyCode: UInt32, carbonModifiers: UInt32) {
         self.keyCode = keyCode
         self.carbonModifiers = carbonModifiers
+    }
+
+    /// Key character suitable for NSMenuItem.keyEquivalent.
+    public var keyEquivalentCharacter: String {
+        let glyph = keyGlyph(for: keyCode)
+        return glyph.count == 1 ? glyph.lowercased() : ""
+    }
+
+    /// Cocoa NSEvent.ModifierFlags corresponding to carbonModifiers.
+    public var cocoaModifiers: NSEvent.ModifierFlags {
+        HotKeyModifierConverter.toCocoaModifiers(carbonModifiers)
     }
 
     /// Formats the shortcut for UI display (e.g., "⌥S" or "⌥⇧S").

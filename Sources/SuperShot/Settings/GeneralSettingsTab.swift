@@ -220,7 +220,7 @@ public struct GeneralSettingsTab: View {
                 }
                 .buttonStyle(.borderless)
                 .pointingHandCursor()
-                .help(LocalizationManager.shared.tr(.resetShortcutTooltip("Option+S")))
+                .help(LocalizationManager.shared.tr(.resetShortcutTooltip("⌥S")))
             }
 
             // Scrolling Capture Shortcut
@@ -245,7 +245,7 @@ public struct GeneralSettingsTab: View {
                 }
                 .buttonStyle(.borderless)
                 .pointingHandCursor()
-                .help(LocalizationManager.shared.tr(.resetShortcutTooltip("Option+Shift+S")))
+                .help(LocalizationManager.shared.tr(.resetShortcutTooltip("⌥⇧S")))
             }
         }
         .padding(11)
