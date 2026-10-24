@@ -205,6 +205,27 @@ public struct ShotRowView: View {
             }) {
                 Label("\(localizationManager.tr(.openInFinder)) (⌘O)", systemImage: "folder")
             }
+            Button(action: {
+                ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                let url: URL
+                if let sm = storageManager {
+                    url = sm.getImageURL(for: item)
+                } else {
+                    let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                    url = appSupport.appendingPathComponent("SuperShot/images").appendingPathComponent(item.filePath)
+                }
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(url.path, forType: .string)
+            }) {
+                Label(localizationManager.tr(.copyFilePath), systemImage: "link")
+            }
+            Button(action: {
+                ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(item.dimensionsString, forType: .string)
+            }) {
+                Label(localizationManager.tr(.copyDimensions), systemImage: "aspectratio")
+            }
             Divider()
             Button(action: {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)

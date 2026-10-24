@@ -27,7 +27,8 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     private var isDraggingOnCanvas: Bool = false
     public var isPointOverFloatingToolbar: ((CGPoint) -> Bool)?
     private var cancellables = Set<AnyCancellable>()
-    private var toolHUDText: String? = nil
+    public private(set) var toolHUDText: String? = nil
+
     private var toolHUDTimer: Timer? = nil
 
     public init(baseImage: CGImage, engine: AnnotationEngine, scale: CGFloat = 2.0) {
@@ -1055,11 +1056,13 @@ public final class ScrollableAnnotationWindow: NSWindow {
         if keyCode == 48, !canvasView.documentView.hasActiveTextEditing {
             let reverse = flags.contains(.shift)
             if let selectedID = canvasView.engine.selectNextObject(reverse: reverse) {
-                if let obj = canvasView.engine.objects.first(where: { $0.id == selectedID }) {
+                if let idx = canvasView.engine.objects.firstIndex(where: { $0.id == selectedID }) {
+                    let obj = canvasView.engine.objects[idx]
+                    let total = canvasView.engine.objects.count
                     if let toolType = AnnotationToolType.allCases.first(where: { $0.sfSymbol == obj.tool.sfSymbolName }) {
-                        canvasView.documentView.showHUDNotification(text: "\(toolType.localizedName) (\(toolType.mnemonicKey))")
+                        canvasView.documentView.showHUDNotification(text: "\(toolType.localizedName) \(idx + 1)/\(total) (\(toolType.mnemonicKey))")
                     } else {
-                        canvasView.documentView.showHUDNotification(text: obj.tool.displayName)
+                        canvasView.documentView.showHUDNotification(text: "\(obj.tool.displayName) \(idx + 1)/\(total)")
                     }
                 }
                 canvasView.documentView.needsDisplay = true
@@ -1212,6 +1215,10 @@ public final class ScrollableAnnotationWindow: NSWindow {
                     minimumDimension: 10.0,
                     boundary: canvasView.documentView.bounds
                 )
+                if let sel = canvasView.engine.selectedObject {
+                    let b = sel.bounds
+                    canvasView.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.hudResize(Int(round(b.width)), Int(round(b.height)))))
+                }
             } else {
                 var dx: CGFloat = 0
                 var dy: CGFloat = 0
@@ -1223,6 +1230,7 @@ public final class ScrollableAnnotationWindow: NSWindow {
                 default: break
                 }
                 canvasView.engine.moveSelected(by: CGPoint(x: dx, y: dy))
+                canvasView.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.hudNudge(Int(step))))
             }
             canvasView.documentView.needsDisplay = true
             return

@@ -13,6 +13,8 @@ public enum DragMode: Equatable {
     case annotating
 }
 
+public typealias SelectionBoxView = CaptureOverlayContentView
+
 public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     public let capturedScreen: CapturedScreen
     public let appSettings: AppSettings
@@ -38,7 +40,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
     private var verticalToolbarHost: NSHostingView<VerticalAnnotationToolbarView>?
     private var horizontalToolbarHost: NSHostingView<HorizontalActionToolbarView>?
-    private var activeTextField: NSTextField?
+    public private(set) var activeTextField: NSTextField?
     private var editingObjectID: UUID?
     public var currentMousePoint: CGPoint?
     private var trackingAreaRef: NSTrackingArea?
@@ -615,6 +617,31 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         return path
     }
 
+    public func dimensionBadgeFrame() -> CGRect {
+        guard !selectionRect.isEmpty else { return .zero }
+        let text = SelectionBoxGeometry.formatDimensionBadge(
+            width: selectionRect.width,
+            height: selectionRect.height,
+            scaleFactor: capturedScreen.displayInfo.scaleFactor,
+            includeAspectRatio: true
+        )
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: NSFont.monospacedSystemFont(ofSize: 11, weight: .medium),
+            .foregroundColor: NSColor.white
+        ]
+        let str = NSAttributedString(string: text, attributes: attributes)
+        let textSize = str.size()
+        let badgeSize = CGSize(
+            width: max(ToolbarPositionCalculator.badgeSize.width, textSize.width + 16.0),
+            height: 22.0
+        )
+        return ToolbarPositionCalculator.calculateDimensionBadgeFrame(
+            selectionRect: selectionRect,
+            screenBounds: bounds,
+            badgeSize: badgeSize
+        )
+    }
+
     private func drawDimensionBadge(in context: CGContext) {
         let text = SelectionBoxGeometry.formatDimensionBadge(
             width: selectionRect.width,
@@ -629,15 +656,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         ]
         let str = NSAttributedString(string: text, attributes: attributes)
         let textSize = str.size()
-        let badgeSize = CGSize(
-            width: max(ToolbarPositionCalculator.badgeSize.width, textSize.width + 16.0),
-            height: 22.0
-        )
-        let badgeFrame = ToolbarPositionCalculator.calculateDimensionBadgeFrame(
-            selectionRect: selectionRect,
-            screenBounds: bounds,
-            badgeSize: badgeSize
-        )
+        let badgeFrame = dimensionBadgeFrame()
 
         let badgePath = NSBezierPath(roundedRect: badgeFrame, xRadius: 4.0, yRadius: 4.0)
         NSColor.black.withAlphaComponent(0.75).setFill()
@@ -839,11 +858,13 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         if event.keyCode == 48, activeTextField == nil {
             let reverse = event.modifierFlags.contains(.shift)
             if let selectedID = annotationEngine.selectNextObject(reverse: reverse) {
-                if let obj = annotationEngine.objects.first(where: { $0.id == selectedID }) {
+                if let idx = annotationEngine.objects.firstIndex(where: { $0.id == selectedID }) {
+                    let obj = annotationEngine.objects[idx]
+                    let total = annotationEngine.objects.count
                     if let toolType = AnnotationToolType.allCases.first(where: { $0.sfSymbol == obj.tool.sfSymbolName }) {
-                        showHUDNotification(text: "\(toolType.localizedName) (\(toolType.mnemonicKey))")
+                        showHUDNotification(text: "\(toolType.localizedName) \(idx + 1)/\(total) (\(toolType.mnemonicKey))")
                     } else {
-                        showHUDNotification(text: obj.tool.displayName)
+                        showHUDNotification(text: "\(obj.tool.displayName) \(idx + 1)/\(total)")
                     }
                 }
                 needsDisplay = true
@@ -888,6 +909,10 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                         minimumDimension: 10.0,
                         boundary: selectionRect.isEmpty ? bounds : selectionRect
                     )
+                    if let sel = annotationEngine.selectedObject {
+                        let b = sel.bounds
+                        showHUDNotification(text: LocalizationManager.shared.tr(.hudResize(Int(round(b.width)), Int(round(b.height)))))
+                    }
                     needsDisplay = true
                     return true
                 }
@@ -912,6 +937,10 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                     if newWidth != selectionRect.width || newHeight != selectionRect.height {
                         selectionRect = CGRect(origin: selectionRect.origin, size: CGSize(width: newWidth, height: newHeight))
                     }
+                    let scale = capturedScreen.displayInfo.scaleFactor
+                    let w = Int(round(selectionRect.width * scale))
+                    let h = Int(round(selectionRect.height * scale))
+                    showHUDNotification(text: LocalizationManager.shared.tr(.hudResize(w, h)))
                     return true
                 }
             } else {
@@ -929,6 +958,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                 // If a vector annotation object is selected, nudge the object
                 if annotationEngine.selectedObjectID != nil {
                     annotationEngine.moveSelected(by: CGPoint(x: dx, y: dy))
+                    showHUDNotification(text: LocalizationManager.shared.tr(.hudNudge(Int(step))))
                     needsDisplay = true
                     return true
                 }
@@ -946,6 +976,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                         }
                         selectionRect = newRect
                     }
+                    showHUDNotification(text: LocalizationManager.shared.tr(.hudNudge(Int(step))))
                     return true
                 }
             }
@@ -967,6 +998,23 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         currentMousePoint = point
         guard !isPointOverFloatingUI(point) else { return }
 
+        // 0. Interactive Dimension Badge Click-to-Copy
+        if !selectionRect.isEmpty {
+            let badgeFrame = dimensionBadgeFrame()
+            if badgeFrame.contains(point) {
+                let dimString = SelectionBoxGeometry.formatDimensionBadge(
+                    width: selectionRect.width,
+                    height: selectionRect.height,
+                    scaleFactor: capturedScreen.displayInfo.scaleFactor,
+                    includeAspectRatio: false
+                )
+                NSPasteboard.general.clearContents()
+                NSPasteboard.general.setString(dimString, forType: .string)
+                showHUDNotification(text: LocalizationManager.shared.tr(.copiedDimensions))
+                return
+            }
+        }
+
         // 1. Selection Box Grab Handles always take priority for resizing the region
         if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
             let anchor = SelectionBoxGeometry.anchorPoint(for: handle, in: selectionRect)
@@ -978,15 +1026,19 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
         // 2. Inside Selection Box: Vector Annotation or Region Move
         if selectionRect.contains(point) {
-            // Double-click on an existing text object edits it in place
-            if event.clickCount == 2,
-               let hitObj = annotationEngine.selectObject(at: point),
-               hitObj.tool == .text {
-                startInlineTextEditing(for: hitObj)
-                updateCanvasCursor(at: point)
-                needsDisplay = true
+            // Double-click handling
+            if event.clickCount == 2 {
+                if let hitObj = annotationEngine.selectObject(at: point), hitObj.tool == .text {
+                    startInlineTextEditing(for: hitObj)
+                    updateCanvasCursor(at: point)
+                    needsDisplay = true
+                    return
+                }
+                // Double-click on empty region inside selection box triggers instant copy & dismiss
+                toolbarsViewModel.triggerCopy()
                 return
             }
+
 
             if annotationEngine.activeTool != .select {
                 dragMode = .annotating
@@ -1225,6 +1277,12 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
             return handle.cursor
         }
+
+        // 2.5. Hover state over interactive dimension badge
+        if !selectionRect.isEmpty && dimensionBadgeFrame().contains(point) {
+            return .pointingHand
+        }
+
 
         // 3. Hover state inside selection box
         if selectionRect.contains(point) {

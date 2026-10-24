@@ -17,7 +17,7 @@ public struct MainShotView: View {
     public var onAnnotateItem: ((ShotItem) -> Void)?
 
     @ObservedObject private var localizationManager = LocalizationManager.shared
-    @State private var searchText: String = ""
+    @State private var searchText: String
     @State private var selectedIndex: Int? = 0
     @State private var shouldScrollToSelection: Bool = false
     @State private var localKeyMonitor: Any? = nil
@@ -29,6 +29,8 @@ public struct MainShotView: View {
     @State private var deleteFeedbackTask: Task<Void, Never>? = nil
     @State private var showClearedToast: Bool = false
     @State private var clearFeedbackTask: Task<Void, Never>? = nil
+    @State private var showingReleaseNotesSheet: Bool = false
+
 
     public init(
         storageManager: StorageManager,
@@ -36,6 +38,7 @@ public struct MainShotView: View {
         updateManager: UpdateManager = UpdateManager.shared,
         autoPasteService: any AutoPasteServicing = AutoPasteService.shared,
         previousAppTracker: any PreviousAppTracking = PreviousAppTracker.shared,
+        initialSearchText: String = "",
         onDismiss: (() -> Void)? = nil,
         onOpenSettings: (() -> Void)? = nil,
         onTriggerRegionCapture: (() -> Void)? = nil,
@@ -48,6 +51,7 @@ public struct MainShotView: View {
         self.updateManager = updateManager
         self.autoPasteService = autoPasteService
         self.previousAppTracker = previousAppTracker
+        self._searchText = State(initialValue: initialSearchText)
         self.onDismiss = onDismiss
         self.onOpenSettings = onOpenSettings
         self.onCaptureRegion = onTriggerRegionCapture
@@ -217,8 +221,16 @@ public struct MainShotView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showingReleaseNotesSheet) {
+                if let release = updateManager.latestRelease {
+                    ReleaseNotesSheetView(release: release) {
+                        showingReleaseNotesSheet = false
+                    }
+                }
+            }
         }
     }
+
 
     // MARK: - Header Bar
 
@@ -379,13 +391,25 @@ public struct MainShotView: View {
                 .pointingHandCursor()
 
             case .downloading:
-                ProgressView()
-                    .controlSize(.small)
-                    .scaleEffect(0.6)
+                HStack(spacing: 5) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .scaleEffect(0.6)
+                    Button(action: {
+                        updateManager.cancelDownload()
+                    }) {
+                        Image(systemName: "xmark.circle")
+                            .font(.system(size: 11))
+                            .foregroundColor(.secondary)
+                    }
+                    .buttonStyle(.plain)
+                    .pointingHandCursor()
+                    .help(localizationManager.tr(.cancelDownload))
+                }
 
             case .updateAvailable(let release):
                 Button(action: {
-                    NSWorkspace.shared.open(release.htmlURL)
+                    showingReleaseNotesSheet = true
                 }) {
                     Text(localizationManager.tr(.releaseNotes))
                         .font(.system(size: 10))
@@ -394,6 +418,7 @@ public struct MainShotView: View {
                 .buttonStyle(.plain)
                 .foregroundColor(.secondary)
                 .pointingHandCursor()
+
 
                 Button(action: {
                     updateManager.dismissBannerForSession()

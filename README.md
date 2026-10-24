@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.22"><img src="https://img.shields.io/badge/version-v1.0.22-blue.svg?style=flat-square" alt="Version v1.0.22"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.23"><img src="https://img.shields.io/badge/version-v1.0.23-blue.svg?style=flat-square" alt="Version v1.0.23"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -118,6 +118,20 @@ SuperShot provides a fast, flexible color management system for all vector annot
    - Manage presets directly: right-click to delete a preset, or reset presets to factory defaults in **Preferences** -> **Capture & Save**.
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
+
+### What's New in v1.0.23
+
+- **Update Download Cancellation & Abort Recovery**: Retain active download task with immediate cancellation via dedicated `cancelDownload()` method in `UpdateManager`, featuring cancellation buttons (`xmark.circle`) in both the About settings tab and the History Popover update banner.
+- **Determinate Linear Progress Bar in About Tab**: Replaced indeterminate spinner with a sleek determinate `ProgressView` and percentage readout during update asset downloads.
+- **In-App Release Notes Viewer Sheet**: Added a native macOS sheet view (`ReleaseNotesSheetView`) allowing users to read full markdown release notes directly inside SuperShot before upgrading.
+- **Update Error Reporting with Inline Retry Action**: Visual warning indicator, complete error tooltip, and direct "Retry" action button (`arrow.clockwise`) on check or download failures.
+- **Last Checked Timestamp Caption in About Tab**: Displays relative time caption (`Last checked: ...`) below the Check for Updates action across all 9 supported languages.
+- **Double-Click Selection to Quick-Copy & Dismiss**: Double-clicking inside an active selection rectangle instantly copies the region to the clipboard with HUD feedback and dismisses the overlay.
+- **Interactive Dimension Badge Click-to-Copy**: Hovering the live dimension badge displays a pointing-hand cursor, and clicking immediately copies dimension string (`W x H px`) to the clipboard with confirmation HUD.
+- **Positional Index & Total Count in Object Cycling HUD**: Keyboard cycling (`Tab` / `Shift+Tab`) provides enhanced HUD feedback including tool name, 1-based index, total objects, and shortcut mnemonic (e.g., `Arrow 2/4 (A)`).
+- **History Context Menu Enhancements**: Added "Copy File Path" (`link`) and "Copy Dimensions" (`aspectratio`) actions to history item context menus.
+- **Keyboard Nudge & Resize HUD Pill Feedback**: Real-time transient HUD pills confirm arrow-key nudging (`Nudge (1pt)` / `Nudge (10pt)`) and `Option + Arrow` dimension resizing (`W x H px`).
+- **Search Filter Empty State Quick Reset Button**: Added a 1-click "Clear Search" reset button (`xmark.circle`) when history search filters return 0 matching items.
 
 ### What's New in v1.0.22
 
@@ -253,7 +267,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.22.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.23.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -397,6 +411,20 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
+### Điểm mới trong v1.0.23
+
+- **Hủy tải bản cập nhật & Khôi phục trạng thái an toàn**: Giữ tác vụ tải đang hoạt động với phương thức hủy trực tiếp `cancelDownload()` trong `UpdateManager`, tích hợp nút hủy (`xmark.circle`) trên cả tab Cài đặt Thông tin và thanh thông báo cập nhật trong Popover.
+- **Thanh tiến trình tải tuyến tính trong tab Thông tin**: Thay thế vòng xoay không xác định bằng thanh tiến trình `ProgressView` dạng đường thẳng hiển thị phần trăm chính xác theo thời gian thực.
+- **Cửa sổ xem ghi chú phát hành trực tiếp trong ứng dụng**: Bổ sung giao diện bảng trượt (`ReleaseNotesSheetView`) giúp người dùng xem đầy đủ ghi chú phát hành trước khi cập nhật.
+- **Báo cáo lỗi cập nhật kèm nút thử lại trực tiếp**: Hiển thị biểu tượng cảnh báo tam giác vàng, chú giải lỗi chi tiết và nút "Thử lại" (`arrow.clockwise`) khi gặp sự cố kiểm tra hoặc tải bản cập nhật.
+- **Hiển thị thời gian kiểm tra cập nhật gần nhất**: Bổ sung dòng chú thích thời gian tương đối (`Kiểm tra lần cuối: ...`) dưới nút Kiểm tra cập nhật trên cả 9 ngôn ngữ.
+- **Nhấp đúp vùng chọn để sao chép nhanh & Đóng lớp phủ**: Nhấp đúp chuột bên trong khung chọn chụp ảnh để sao chép tức thì vào bộ nhớ tạm kèm huy hiệu HUD và tự động đóng lớp phủ.
+- **Huy hiệu kích thước tương tác & Nhấp để sao chép**: Rê chuột lên huy hiệu kích thước hiển thị con trỏ bàn tay chỉ, nhấp chuột để sao chép nhanh chuỗi kích thước (`R x C px`) kèm thông báo HUD xác nhận.
+- **Hiển thị thứ tự & Tổng số đối tượng khi duyệt phím Tab**: Bổ sung thông tin số thứ tự, tổng số đối tượng và phím tắt công cụ trực quan (ví dụ: `Mũi tên 2/4 (A)`) khi duyệt phím `Tab` / `Shift+Tab`.
+- **Bổ sung tùy chọn sao chép đường dẫn & kích thước trong Menu chuột phải**: Tích hợp các hành động "Sao chép đường dẫn tệp" (`link`) và "Sao chép kích thước" (`aspectratio`) vào menu ngữ cảnh hàng lịch sử.
+- **Huy hiệu HUD phản hồi khi dịch chuyển & Thay đổi kích thước bằng bàn phím**: Hiển thị huy hiệu HUD trực quan khi dịch chuyển vùng chọn bằng phím mũi tên (`Dịch chuyển (1pt)` / `Dịch chuyển (10pt)`) và co giãn bằng phím `Option + Mũi tên` (`R x C px`).
+- **Nút xóa nhanh từ khóa tìm kiếm khi không có kết quả**: Bổ sung nút "Xóa tìm kiếm" nổi bật kèm biểu tượng `xmark.circle` trong trạng thái tìm kiếm trống để đặt lại bộ lọc chỉ với 1 cú nhấp.
+
 ### Điểm mới trong v1.0.22
 
 - **Nâng cấp UpdateManager hỗ trợ gói DMG & Thanh tiến trình tải thời gian thực**: Trình quản lý cập nhật tự động nhận diện và giải nén tệp `.dmg` qua `hdiutil`, báo cáo tiến trình tải chi tiết theo byte (`URLSessionDownloadDelegate`), hỗ trợ cài đặt động vào thư mục ứng dụng người dùng, và tự động gỡ bỏ thuộc tính cách ly (`com.apple.quarantine`).
@@ -531,7 +559,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.22.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.23.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

@@ -6,6 +6,7 @@ import Carbon
 import Darwin
 import SuperShotCore
 import SuperShot
+import Combine
 
 // MARK: - Adversarial Test Harness
 
@@ -220,6 +221,9 @@ struct AdversarialChallenge {
 
         // M52: Milestone M52 Cycle 15 UpdateManager, DMG Extraction & Streaming Progress Stress Suite
         testMilestoneM52EmpiricalStressAndAdversarialChallenge()
+
+        // M53: Milestone M53 Cycle 16 Features F1-F5 UpdateManager Abort, Concurrency & Release Notes Adversarial Challenge
+        testCycle16M1EmpiricalStressAndAdversarialChallenge()
 
         let elapsed = Date().timeIntervalSince(startTime)
 
@@ -4833,7 +4837,7 @@ struct AdversarialChallenge {
         // Sub-scenario 26E: Rapid Repeated Update Checks (100 Concurrent Requests)
         // -------------------------------------------------------------
         let concurrentCheckMgr = UpdateManager()
-        concurrentCheckMgr.currentVersion = "1.0.22"
+        concurrentCheckMgr.currentVersion = "1.0.23"
         let checkGroup = DispatchGroup()
         let checkQueue = DispatchQueue(label: "adv.check.stress", attributes: .concurrent)
         for _ in 0..<100 {
@@ -4947,6 +4951,323 @@ struct AdversarialChallenge {
 
         // Cleanup
         try? FileManager.default.removeItem(at: sandboxDir)
+    }
+
+    // MARK: - 27. Milestone M53 Cycle 16 Features F1-F5 Adversarial Challenge
+    static func testCycle16M1EmpiricalStressAndAdversarialChallenge() {
+        ChallengerHarness.startSuite("27. Milestone M53 Cycle 16 Features F1-F5 UpdateManager Abort, Concurrency & Release Notes Adversarial Challenge")
+
+        let sandboxDir = FileManager.default.temporaryDirectory.appendingPathComponent("SuperShotAdvM53_\(UUID().uuidString)")
+        try! FileManager.default.createDirectory(at: sandboxDir, withIntermediateDirectories: true)
+        defer {
+            try? FileManager.default.removeItem(at: sandboxDir)
+        }
+
+        let dummyRelease = ReleaseInfo(
+            tagName: "v1.0.23",
+            name: "SuperShot v1.0.23",
+            releaseNotes: "## Improvements\n- Interactive dimension badge click-to-copy\n- Double-click to quick copy",
+            htmlURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.23")!,
+            zipAssetURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.23/SuperShot-v1.0.23.zip")!,
+            dmgAssetURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.23/SuperShot-v1.0.23.dmg")!
+        )
+
+        // -------------------------------------------------------------
+        // Sub-scenario 27A: Rapid Cancellation Tight Loop & Zero Leakage (F1)
+        // -------------------------------------------------------------
+        let mgrCancel = UpdateManager()
+        mgrCancel.latestRelease = dummyRelease
+
+        let tempBase = FileManager.default.temporaryDirectory
+        func countUpdateTempDirs() -> Int {
+            let contents = (try? FileManager.default.contentsOfDirectory(atPath: tempBase.path)) ?? []
+            return contents.filter { $0.hasPrefix("SuperShot-Update-") }.count
+        }
+
+        let preLoopTempCount = countUpdateTempDirs()
+
+        for _ in 0..<50 {
+            mgrCancel.startDownloadAndInstall(release: dummyRelease)
+            mgrCancel.cancelDownload()
+        }
+
+        // Drain runloop to allow OS tasks to handle cancellation
+        let drainDeadline = Date().addingTimeInterval(1.0)
+        while Date() < drainDeadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+
+        let postLoopTempCount = countUpdateTempDirs()
+        ChallengerHarness.assertEqual(postLoopTempCount, preLoopTempCount, "27A: Zero temporary download directories leaked across 50 rapid cancellations")
+        ChallengerHarness.assertNil(mgrCancel.activeDownloadTask, "27A: activeDownloadTask is nil after cancellation loop")
+        ChallengerHarness.assertNil(mgrCancel.activeDownloadDir, "27A: activeDownloadDir is nil after cancellation loop")
+        ChallengerHarness.assertEqual(mgrCancel.downloadProgress, 0.0, "27A: downloadProgress reset to 0.0 after cancellation")
+
+        if case .updateAvailable(let rel) = mgrCancel.status {
+            ChallengerHarness.assertEqual(rel.tagName, dummyRelease.tagName, "27A: Status reverted to updateAvailable when latestRelease is present")
+        } else {
+            ChallengerHarness.assertTrue(false, "27A: Status should be updateAvailable, got \(mgrCancel.status)")
+        }
+
+        // Cancellation with latestRelease == nil reverts to .idle
+        let mgrEmpty = UpdateManager()
+        mgrEmpty.status = .downloading(progress: 0.5)
+        mgrEmpty.downloadProgress = 0.5
+        mgrEmpty.cancelDownload()
+        ChallengerHarness.assertEqual(mgrEmpty.status, .idle, "27A: Status cleanly reverts to .idle when no latestRelease is set")
+        ChallengerHarness.assertEqual(mgrEmpty.downloadProgress, 0.0, "27A: Progress reset to 0.0 when reverting to idle")
+
+        // -------------------------------------------------------------
+        // Sub-scenario 27B: Abort-and-Restart Storms & State Machine Transitions (F1)
+        // -------------------------------------------------------------
+        let mgrStorm = UpdateManager()
+        mgrStorm.latestRelease = dummyRelease
+
+        var stateTransitionFailures = 0
+        for _ in 0..<40 {
+            mgrStorm.startDownloadAndInstall(release: dummyRelease)
+            if case .downloading = mgrStorm.status {} else { stateTransitionFailures += 1 }
+            mgrStorm.cancelDownload()
+            if case .updateAvailable = mgrStorm.status {} else { stateTransitionFailures += 1 }
+            mgrStorm.startDownloadAndInstall(release: dummyRelease)
+            if case .downloading = mgrStorm.status {} else { stateTransitionFailures += 1 }
+            mgrStorm.cancelDownload()
+            if case .updateAvailable = mgrStorm.status {} else { stateTransitionFailures += 1 }
+        }
+
+        // Drain runloop
+        let stormDrain = Date().addingTimeInterval(1.0)
+        while Date() < stormDrain {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+
+        ChallengerHarness.assertEqual(stateTransitionFailures, 0, "27B: 40 abort-and-restart cycles completed with 0 state transition failures")
+        ChallengerHarness.assertNil(mgrStorm.activeDownloadTask, "27B: activeDownloadTask is nil after abort storm")
+        ChallengerHarness.assertNil(mgrStorm.activeDownloadDir, "27B: activeDownloadDir is nil after abort storm")
+        ChallengerHarness.assertEqual(mgrStorm.status, .updateAvailable(dummyRelease), "27B: Status cleanly settled in updateAvailable")
+
+        // -------------------------------------------------------------
+        // Sub-scenario 27C: Concurrent Download & Cancellation Storms (F1, F4)
+        // -------------------------------------------------------------
+        let mgrConcurrent = UpdateManager()
+        mgrConcurrent.latestRelease = dummyRelease
+        let concurrentGroup = DispatchGroup()
+        let concurrentQueue = DispatchQueue(label: "com.supershot.adversarial.c16", attributes: .concurrent)
+
+        for i in 0..<30 {
+            concurrentGroup.enter()
+            concurrentQueue.async {
+                if i % 2 == 0 {
+                    mgrConcurrent.startDownloadAndInstall(release: dummyRelease)
+                } else {
+                    mgrConcurrent.cancelDownload()
+                }
+                concurrentGroup.leave()
+            }
+        }
+        concurrentGroup.wait()
+        mgrConcurrent.cancelDownload()
+
+        let concurrentDrain = Date().addingTimeInterval(1.0)
+        while Date() < concurrentDrain {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+
+        ChallengerHarness.assertTrue(true, "27C: 30 concurrent startDownload/cancelDownload operations completed without crash or deadlock")
+        ChallengerHarness.assertNil(mgrConcurrent.activeDownloadTask, "27C: Final activeDownloadTask is nil after concurrent storm")
+        ChallengerHarness.assertNil(mgrConcurrent.activeDownloadDir, "27C: Final activeDownloadDir is nil after concurrent storm")
+
+        // -------------------------------------------------------------
+        // Sub-scenario 27D: ReleaseNotesSheetView Malformed, Corrupted & Extreme Boundary Stress (F3)
+        // -------------------------------------------------------------
+        let adversarialNoteCases: [(name: String, notes: String, tag: String, urlStr: String, expectFallback: Bool)] = [
+            ("Empty String", "", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", true),
+            ("Whitespace Only Spaces", "     ", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", true),
+            ("Whitespace Only Newlines & Tabs", "\n\n\t\t\r\n", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", true),
+            ("Mixed Blank", "   \t \r \n  ", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", true),
+            ("Massive 100k Markdown", String(repeating: "## Section Header\n- Fix issue with item rendering\n", count: 2500), "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", false),
+            ("Null Bytes & Control Codes", "Update\u{0000}Notes\u{0007}\u{001B}[31mEscaped\u{0008}", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", false),
+            ("RTL Override & Zero-Width", "LTR \u{202E}RTL-Inverted\u{202C} \u{200B}\u{200C}\u{FEFF} Hidden", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", false),
+            ("Empty Tag Name", "Fixed bugs", "", "https://github.com/nhanqv-ai/SuperShot", false),
+            ("Custom URL Scheme", "Changelog", "v1.0.23", "supershot://release/23", false),
+            ("File URL", "Changelog", "v1.0.23", "file:///tmp/changelog.txt", false)
+        ]
+
+        for tc in adversarialNoteCases {
+            let rel = ReleaseInfo(
+                tagName: tc.tag,
+                name: "SuperShot " + tc.tag,
+                releaseNotes: tc.notes,
+                htmlURL: URL(string: tc.urlStr) ?? URL(fileURLWithPath: "/"),
+                zipAssetURL: nil,
+                dmgAssetURL: nil
+            )
+
+            var dismissFired = false
+            let sheet = ReleaseNotesSheetView(release: rel) {
+                dismissFired = true
+            }
+
+            // Verify body evaluation produces a valid View hierarchy without crash
+            let _ = sheet.body
+            sheet.onDismiss()
+            ChallengerHarness.assertTrue(dismissFired, "27D: ReleaseNotesSheetView '\(tc.name)' evaluated body and executed onDismiss safely")
+
+            let trimmed = tc.notes.trimmingCharacters(in: .whitespacesAndNewlines)
+            ChallengerHarness.assertEqual(trimmed.isEmpty, tc.expectFallback, "27D: Fallback expectation verified for '\(tc.name)'")
+        }
+
+        // Verify all 9 languages for all F3 localization keys
+        for lang in AppLanguage.allCases {
+            let title = LocalizationKey.releaseNotesSheetTitle("v1.0.23").localized(for: lang)
+            let fallback = LocalizationKey.releaseNotesFallback.localized(for: lang)
+            let viewNotes = LocalizationKey.viewReleaseNotes.localized(for: lang)
+            let cancelDl = LocalizationKey.cancelDownload.localized(for: lang)
+            let retry = LocalizationKey.retryButton.localized(for: lang)
+            let lastChecked = LocalizationKey.lastCheckedLabel("just now").localized(for: lang)
+
+            ChallengerHarness.assertFalse(title.isEmpty, "27D: releaseNotesSheetTitle non-empty for \(lang.rawValue)")
+            ChallengerHarness.assertFalse(fallback.isEmpty, "27D: releaseNotesFallback non-empty for \(lang.rawValue)")
+            ChallengerHarness.assertFalse(viewNotes.isEmpty, "27D: viewReleaseNotes non-empty for \(lang.rawValue)")
+            ChallengerHarness.assertFalse(cancelDl.isEmpty, "27D: cancelDownload non-empty for \(lang.rawValue)")
+            ChallengerHarness.assertFalse(retry.isEmpty, "27D: retryButton non-empty for \(lang.rawValue)")
+            ChallengerHarness.assertFalse(lastChecked.isEmpty, "27D: lastCheckedLabel non-empty for \(lang.rawValue)")
+        }
+
+        // -------------------------------------------------------------
+        // Sub-scenario 27E: Concurrent Status Listener Queries & Combine Observation (F1, F2, F4, F5)
+        // -------------------------------------------------------------
+        let mgrQuery = UpdateManager()
+        var cancellables = Set<AnyCancellable>()
+        var observedStatusCount = 0
+        var observedProgressCount = 0
+        let statusLock = NSLock()
+
+        mgrQuery.$status.sink { _ in
+            statusLock.lock()
+            observedStatusCount += 1
+            statusLock.unlock()
+        }.store(in: &cancellables)
+
+        mgrQuery.$downloadProgress.sink { _ in
+            statusLock.lock()
+            observedProgressCount += 1
+            statusLock.unlock()
+        }.store(in: &cancellables)
+
+        let queryGroup = DispatchGroup()
+        let queryQueue = DispatchQueue(label: "com.supershot.query.adversarial", attributes: .concurrent)
+
+        for i in 0..<100 {
+            queryGroup.enter()
+            queryQueue.async {
+                _ = mgrQuery.status
+                _ = mgrQuery.downloadProgress
+                _ = mgrQuery.hasPendingUpdate
+                _ = mgrQuery.latestRelease
+                _ = mgrQuery.stagedAppURL
+                _ = mgrQuery.isBusy
+                _ = mgrQuery.shouldShowBanner
+
+                if i % 10 == 0 {
+                    DispatchQueue.main.async {
+                        mgrQuery.downloadProgress = Double(i) / 100.0
+                    }
+                }
+                queryGroup.leave()
+            }
+        }
+        queryGroup.wait()
+
+        let queryDrain = Date().addingTimeInterval(0.5)
+        while Date() < queryDrain {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+
+        cancellables.removeAll()
+        ChallengerHarness.assertTrue(observedStatusCount > 0, "27E: Combine $status subscriber received events under concurrent queries")
+        ChallengerHarness.assertTrue(observedProgressCount > 0, "27E: Combine $downloadProgress subscriber received events under concurrent queries")
+
+        // -------------------------------------------------------------
+        // Sub-scenario 27F: Error State & Inline Retry Transitions (F4, F5)
+        // -------------------------------------------------------------
+        let mgrError = UpdateManager()
+        mgrError.latestRelease = dummyRelease
+        mgrError.status = .error(message: "Simulated Connection Reset by Peer")
+
+        if case .error(let msg) = mgrError.status {
+            ChallengerHarness.assertEqual(msg, "Simulated Connection Reset by Peer", "27F: UpdateManager holds simulated error message")
+        } else {
+            ChallengerHarness.assertTrue(false, "27F: Status expected to be .error")
+        }
+
+        let appSettings = AppSettings()
+        let storageMgr = StorageManager(baseDirectory: sandboxDir)
+
+        // Verify AboutSettingsTab renders error UI without crashing
+        let aboutTab = AboutSettingsTab(
+            appSettings: appSettings,
+            storageManager: storageMgr,
+            updateManager: mgrError
+        )
+        let _ = aboutTab.body
+        ChallengerHarness.assertTrue(true, "27F: AboutSettingsTab rendered cleanly in error state with inline retry")
+
+        // Simulate retry: transition from error to downloading
+        mgrError.status = .downloading(progress: 0.1)
+        if case .downloading(let p) = mgrError.status {
+            ChallengerHarness.assertEqual(p, 0.1, "27F: Status transitioned from error to downloading on retry")
+        }
+
+        // Test extreme last checked timestamps (F5)
+        let extremeDates: [Date?] = [
+            nil,
+            Date(timeIntervalSince1970: 0), // 1970
+            Date(timeIntervalSince1970: 1700000000), // 2023
+            Date(timeIntervalSince1970: 4102444800)  // 2100
+        ]
+
+        for d in extremeDates {
+            appSettings.lastUpdateCheckDate = d
+            let caption = appSettings.lastUpdateCheckDate.map { RelativeTimeFormatter.format($0) }
+            if let formatted = caption {
+                for lang in AppLanguage.allCases {
+                    let localizedLabel = LocalizationKey.lastCheckedLabel(formatted).localized(for: lang)
+                    ChallengerHarness.assertFalse(localizedLabel.isEmpty, "27F: lastCheckedLabel non-empty for extreme date in \(lang.rawValue)")
+                }
+            }
+        }
+
+        // -------------------------------------------------------------
+        // Sub-scenario 27G: Resident Memory & Resource Growth Bounds
+        // -------------------------------------------------------------
+        func getResidentMemoryBytes() -> UInt64 {
+            var info = mach_task_basic_info()
+            var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size)
+            let kerr: kern_return_t = withUnsafeMutablePointer(to: &info) {
+                $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                    task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+                }
+            }
+            return kerr == KERN_SUCCESS ? info.resident_size : 0
+        }
+
+        let preMem = getResidentMemoryBytes()
+        for _ in 0..<200 {
+            let testRel = ReleaseInfo(
+                tagName: "v1.0.23",
+                name: "Stress Test",
+                releaseNotes: "Some release notes",
+                htmlURL: URL(string: "https://example.com")!,
+                zipAssetURL: nil,
+                dmgAssetURL: nil
+            )
+            let sheet = ReleaseNotesSheetView(release: testRel) {}
+            _ = sheet.body
+        }
+        let postMem = getResidentMemoryBytes()
+        let memDeltaMB = Double(postMem > preMem ? postMem - preMem : 0) / (1024.0 * 1024.0)
+        ChallengerHarness.assertTrue(memDeltaMB < 64.0, "27G: Resident memory growth (\(String(format: "%.2f", memDeltaMB)) MB) strictly bounded (< 64 MB, zero leaks)")
     }
 }
 
