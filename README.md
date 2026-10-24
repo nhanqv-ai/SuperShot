@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.18"><img src="https://img.shields.io/badge/version-v1.0.18-blue.svg?style=flat-square" alt="Version v1.0.18"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.19"><img src="https://img.shields.io/badge/version-v1.0.19-blue.svg?style=flat-square" alt="Version v1.0.19"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -119,6 +119,18 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
+### What's New in v1.0.19
+
+- **Differentiated Section Shortcuts (`Option + 1..9` Pinned vs `1..9` / `Cmd + 1..9` Recent)**: History popover shortcuts now assign `Option + 1..9` exclusively to pinned screenshots and bare `1..9` / `Cmd + 1..9` to recent screenshots, with distinct visual badges (`⌥1`, `1`).
+- **Extended Popover Keyboard Navigation**: Effortlessly navigate screenshot history with standard macOS navigation keys: `Home` / `Cmd+Up` (jump to top), `End` / `Cmd+Down` (jump to bottom), and `Page Up` / `Page Down` (step by 5 items).
+- **Clear All Unpinned History Hotkey (`⌘⇧⌫`) & Feedback Toast**: Instantly purge unpinned history with `Cmd+Shift+Delete` (`⌘⇧⌫`) accompanied by a transient HUD toast (`Unpinned history cleared`).
+- **Option Center-Out & 1:1 Aspect Selection Handle Resizing**: Hold `Option` while dragging any of the 8 selection handles to resize symmetrically around the center point. Combine with `Shift` (`Option + Shift`) for 1:1 square aspect lock.
+- **Annotation Tool Alternate Mnemonic Tooltips**: Hovering over Ellipse and Mosaic Blur tools now displays all active mnemonics (`3 / C, E` and `9 / B, M`).
+- **One-Click "Open in Finder" in Capture & Save Preferences**: Quickly reveal your configured auto-save directory directly in macOS Finder with a dedicated folder quick-action button.
+- **Welcome Window Escape Key Dismissal**: Pressing `Escape` anywhere in the onboarding Welcome Window now immediately dismisses it, maintaining parity with Settings.
+- **Dynamic Localized Status Item ToolTip & Shortcut Sync**: The menu bar status item tooltip now dynamically re-syncs upon language switching or hotkey preference updates.
+- **Full 9-Language Localization Completeness**: Zero-emoji localization parity across English, Vietnamese, German, French, Spanish, Japanese, Simplified Chinese, Traditional Chinese, and Korean.
+
 ### What's New in v1.0.18
 
 - **Tool Single-Key Mnemonic Parity (`M` for Mosaic Blur, `E` for Ellipse)**: Power users from Figma, CleanShot, and Lightshot can now press `M` directly to select Mosaic Blur (alongside `B`), and `E` to select Ellipse (alongside `C`).
@@ -207,7 +219,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.18.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.19.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -351,6 +363,18 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
+### Điểm mới trong v1.0.19
+
+- **Phím tắt phân tách theo từng khu vực (`Option + 1..9` Đã ghim & `1..9` / `Cmd + 1..9` Gần đây)**: Phím tắt trong cửa sổ Lịch sử phân tách rõ ràng với `Option + 1..9` dành riêng cho ảnh đã ghim và `1..9` / `Cmd + 1..9` cho ảnh gần đây, hiển thị huy hiệu trực quan (`⌥1`, `1`).
+- **Phím tắt điều hướng nhanh danh sách lịch sử**: Dễ dàng cuộn và duyệt ảnh lịch sử bằng các phím chuẩn macOS: `Home` / `Cmd+Up` (lên đầu danh sách), `End` / `Cmd+Down` (xuống cuối danh sách), và `Page Up` / `Page Down` (nhảy từng cụm 5 ảnh).
+- **Phím tắt xóa sạch lịch sử chưa ghim (`⌘⇧⌫`) kèm thông báo HUD**: Xóa nhanh toàn bộ ảnh chưa ghim với tổ hợp `Cmd+Shift+Delete` (`⌘⇧⌫`) kèm huy hiệu HUD xác nhận (`Đã xóa lịch sử chưa ghim`).
+- **Thu phóng tay cầm từ tâm đối xứng với phím Option (`Center-Out Handle Resizing`)**: Giữ phím `Option` khi kéo bất kỳ tay cầm nào trong 8 tay cầm để mở rộng khung chọn tỏa đều từ tâm. Kết hợp với `Shift` (`Option + Shift`) để khóa tỷ lệ vuông 1:1 từ tâm.
+- **Gợi ý phím tắt đa phím trên thanh công cụ**: Rê chuột lên công cụ Hình elip và Làm mờ Mosaic hiển thị đầy đủ các phím tắt hỗ trợ (`3 / C, E` và `9 / B, M`).
+- **Nút mở nhanh thư mục lưu trong Cài đặt**: Mở trực tiếp thư mục tự động lưu trong Finder bằng nút bấm tiện lợi bên cạnh nút Chọn thư mục trong tab Chụp & Lưu.
+- **Đóng cửa sổ Chào mừng bằng phím Escape**: Nhấn `Escape` để đóng ngay cửa sổ Hướng dẫn Chào mừng, đồng bộ trải nghiệm với cửa sổ Cài đặt.
+- **Đồng bộ Tooltip thanh Menu theo ngôn ngữ & phím tắt**: Tooltip biểu tượng trên thanh menu tự động cập nhật ngay khi thay đổi ngôn ngữ hoặc phím tắt trong Cài đặt.
+- **Bản dịch 9 ngôn ngữ hoàn chỉnh (0 emoji)**: Đầy đủ bản dịch tiếng Anh, tiếng Việt, tiếng Đức, tiếng Pháp, tiếng Tây Ban Nha, tiếng Nhật, tiếng Trung Giản thể, tiếng Trung Phồn thể và tiếng Hàn, 100% biểu tượng SF Symbols.
+
 ### Điểm mới trong v1.0.18
 
 - **Bổ sung phím tắt công cụ chuẩn xác (`M` cho Làm mờ Mosaic, `E` cho Hình elip)**: Hỗ trợ nhấn phím `M` để chọn nhanh công cụ Làm mờ (bên cạnh phím `B`) và `E` cho Hình elip (bên cạnh phím `C`), đồng bộ thói quen từ CleanShot, Figma và Lightshot.
@@ -439,7 +463,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.18.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.19.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

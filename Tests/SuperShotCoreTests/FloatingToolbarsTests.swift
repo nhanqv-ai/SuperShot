@@ -58,7 +58,8 @@ public struct FloatingToolbarsTests {
 
         TestHarness.assertEqual(AnnotationToolType.select.shortcutDisplay, "1 / V", "Select shortcut display is '1 / V'")
         TestHarness.assertEqual(AnnotationToolType.rectangle.shortcutDisplay, "2 / R", "Rectangle shortcut display is '2 / R'")
-        TestHarness.assertEqual(AnnotationToolType.blur.shortcutDisplay, "9 / B", "Blur shortcut display is '9 / B'")
+        TestHarness.assertEqual(AnnotationToolType.ellipse.shortcutDisplay, "3 / C, E", "Ellipse shortcut display is '3 / C, E'")
+        TestHarness.assertEqual(AnnotationToolType.blur.shortcutDisplay, "9 / B, M", "Blur shortcut display is '9 / B, M'")
     }
 
     // 2. Edge-Aware Layout: Centered Box

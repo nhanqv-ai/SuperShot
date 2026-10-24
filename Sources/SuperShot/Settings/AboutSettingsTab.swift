@@ -70,7 +70,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.18"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.19"
                 Button(action: { copyDiagnosticsToClipboard(version: version) }) {
                     HStack(spacing: 4) {
                         Text(LocalizationManager.shared.tr(.versionLabel(version)))
@@ -229,7 +229,7 @@ public struct AboutSettingsTab: View {
         let arch = "unknown"
         #endif
         let os = ProcessInfo.processInfo.operatingSystemVersionString
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "18"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "19"
         return "SuperShot v\(version) (\(arch)) • macOS \(os) • Build \(build)"
     }
 
@@ -299,7 +299,7 @@ public struct AboutSettingsTab: View {
                 .foregroundColor(.green)
         case .updateAvailable(let release):
             HStack(spacing: 6) {
-                Text(localizationManager.effectiveLanguage == .vietnamese ? "Có bản cập nhật: \(release.tagName)" : "Update available: \(release.tagName)")
+                Text(localizationManager.tr(.updateAvailable(release.tagName)))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.accentColor)
 

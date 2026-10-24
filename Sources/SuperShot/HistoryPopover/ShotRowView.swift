@@ -8,6 +8,7 @@ public struct ShotRowView: View {
     public let item: ShotItem
     public let storageManager: StorageManager?
     public let shortcutIndex: Int?
+    public let shortcutBadge: String?
     public let isSelected: Bool
     public let isRecentlyCopied: Bool
     public var onSelect: ((ShotItem) -> Void)?
@@ -29,6 +30,7 @@ public struct ShotRowView: View {
         item: ShotItem,
         storageManager: StorageManager? = nil,
         shortcutIndex: Int? = nil,
+        shortcutBadge: String? = nil,
         isSelected: Bool = false,
         isRecentlyCopied: Bool = false,
         onSelect: ((ShotItem) -> Void)? = nil,
@@ -41,6 +43,7 @@ public struct ShotRowView: View {
         self.item = item
         self.storageManager = storageManager
         self.shortcutIndex = shortcutIndex
+        self.shortcutBadge = shortcutBadge ?? shortcutIndex.map { "\($0)" }
         self.isSelected = isSelected
         self.isRecentlyCopied = isRecentlyCopied
         self.onSelect = onSelect
@@ -230,8 +233,8 @@ public struct ShotRowView: View {
                             .foregroundColor(.accentColor)
                     }
 
-                    if let shortcut = shortcutIndex {
-                        Text("\(shortcut)")
+                    if let badge = shortcutBadge ?? shortcutIndex.map({ "\($0)" }) {
+                        Text(badge)
                             .font(.system(size: 10, weight: .semibold))
                             .foregroundColor(.secondary)
                             .padding(.horizontal, 4)

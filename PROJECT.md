@@ -238,6 +238,16 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 114 | Capture Overlay Quick Copy Confirmation | In-place capture overlay showHUDNotification copiedToClipboard feedback pill | M38 | Explorer 2 Survey |
 | 115 | Strict Zero-Emoji 9-Language Localization Completeness | framesCount, screenshotDeleted, copiedDiagnostics in LocalizationManager across 9 languages | M38 | Explorer 2 Survey |
 | 116 | Canonical Version Bump to v1.0.18 | Synchronize v1.0.18 across Info.plist (build 18), AboutSettingsTab, WelcomeWindow, UpdateManager, Makefile, README.md, SettingsViewTests, PROJECT.md | M38 | Explorer 3 Survey |
+| 117 | Settings Localization Parity (.rememberLabel, .updateAvailable) | Full 9-language translation for .rememberLabel and using .updateAvailable(tag) in Settings tabs | M42 | Explorer 2 Survey |
+| 118 | Popover Differentiated Section Shortcuts | Option + 1..9 for Pinned items, 1..9 / Cmd + 1..9 for Recent items via ShortcutSection | M42 | Explorer 2 Survey |
+| 119 | Popover Fast Navigation (Home, End, PageUp, PageDown, Cmd+Up, Cmd+Down) | Fast history list keyboard navigation in MainShotView localKeyMonitor | M42 | Explorer 2 Survey |
+| 120 | Clear Unpinned History Shortcut & Toast (⌘⇧⌫) | Cmd+Shift+Delete shortcut and unpinnedHistoryCleared feedback toast in MainShotView | M42 | Explorer 2 Survey |
+| 121 | Selection Handle Center-Out & 1:1 Aspect Resizing | Option key center-out and Option+Shift 1:1 aspect lock in SelectionBoxGeometry.calculateResizedRect | M42 | Explorer 1 Survey |
+| 122 | Annotation Tool Alternate Mnemonic Tooltips | Display alternate mnemonics (3 / C, E and 9 / B, M) in FloatingToolbarsView shortcutDisplay | M42 | Explorer 1 & 2 Survey |
+| 123 | Capture & Save Preferences Open in Finder Button | Add folder quick-action button next to Choose in CaptureSaveSettingsTab | M42 | Explorer 2 Survey |
+| 124 | Welcome Window Escape Dismissal Parity | Subclass WelcomeWindow from NSWindow to handle Escape (53) and cancelOperation | M42 | Explorer 2 Survey |
+| 125 | Dynamic Localized Status Item ToolTip | Update status item tooltip dynamically on language and hotkey changes in StatusItemManager | M42 | Explorer 2 Survey |
+| 126 | Canonical Version Bump to v1.0.19 | Synchronize v1.0.19 across Info.plist (build 19), AboutSettingsTab, WelcomeWindow, UpdateManager, Makefile, README.md, SettingsViewTests, PROJECT.md | M42 | Explorer 3 Survey |
 
 ## Milestones
 
@@ -277,9 +287,13 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M35 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M34 | DONE |
 | M36 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.17 -> public repo check -> app relaunch | M35 | DONE |
 | M37 | Survey & Live GUI Driver Audit | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UX/feature opportunities, verify release invariants (v1.0.18) | none | DONE |
-| M38 | Implementation of Proactive UX Polish & Version Bump | Implement Features 108-116, 0 emojis, bump 8 locations to 1.0.18, make lint, make test, make adversarial, make app, verify_bundle | M37 | IN_PROGRESS |
-| M39 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M38 | PLANNED |
-| M40 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.18 -> public repo check -> app relaunch | M39 | PLANNED |
+| M38 | Implementation of Proactive UX Polish & Version Bump | Implement Features 108-116, 0 emojis, bump 8 locations to 1.0.18, make lint, make test, make adversarial, make app, verify_bundle | M37 | DONE |
+| M39 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M38 | DONE |
+| M40 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.18 -> public repo check -> app relaunch | M39 | DONE |
+| M41 | Survey & Live GUI Driver Audit | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UX/feature opportunities, verify release invariants (v1.0.19) | none | DONE |
+| M42 | Implementation of Proactive UX Polish & Version Bump | Implement Features 117-126, 0 emojis, bump 8 locations to 1.0.19, make lint, make test, make adversarial, make app, verify_bundle | M41 | IN_PROGRESS |
+| M43 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M42 | PLANNED |
+| M44 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.19 -> public repo check -> app relaunch | M43 | PLANNED |
 
 ## Interface Contracts
 

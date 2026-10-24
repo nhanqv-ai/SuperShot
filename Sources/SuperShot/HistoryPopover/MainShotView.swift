@@ -26,6 +26,8 @@ public struct MainShotView: View {
     @State private var copyFeedbackTask: Task<Void, Never>? = nil
     @State private var showDeletedToast: Bool = false
     @State private var deleteFeedbackTask: Task<Void, Never>? = nil
+    @State private var showClearedToast: Bool = false
+    @State private var clearFeedbackTask: Task<Void, Never>? = nil
 
     public init(
         storageManager: StorageManager,
@@ -136,6 +138,34 @@ public struct MainShotView: View {
                     .overlay(
                         Capsule()
                             .stroke(Color.red.opacity(0.4), lineWidth: 1)
+                    )
+                    .padding(.bottom, 12)
+                    .transition(.asymmetric(
+                        insertion: .scale(scale: 0.85).combined(with: .opacity),
+                        removal: .opacity
+                    ))
+                    .zIndex(100)
+                }
+
+                if showClearedToast {
+                    HStack(spacing: 6) {
+                        Image(systemName: "trash.slash.fill")
+                            .foregroundColor(.orange)
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(localizationManager.tr(.unpinnedHistoryCleared))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.primary)
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        Capsule()
+                            .fill(Color(nsColor: .windowBackgroundColor))
+                            .shadow(color: Color.black.opacity(0.25), radius: 6, x: 0, y: 3)
+                    )
+                    .overlay(
+                        Capsule()
+                            .stroke(Color.orange.opacity(0.4), lineWidth: 1)
                     )
                     .padding(.bottom, 12)
                     .transition(.asymmetric(
@@ -453,6 +483,7 @@ public struct MainShotView: View {
                                 item: item,
                                 storageManager: storageManager,
                                 shortcutIndex: ShortcutNavigator.shortcutIndex(for: item, in: visibleItems),
+                                shortcutBadge: ShortcutNavigator.badgeString(for: item, pinnedItems: pinnedItems, recentItems: recentItems),
                                 isSelected: item.id == selectedItemId,
                                 isRecentlyCopied: item.id == copiedItemId,
                                 onSelect: { selectItem($0) },
@@ -482,6 +513,7 @@ public struct MainShotView: View {
                                 item: item,
                                 storageManager: storageManager,
                                 shortcutIndex: ShortcutNavigator.shortcutIndex(for: item, in: visibleItems),
+                                shortcutBadge: ShortcutNavigator.badgeString(for: item, pinnedItems: pinnedItems, recentItems: recentItems),
                                 isSelected: item.id == selectedItemId,
                                 isRecentlyCopied: item.id == copiedItemId,
                                 onSelect: { selectItem($0) },
@@ -555,6 +587,12 @@ public struct MainShotView: View {
             Button(action: {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 storageManager.clearUnpinnedHistory()
+                triggerClearAllFeedback()
+                if pinnedItems.isEmpty {
+                    selectedIndex = nil
+                } else if let idx = selectedIndex, idx >= pinnedItems.count {
+                    selectedIndex = pinnedItems.count - 1
+                }
             }) {
                 HStack(spacing: 3) {
                     Image(systemName: "trash").font(.system(size: 9))
@@ -745,6 +783,21 @@ public struct MainShotView: View {
         }
     }
 
+    public func triggerClearAllFeedback() {
+        clearFeedbackTask?.cancel()
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.8)) {
+            showClearedToast = true
+        }
+        clearFeedbackTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_200_000_000)
+            if !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    self.showClearedToast = false
+                }
+            }
+        }
+    }
+
     public func saveItem(_ item: ShotItem) {
         ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
         guard let data = storageManager.getImageData(for: item) else { return }
@@ -828,8 +881,65 @@ public struct MainShotView: View {
                 }
             }
 
+            // 2b. Home (115) or Cmd+Up: Jump to top item (yield to IME if active)
+            if (event.keyCode == 115 || (flags.contains(.command) && event.keyCode == 126)) && !hasMarkedText {
+                if !visibleItems.isEmpty {
+                    selectedIndex = 0
+                    shouldScrollToSelection = true
+                    let item = visibleItems[0]
+                    if ThumbnailHoverPreviewPanel.shared.isVisible {
+                        ThumbnailHoverPreviewPanel.shared.show(for: item)
+                    }
+                    return nil
+                }
+            }
+
+            // 2c. End (119) or Cmd+Down: Jump to bottom item (yield to IME if active)
+            if (event.keyCode == 119 || (flags.contains(.command) && event.keyCode == 125)) && !hasMarkedText {
+                if !visibleItems.isEmpty {
+                    let lastIdx = visibleItems.count - 1
+                    selectedIndex = lastIdx
+                    shouldScrollToSelection = true
+                    let item = visibleItems[lastIdx]
+                    if ThumbnailHoverPreviewPanel.shared.isVisible {
+                        ThumbnailHoverPreviewPanel.shared.show(for: item)
+                    }
+                    return nil
+                }
+            }
+
+            // 2d. Page Up (116): Step backward by 5 items (yield to IME if active)
+            if event.keyCode == 116 && !hasMarkedText {
+                if !visibleItems.isEmpty {
+                    let current = selectedIndex ?? 0
+                    let newIdx = max(0, current - 5)
+                    selectedIndex = newIdx
+                    shouldScrollToSelection = true
+                    let item = visibleItems[newIdx]
+                    if ThumbnailHoverPreviewPanel.shared.isVisible {
+                        ThumbnailHoverPreviewPanel.shared.show(for: item)
+                    }
+                    return nil
+                }
+            }
+
+            // 2e. Page Down (121): Step forward by 5 items (yield to IME if active)
+            if event.keyCode == 121 && !hasMarkedText {
+                if !visibleItems.isEmpty {
+                    let current = selectedIndex ?? 0
+                    let newIdx = min(visibleItems.count - 1, current + 5)
+                    selectedIndex = newIdx
+                    shouldScrollToSelection = true
+                    let item = visibleItems[newIdx]
+                    if ThumbnailHoverPreviewPanel.shared.isVisible {
+                        ThumbnailHoverPreviewPanel.shared.show(for: item)
+                    }
+                    return nil
+                }
+            }
+
             // 3. Down Arrow (125) - Circular cycling with live preview update (yield to IME if active)
-            if event.keyCode == 125 && !hasMarkedText {
+            if event.keyCode == 125 && !flags.contains(.command) && !hasMarkedText {
                 let newIdx = ShortcutNavigator.stepDown(currentIndex: selectedIndex, visibleCount: visibleItems.count)
                 shouldScrollToSelection = true
                 selectedIndex = newIdx
@@ -843,7 +953,7 @@ public struct MainShotView: View {
             }
 
             // 4. Up Arrow (126) - Circular cycling with live preview update (yield to IME if active)
-            if event.keyCode == 126 && !hasMarkedText {
+            if event.keyCode == 126 && !flags.contains(.command) && !hasMarkedText {
                 let newIdx = ShortcutNavigator.stepUp(currentIndex: selectedIndex, visibleCount: visibleItems.count)
                 shouldScrollToSelection = true
                 selectedIndex = newIdx
@@ -873,8 +983,23 @@ public struct MainShotView: View {
                 return nil
             }
 
-            // 6. Delete (51) / Forward Delete (117): Remove selected history item
-            if (event.keyCode == 51 || event.keyCode == 117) && (!isSearchFocused || flags.contains(.command)) && !hasMarkedText {
+            // 6a. Cmd+Shift+Delete (51 or 117): Clear unpinned history
+            if (event.keyCode == 51 || event.keyCode == 117) && flags.contains([.command, .shift]) && !hasMarkedText {
+                if !recentItems.isEmpty {
+                    ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                    storageManager.clearUnpinnedHistory()
+                    triggerClearAllFeedback()
+                    if pinnedItems.isEmpty {
+                        selectedIndex = nil
+                    } else if let idx = selectedIndex, idx >= pinnedItems.count {
+                        selectedIndex = pinnedItems.count - 1
+                    }
+                    return nil
+                }
+            }
+
+            // 6b. Delete (51) / Forward Delete (117): Remove selected history item
+            if (event.keyCode == 51 || event.keyCode == 117) && !flags.contains(.shift) && (!isSearchFocused || flags.contains(.command)) && !hasMarkedText {
                 if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
                     let item = visibleItems[idx]
                     ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
@@ -913,8 +1038,13 @@ public struct MainShotView: View {
                 }
             }
 
-            // 10. 1..9 shortcuts
-            if let digit = ShortcutNavigator.parseShortcut(from: event, searchFieldHasFocus: isSearchFocused) {
+            // 10. Differentiated Section Shortcuts (⌥1..⌥9 Pinned, 1..9 / ⌘1..⌘9 Recent)
+            if let resolved = ShortcutNavigator.parseSectionShortcut(from: event, searchFieldHasFocus: isSearchFocused) {
+                if let target = ShortcutNavigator.targetItem(forSectionShortcut: resolved, pinnedItems: pinnedItems, recentItems: recentItems) {
+                    selectItem(target)
+                    return nil
+                }
+            } else if let digit = ShortcutNavigator.parseShortcut(from: event, searchFieldHasFocus: isSearchFocused) {
                 if let target = ShortcutNavigator.targetItem(forShortcut: digit, in: visibleItems) {
                     selectItem(target)
                     return nil

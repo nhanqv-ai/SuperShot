@@ -15,7 +15,7 @@ public struct WelcomeView: View {
 
     public var appVersionString: String {
         let bundleVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        return "v\(bundleVersion ?? "1.0.18")"
+        return "v\(bundleVersion ?? "1.0.19")"
     }
 
     public var body: some View {
@@ -227,12 +227,28 @@ public struct WelcomeView: View {
     }
 }
 
+// MARK: - Welcome Window with Escape Key Dismissal
+
+private final class WelcomeWindow: NSWindow {
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 53 { // Escape
+            close()
+            return
+        }
+        super.keyDown(with: event)
+    }
+
+    override func cancelOperation(_ sender: Any?) {
+        close()
+    }
+}
+
 // MARK: - Welcome Window Controller
 public final class WelcomeWindowController: NSWindowController, NSWindowDelegate {
     public static let shared = WelcomeWindowController()
 
     public init() {
-        let window = NSWindow(
+        let window = WelcomeWindow(
             contentRect: NSRect(x: 0, y: 0, width: 520, height: 460),
             styleMask: [.titled, .closable, .fullSizeContentView],
             backing: .buffered,

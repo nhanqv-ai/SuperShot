@@ -149,6 +149,24 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
 
     // MARK: - Status Item Setup
 
+    public func updateStatusItemToolTip() {
+        guard let button = statusItem.button else { return }
+        let appTitle = LocalizationManager.shared.tr(.appTitle)
+        let action = LocalizationManager.shared.tr(.menuCapture)
+        let shortcutStr = hotKeyManager.shortcut(for: .inPlaceCapture)?.displayString ?? "⌥S"
+        button.toolTip = "\(appTitle) - \(action) (\(shortcutStr))"
+    }
+
+    @objc private func handleLanguageOrHotKeyNotification() {
+        if Thread.isMainThread {
+            updateStatusItemToolTip()
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.updateStatusItemToolTip()
+            }
+        }
+    }
+
     private func setupStatusItem() {
         guard let button = statusItem.button else { return }
 
@@ -157,10 +175,23 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
 
         button.image = icon
         button.imagePosition = .imageOnly
-        button.toolTip = "SuperShot - Screenshot & Annotate (Option+S)"
+        updateStatusItemToolTip()
         button.target = self
         button.action = #selector(statusItemClicked(_:))
         button.sendAction(on: [.leftMouseUp, .rightMouseUp])
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleLanguageOrHotKeyNotification),
+            name: LocalizationManager.languageDidChangeNotification,
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleLanguageOrHotKeyNotification),
+            name: HotKeyManager.hotKeyDidChangeNotification,
+            object: nil
+        )
     }
 
     // MARK: - Popover Setup
@@ -226,6 +257,7 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
 
     public func menuNeedsUpdate(_ menu: NSMenu) {
         guard menu == contextMenu else { return }
+        updateStatusItemToolTip()
         for item in menu.items where !item.isSeparatorItem {
             switch item.action {
             case #selector(captureRegionMenuItemClicked(_:)):
@@ -389,6 +421,7 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
     }
 
     deinit {
+        NotificationCenter.default.removeObserver(self)
         removeEventMonitors()
         NSStatusBar.system.removeStatusItem(statusItem)
     }

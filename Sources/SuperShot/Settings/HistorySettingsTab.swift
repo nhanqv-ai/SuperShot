@@ -35,7 +35,7 @@ public struct HistorySettingsTab: View {
                 .font(.system(size: 12.5, weight: .semibold))
 
             HStack {
-                Text(localizationManager.effectiveLanguage == .vietnamese ? "Lưu trữ:" : "Remember:")
+                Text(localizationManager.tr(.rememberLabel))
                     .font(.system(size: 11.5))
                     .frame(width: 80, alignment: .leading)
 

@@ -73,7 +73,10 @@ public enum AnnotationToolType: Int, CaseIterable, Identifiable, Sendable {
     }
 
     public var shortcutDisplay: String {
-        "\(rawValue) / \(mnemonicKey)"
+        if let alt = alternateMnemonicKey {
+            return "\(rawValue) / \(mnemonicKey), \(alt)"
+        }
+        return "\(rawValue) / \(mnemonicKey)"
     }
 }
 

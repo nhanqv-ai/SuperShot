@@ -404,11 +404,55 @@ public struct SelectionBoxGeometry {
         anchor: CGPoint,
         bounds: CGRect,
         currentRect: CGRect = .zero,
-        shiftKeyPressed: Bool = false
+        shiftKeyPressed: Bool = false,
+        optionKeyPressed: Bool = false
     ) -> CGRect {
         var p = currentPoint
         p.x = max(bounds.minX, min(p.x, bounds.maxX))
         p.y = max(bounds.minY, min(p.y, bounds.maxY))
+
+        if optionKeyPressed {
+            let center = currentRect.isEmpty ? anchor : CGPoint(x: currentRect.midX, y: currentRect.midY)
+            switch handle {
+            case .topLeft, .topRight, .bottomLeft, .bottomRight:
+                return calculateCenterRect(
+                    center: center,
+                    target: p,
+                    bounds: bounds,
+                    squareConstrained: shiftKeyPressed
+                )
+            case .topCenter, .bottomCenter:
+                let dy = abs(p.y - center.y)
+                if shiftKeyPressed {
+                    return calculateCenterRect(
+                        center: center,
+                        target: CGPoint(x: center.x + dy, y: p.y),
+                        bounds: bounds,
+                        squareConstrained: true
+                    )
+                } else {
+                    let halfW = currentRect.isEmpty ? 0 : currentRect.width / 2.0
+                    let p1 = CGPoint(x: center.x - halfW, y: center.y - dy)
+                    let p2 = CGPoint(x: center.x + halfW, y: center.y + dy)
+                    return normalizeRect(p1: p1, p2: p2, bounds: bounds)
+                }
+            case .middleLeft, .middleRight:
+                let dx = abs(p.x - center.x)
+                if shiftKeyPressed {
+                    return calculateCenterRect(
+                        center: center,
+                        target: CGPoint(x: p.x, y: center.y + dx),
+                        bounds: bounds,
+                        squareConstrained: true
+                    )
+                } else {
+                    let halfH = currentRect.isEmpty ? 0 : currentRect.height / 2.0
+                    let p1 = CGPoint(x: center.x - dx, y: center.y - halfH)
+                    let p2 = CGPoint(x: center.x + dx, y: center.y + halfH)
+                    return normalizeRect(p1: p1, p2: p2, bounds: bounds)
+                }
+            }
+        }
 
         switch handle {
         case .topLeft, .topRight, .bottomLeft, .bottomRight:

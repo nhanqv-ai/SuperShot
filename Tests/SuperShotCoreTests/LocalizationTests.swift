@@ -180,6 +180,17 @@ public struct LocalizationTests {
             }
         }
 
+        let v1019Keys: [L10nKey] = [
+            .rememberLabel,
+            .unpinnedHistoryCleared
+        ]
+        for key in v1019Keys {
+            for lang in AppLanguage.allCases {
+                let text = key.localized(for: lang)
+                TestHarness.assertFalse(text.isEmpty, "v1.0.19 Key \(key) has non-empty translation in \(lang.rawValue)")
+            }
+        }
+
         // 6. Zero emoji invariant check across all keys in all languages
         validateZeroEmojisAcrossDictionary()
 
@@ -208,7 +219,8 @@ public struct LocalizationTests {
             .previewCancelTooltip, .previewDoneTooltip,
             .layerBringToFront, .layerSendToBack, .layerBringForward, .layerSendBackward,
             .zoomHUD(125), .captureOverlayInstruction, .directAutoPaste,
-            .framesCount(10), .screenshotDeleted, .copiedDiagnostics
+            .framesCount(10), .screenshotDeleted, .copiedDiagnostics,
+            .rememberLabel, .unpinnedHistoryCleared
         ]
 
         let emojiRanges: [ClosedRange<UInt32>] = [

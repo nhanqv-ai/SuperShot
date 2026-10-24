@@ -37,6 +37,9 @@ public struct CaptureOverlayTests {
 
         // 10. In-Place Capture Quick Copy Confirmation (v1.0.18)
         testQuickCopyConfirmation()
+
+        // 11. Selection Handle Center-Out & 1:1 Aspect Resizing (v1.0.19)
+        test11HandleCenterOutAndAspectResizing()
     }
 
     // --- Test 1: Mock ScreenCaptureManager ---
@@ -400,5 +403,77 @@ public struct CaptureOverlayTests {
         // Trigger onCopyRequested
         contentView.toolbarsViewModel.onCopyRequested?()
         TestHarness.assertEqual(contentView.toolHUDText, LocalizationManager.shared.tr(.copiedToClipboard), "onCopyRequested sets toolHUDText to copiedToClipboard HUD text")
+    }
+
+    // --- Test 11: Selection Handle Center-Out & 1:1 Aspect Resizing (v1.0.19) ---
+    private static func test11HandleCenterOutAndAspectResizing() {
+        let initialRect = CGRect(x: 200, y: 200, width: 200, height: 100)
+        let bounds = CGRect(x: 0, y: 0, width: 1440, height: 900)
+        let center = CGPoint(x: initialRect.midX, y: initialRect.midY) // (300, 250)
+
+        // 1. Bottom-Right handle dragged with Option key (center-out expansion)
+        let brAnchor = SelectionBoxGeometry.anchorPoint(for: .bottomRight, in: initialRect)
+        let brTarget = CGPoint(x: 450, y: 150) // dx = 150, dy = 100 from center
+        let brResized = SelectionBoxGeometry.calculateResizedRect(
+            handle: .bottomRight,
+            currentPoint: brTarget,
+            anchor: brAnchor,
+            bounds: bounds,
+            currentRect: initialRect,
+            shiftKeyPressed: false,
+            optionKeyPressed: true
+        )
+        TestHarness.assertEqual(brResized.midX, center.x, "Center-out BR resize maintains midX at initial center")
+        TestHarness.assertEqual(brResized.midY, center.y, "Center-out BR resize maintains midY at initial center")
+        TestHarness.assertEqual(brResized.width, 300.0, "Center-out BR resize doubles dx from center")
+        TestHarness.assertEqual(brResized.height, 200.0, "Center-out BR resize doubles dy from center")
+
+        // 2. Bottom-Right handle dragged with Option + Shift (center-out 1:1 aspect lock)
+        let brSquare = SelectionBoxGeometry.calculateResizedRect(
+            handle: .bottomRight,
+            currentPoint: brTarget,
+            anchor: brAnchor,
+            bounds: bounds,
+            currentRect: initialRect,
+            shiftKeyPressed: true,
+            optionKeyPressed: true
+        )
+        TestHarness.assertEqual(brSquare.midX, center.x, "Center-out 1:1 square maintains center midX")
+        TestHarness.assertEqual(brSquare.midY, center.y, "Center-out 1:1 square maintains center midY")
+        TestHarness.assertEqual(brSquare.width, brSquare.height, "Center-out 1:1 square width equals height")
+
+        // 3. Top-Center handle dragged with Option key
+        let tcAnchor = SelectionBoxGeometry.anchorPoint(for: .topCenter, in: initialRect)
+        let tcTarget = CGPoint(x: 300, y: 350) // dy = 100 from center
+        let tcResized = SelectionBoxGeometry.calculateResizedRect(
+            handle: .topCenter,
+            currentPoint: tcTarget,
+            anchor: tcAnchor,
+            bounds: bounds,
+            currentRect: initialRect,
+            shiftKeyPressed: false,
+            optionKeyPressed: true
+        )
+        TestHarness.assertEqual(tcResized.midX, center.x, "Top-center option resize maintains midX")
+        TestHarness.assertEqual(tcResized.midY, center.y, "Top-center option resize maintains midY")
+        TestHarness.assertEqual(tcResized.width, initialRect.width, "Top-center option resize preserves width")
+        TestHarness.assertEqual(tcResized.height, 200.0, "Top-center option resize doubles dy")
+
+        // 4. Middle-Right handle dragged with Option key
+        let mrAnchor = SelectionBoxGeometry.anchorPoint(for: .middleRight, in: initialRect)
+        let mrTarget = CGPoint(x: 450, y: 250) // dx = 150 from center
+        let mrResized = SelectionBoxGeometry.calculateResizedRect(
+            handle: .middleRight,
+            currentPoint: mrTarget,
+            anchor: mrAnchor,
+            bounds: bounds,
+            currentRect: initialRect,
+            shiftKeyPressed: false,
+            optionKeyPressed: true
+        )
+        TestHarness.assertEqual(mrResized.midX, center.x, "Middle-right option resize maintains midX")
+        TestHarness.assertEqual(mrResized.midY, center.y, "Middle-right option resize maintains midY")
+        TestHarness.assertEqual(mrResized.width, 300.0, "Middle-right option resize doubles dx")
+        TestHarness.assertEqual(mrResized.height, initialRect.height, "Middle-right option resize preserves height")
     }
 }

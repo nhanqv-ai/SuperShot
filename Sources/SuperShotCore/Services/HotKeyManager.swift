@@ -130,10 +130,11 @@ public protocol HotKeyManaging: AnyObject {
 
 public final class HotKeyManager: HotKeyManaging, @unchecked Sendable {
     public static let shared = HotKeyManager()
+    public static let hotKeyDidChangeNotification = Notification.Name("SuperShotHotKeyDidChangeNotification")
 
     public var onAction: ((HotKeyAction) -> Void)?
 
-    private let lock = NSLock()
+    private let lock = NSRecursiveLock()
     private var hotKeyRefs: [HotKeyAction: EventHotKeyRef] = [:]
     private var registeredShortcuts: [HotKeyAction: HotKeyShortcut] = [:]
     private var handlerRef: EventHandlerRef?
@@ -190,7 +191,6 @@ public final class HotKeyManager: HotKeyManaging, @unchecked Sendable {
     @discardableResult
     public func register(action: HotKeyAction, keyCode: UInt32, modifiers: UInt32) -> Bool {
         lock.lock()
-        defer { lock.unlock() }
 
         // Unregister existing ref if present
         if let existingRef = hotKeyRefs[action] {
@@ -214,8 +214,11 @@ public final class HotKeyManager: HotKeyManaging, @unchecked Sendable {
         if status == noErr, let ref = hotKeyRef {
             hotKeyRefs[action] = ref
             registeredShortcuts[action] = HotKeyShortcut(keyCode: keyCode, carbonModifiers: modifiers)
+            lock.unlock()
+            NotificationCenter.default.post(name: HotKeyManager.hotKeyDidChangeNotification, object: self)
             return true
         } else {
+            lock.unlock()
             print("Error registering Carbon hotkey for \(action): \(status)")
             return false
         }
@@ -223,23 +226,23 @@ public final class HotKeyManager: HotKeyManaging, @unchecked Sendable {
 
     public func unregister(action: HotKeyAction) {
         lock.lock()
-        defer { lock.unlock() }
-
         if let ref = hotKeyRefs.removeValue(forKey: action) {
             UnregisterEventHotKey(ref)
         }
         registeredShortcuts.removeValue(forKey: action)
+        lock.unlock()
+        NotificationCenter.default.post(name: HotKeyManager.hotKeyDidChangeNotification, object: self)
     }
 
     public func unregisterAll() {
         lock.lock()
-        defer { lock.unlock() }
-
         for (_, ref) in hotKeyRefs {
             UnregisterEventHotKey(ref)
         }
         hotKeyRefs.removeAll()
         registeredShortcuts.removeAll()
+        lock.unlock()
+        NotificationCenter.default.post(name: HotKeyManager.hotKeyDidChangeNotification, object: self)
     }
 
     public func registerDefaults() {
