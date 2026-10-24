@@ -785,5 +785,101 @@ public struct UpdateManagerTests {
         bannerUpdateMgr.dismissBannerForSession()
         TestHarness.assertFalse(bannerUpdateMgr.shouldShowBanner, "shouldShowBanner is false after dismissBannerForSession")
         TestHarness.assertTrue(bannerUpdateMgr.hasPendingUpdate, "hasPendingUpdate remains true after banner dismissal so gear badge dot stays visible")
+
+        // =========================================================================
+        // 14. DMG Asset Parsing, preferredAssetURL, and Streaming UpdateDownloadDelegate (v1.0.22)
+        // =========================================================================
+        let dmgReleaseJSON = """
+        {
+            "tag_name": "v1.0.22",
+            "name": "SuperShot v1.0.22",
+            "body": "Universal 2 DMG and ZIP release",
+            "html_url": "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.22",
+            "assets": [
+                {
+                    "name": "SuperShot-v1.0.22.dmg",
+                    "browser_download_url": "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.22/SuperShot-v1.0.22.dmg"
+                },
+                {
+                    "name": "SuperShot-v1.0.22.zip",
+                    "browser_download_url": "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.22/SuperShot-v1.0.22.zip"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let parsedDmgAndZip = try! UpdateManager.parseRelease(from: dmgReleaseJSON)
+        TestHarness.assertNotNil(parsedDmgAndZip.zipAssetURL, "parseRelease discovered zipAssetURL")
+        TestHarness.assertNotNil(parsedDmgAndZip.dmgAssetURL, "parseRelease discovered dmgAssetURL")
+        TestHarness.assertEqual(
+            parsedDmgAndZip.preferredAssetURL?.absoluteString,
+            "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.22/SuperShot-v1.0.22.zip",
+            "preferredAssetURL prioritizes zip when both exist"
+        )
+
+        // Test release with ONLY dmg asset
+        let dmgOnlyJSON = """
+        {
+            "tag_name": "v1.0.22",
+            "name": "SuperShot v1.0.22 DMG Only",
+            "body": "Standalone disk image release",
+            "html_url": "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.22",
+            "assets": [
+                {
+                    "name": "SuperShot-v1.0.22.dmg",
+                    "browser_download_url": "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.22/SuperShot-v1.0.22.dmg"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let parsedDmgOnly = try! UpdateManager.parseRelease(from: dmgOnlyJSON)
+        TestHarness.assertNil(parsedDmgOnly.zipAssetURL, "zipAssetURL is nil for DMG-only release")
+        TestHarness.assertNotNil(parsedDmgOnly.dmgAssetURL, "dmgAssetURL is discovered for DMG-only release")
+        TestHarness.assertEqual(
+            parsedDmgOnly.preferredAssetURL?.absoluteString,
+            "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.22/SuperShot-v1.0.22.dmg",
+            "preferredAssetURL falls back to dmgAssetURL when zip is absent"
+        )
+
+        // Test streaming UpdateDownloadDelegate byte reporting
+        let testDest = sandboxDir.appendingPathComponent("DelegateTest/SuperShot-test.zip")
+        let streamingMgr = UpdateManager()
+        var reportedProgress: [Double] = []
+
+        let delegate = UpdateDownloadDelegate(
+            destinationURL: testDest,
+            updateManager: streamingMgr,
+            onProgress: { p in
+                reportedProgress.append(p)
+            }
+        )
+
+        let streamTestSession = URLSession.shared
+        let streamTestTask = streamTestSession.downloadTask(with: URL(string: "https://example.com/asset.zip")!)
+
+        // 25% progress event
+        delegate.urlSession(streamTestSession, downloadTask: streamTestTask, didWriteData: 250, totalBytesWritten: 250, totalBytesExpectedToWrite: 1000)
+        // 100% progress event
+        delegate.urlSession(streamTestSession, downloadTask: streamTestTask, didWriteData: 750, totalBytesWritten: 1000, totalBytesExpectedToWrite: 1000)
+
+        // Pump main run loop to process dispatched blocks
+        RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
+
+        TestHarness.assertTrue(reportedProgress.contains(where: { abs($0 - 0.25) < 0.001 }), "Delegate reported 0.25 progress")
+        TestHarness.assertTrue(reportedProgress.contains(where: { abs($0 - 1.0) < 0.001 }), "Delegate reported 1.0 progress")
+
+        // Dynamic stagingTargetURL tests
+        let dynamicMgr = UpdateManager()
+        TestHarness.assertTrue(dynamicMgr.stagingTargetURL.path.hasSuffix(".app"), "Default stagingTargetURL points to .app bundle")
+        let customStaging = sandboxDir.appendingPathComponent("Custom/SuperShot.app")
+        dynamicMgr.stagingTargetURL = customStaging
+        TestHarness.assertEqual(dynamicMgr.stagingTargetURL.path, customStaging.path, "stagingTargetURL can be customized")
+
+        // Quarantine removal helper test on sandboxed file
+        let sampleFile = sandboxDir.appendingPathComponent("quarantine_test.txt")
+        try? "test data".write(to: sampleFile, atomically: true, encoding: .utf8)
+        let _ = UpdateManager.removeQuarantineAttribute(at: sampleFile)
+        TestHarness.assertTrue(FileManager.default.fileExists(atPath: sampleFile.path), "removeQuarantineAttribute safely executes without corrupting file")
     }
 }

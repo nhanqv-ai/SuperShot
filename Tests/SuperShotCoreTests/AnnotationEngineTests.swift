@@ -915,5 +915,53 @@ public struct AnnotationEngineTests {
         TestHarness.assertTrue(engine.canRedo, "Can redo")
         engine.redo()
         TestHarness.assertEqual(engine.objects.map { $0.id }, [objA.id, objC.id, objB.id, objD.id], "Redo bring forward restores A, C, B, D")
+
+        // =========================================================================
+        // Tab / Shift+Tab Selection Cycling (selectNextObject) Tests (v1.0.22)
+        // =========================================================================
+        let cyclingEngine = AnnotationEngine()
+        TestHarness.assertNil(cyclingEngine.selectNextObject(), "selectNextObject returns nil on empty engine")
+        TestHarness.assertNil(cyclingEngine.selectNextObject(reverse: true), "selectNextObject(reverse: true) returns nil on empty engine")
+
+        let obj1 = AnnotationObject(tool: .rectangle, bounds: CGRect(x: 10, y: 10, width: 50, height: 50))
+        let obj2 = AnnotationObject(tool: .ellipse, bounds: CGRect(x: 70, y: 10, width: 50, height: 50))
+        let obj3 = AnnotationObject(tool: .arrow, bounds: CGRect(x: 130, y: 10, width: 50, height: 50))
+        cyclingEngine.addObject(obj1)
+        cyclingEngine.addObject(obj2)
+        cyclingEngine.addObject(obj3)
+        cyclingEngine.deselectAll()
+
+        // Forward cycling from unselected state picks first object (obj1)
+        let firstSelected = cyclingEngine.selectNextObject(reverse: false)
+        TestHarness.assertEqual(firstSelected, obj1.id, "selectNextObject selects obj1 from unselected state")
+        TestHarness.assertEqual(cyclingEngine.selectedObjectID, obj1.id, "selectedObjectID is obj1")
+        TestHarness.assertTrue(cyclingEngine.objects[0].isSelected, "obj1 isSelected is true")
+        TestHarness.assertFalse(cyclingEngine.objects[1].isSelected, "obj2 isSelected is false")
+
+        // Forward cycle to obj2
+        let secondSelected = cyclingEngine.selectNextObject(reverse: false)
+        TestHarness.assertEqual(secondSelected, obj2.id, "selectNextObject advances to obj2")
+        TestHarness.assertEqual(cyclingEngine.selectedObjectID, obj2.id, "selectedObjectID is obj2")
+
+        // Forward cycle to obj3
+        let thirdSelected = cyclingEngine.selectNextObject(reverse: false)
+        TestHarness.assertEqual(thirdSelected, obj3.id, "selectNextObject advances to obj3")
+
+        // Forward cycle wraps around to obj1
+        let wrappedSelected = cyclingEngine.selectNextObject(reverse: false)
+        TestHarness.assertEqual(wrappedSelected, obj1.id, "selectNextObject wraps around to obj1")
+
+        // Reverse cycle from obj1 wraps to obj3
+        let reverseWrapped = cyclingEngine.selectNextObject(reverse: true)
+        TestHarness.assertEqual(reverseWrapped, obj3.id, "selectNextObject(reverse: true) from obj1 wraps to obj3")
+
+        // Reverse cycle from obj3 to obj2
+        let reversePrev = cyclingEngine.selectNextObject(reverse: true)
+        TestHarness.assertEqual(reversePrev, obj2.id, "selectNextObject(reverse: true) steps backward to obj2")
+
+        // Reverse from unselected state picks last object (obj3)
+        cyclingEngine.deselectAll()
+        let reverseFromNone = cyclingEngine.selectNextObject(reverse: true)
+        TestHarness.assertEqual(reverseFromNone, obj3.id, "selectNextObject(reverse: true) selects obj3 from unselected state")
     }
 }

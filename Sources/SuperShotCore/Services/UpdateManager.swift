@@ -74,6 +74,11 @@ public struct ReleaseInfo: Codable, Equatable, Sendable {
     public let releaseNotes: String
     public let htmlURL: URL
     public let zipAssetURL: URL?
+    public let dmgAssetURL: URL?
+
+    public var preferredAssetURL: URL? {
+        zipAssetURL ?? dmgAssetURL
+    }
 
     public var versionString: String {
         let trimmed = tagName.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -88,13 +93,15 @@ public struct ReleaseInfo: Codable, Equatable, Sendable {
         name: String,
         releaseNotes: String,
         htmlURL: URL,
-        zipAssetURL: URL? = nil
+        zipAssetURL: URL? = nil,
+        dmgAssetURL: URL? = nil
     ) {
         self.tagName = tagName
         self.name = name
         self.releaseNotes = releaseNotes
         self.htmlURL = htmlURL
         self.zipAssetURL = zipAssetURL
+        self.dmgAssetURL = dmgAssetURL
     }
 
     enum CodingKeys: String, CodingKey {
@@ -103,6 +110,7 @@ public struct ReleaseInfo: Codable, Equatable, Sendable {
         case releaseNotes
         case htmlURL
         case zipAssetURL
+        case dmgAssetURL
     }
 }
 
@@ -177,7 +185,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     private var _customVersion: String? = nil
     public var currentVersion: String {
         get {
-            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.21")
+            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.22")
         }
         set {
             _customVersion = newValue
@@ -185,12 +193,62 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     }
 
     public var apiURL: URL = URL(string: "https://api.github.com/repos/nhanqv-ai/SuperShot/releases/latest")!
-    public var stagingTargetURL: URL = URL(fileURLWithPath: "/Applications/SuperShot.app")
+    private var _customStagingTargetURL: URL? = nil
+    public var stagingTargetURL: URL {
+        get {
+            if let custom = _customStagingTargetURL {
+                return custom
+            }
+            if Bundle.main.bundleURL.pathExtension.lowercased() == "app" {
+                return Bundle.main.bundleURL
+            }
+            return URL(fileURLWithPath: "/Applications/SuperShot.app")
+        }
+        set {
+            _customStagingTargetURL = newValue
+        }
+    }
     public var verifyCodeSignature: Bool = true
-    public var appLauncher: (URL) -> Void = { targetURL in
-        let config = NSWorkspace.OpenConfiguration()
-        config.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: targetURL, configuration: config, completionHandler: nil)
+
+    private var _customAppLauncher: ((URL) -> Void)? = nil
+    public var appLauncher: (URL) -> Void {
+        get {
+            if let custom = _customAppLauncher {
+                return custom
+            }
+            return { [weak self] targetURL in
+                guard let self = self else { return }
+                var terminated = false
+                let lock = NSLock()
+                let doTerminate = {
+                    lock.lock()
+                    defer { lock.unlock() }
+                    guard !terminated else { return }
+                    terminated = true
+                    DispatchQueue.main.async {
+                        self.terminationHandler()
+                    }
+                }
+
+                // 3.0s fallback timer
+                let fallbackTimer = DispatchSource.makeTimerSource(queue: .main)
+                fallbackTimer.schedule(deadline: .now() + 3.0)
+                fallbackTimer.setEventHandler {
+                    doTerminate()
+                }
+                fallbackTimer.resume()
+
+                let config = NSWorkspace.OpenConfiguration()
+                config.createsNewApplicationInstance = true
+                NSWorkspace.shared.openApplication(at: targetURL, configuration: config) { _, _ in
+                    fallbackTimer.cancel()
+                    doTerminate()
+                }
+            }
+        }
+        set {
+            _customAppLauncher = newValue
+        }
     }
     public var terminationHandler: () -> Void = {
         NSApp?.terminate(nil)
@@ -288,6 +346,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         }
 
         var zipURL: URL? = nil
+        var dmgURL: URL? = nil
         if let assets = release.assets {
             // Find zip asset matching supershot or ending in .zip
             if let match = assets.first(where: {
@@ -298,6 +357,16 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
                     zipURL = url
                 }
             }
+
+            // Find dmg asset matching supershot or ending in .dmg
+            if let match = assets.first(where: {
+                let n = $0.name?.lowercased() ?? ""
+                return n.contains("supershot") && n.hasSuffix(".dmg")
+            }) ?? assets.first(where: { $0.name?.lowercased().hasSuffix(".dmg") == true }) {
+                if let raw = match.browserDownloadUrl, !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, let url = URL(string: raw) {
+                    dmgURL = url
+                }
+            }
         }
 
         return ReleaseInfo(
@@ -305,7 +374,8 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
             name: releaseName,
             releaseNotes: notes,
             htmlURL: htmlURL,
-            zipAssetURL: zipURL
+            zipAssetURL: zipURL,
+            dmgAssetURL: dmgURL
         )
     }
 
@@ -600,7 +670,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         targetURL: URL? = nil,
         completion: ((Result<URL, Error>) -> Void)? = nil
     ) {
-        guard let assetURL = release.zipAssetURL else {
+        guard let assetURL = release.preferredAssetURL else {
             let err = UpdateError.noAssetFound
             self.status = .error(message: err.localizedDescription)
             completion?(.failure(err))
@@ -624,19 +694,19 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
                     completion?(.failure(err))
                 }
 
-            case .success(let zipPath):
+            case .success(let downloadedPath):
                 DispatchQueue.global(qos: .userInitiated).async {
                     defer {
-                        let downloadDir = zipPath.deletingLastPathComponent()
+                        let downloadDir = downloadedPath.deletingLastPathComponent()
                         if downloadDir.lastPathComponent.hasPrefix("SuperShot-Update-") {
                             try? FileManager.default.removeItem(at: downloadDir)
                         } else {
-                            try? FileManager.default.removeItem(at: zipPath)
+                            try? FileManager.default.removeItem(at: downloadedPath)
                         }
                     }
                     do {
                         let stagedURL = try self.unpackAndVerify(
-                            zipURL: zipPath,
+                            archiveURL: downloadedPath,
                             destinationURL: targetURL ?? self.stagingTargetURL
                         )
                         DispatchQueue.main.async {
@@ -693,38 +763,25 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         let filename = url.lastPathComponent.isEmpty ? "SuperShot-update.zip" : url.lastPathComponent
         let dest = tempDir.appendingPathComponent(filename)
 
-        let task = urlSession.downloadTask(with: url) { localURL, response, error in
-            if let error = error {
-                try? FileManager.default.removeItem(at: tempDir)
-                completion(.failure(error))
-                return
-            }
-            if let httpResponse = response as? HTTPURLResponse, !(200...299).contains(httpResponse.statusCode) {
-                try? FileManager.default.removeItem(at: tempDir)
-                completion(.failure(UpdateError.downloadFailed("HTTP error \(httpResponse.statusCode)")))
-                return
-            }
-            guard let localURL = localURL else {
-                try? FileManager.default.removeItem(at: tempDir)
-                completion(.failure(UpdateError.downloadFailed("Downloaded file is missing.")))
-                return
-            }
-            do {
-                if FileManager.default.fileExists(atPath: dest.path) {
-                    try FileManager.default.removeItem(at: dest)
-                }
-                try FileManager.default.moveItem(at: localURL, to: dest)
-                progressHandler(1.0)
-                completion(.success(dest))
-            } catch {
-                try? FileManager.default.removeItem(at: tempDir)
-                completion(.failure(error))
-            }
-        }
+        let delegate = UpdateDownloadDelegate(
+            destinationURL: dest,
+            updateManager: self,
+            onProgress: progressHandler,
+            onCompletion: completion
+        )
+
+        let session = URLSession(configuration: self.urlSession.configuration, delegate: delegate, delegateQueue: nil)
+        let task = session.downloadTask(with: url)
         task.resume()
     }
 
+    @discardableResult
     public func unpackAndVerify(zipURL: URL, destinationURL: URL? = nil) throws -> URL {
+        try unpackAndVerify(archiveURL: zipURL, destinationURL: destinationURL)
+    }
+
+    @discardableResult
+    public func unpackAndVerify(archiveURL: URL, destinationURL: URL? = nil) throws -> URL {
         let fm = FileManager.default
         let unpackDir = fm.temporaryDirectory.appendingPathComponent("SuperShot-Unpacked-\(UUID().uuidString)")
         try fm.createDirectory(at: unpackDir, withIntermediateDirectories: true)
@@ -733,44 +790,100 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
             try? fm.removeItem(at: unpackDir)
         }
 
-        // 1. Unpack with ditto to preserve bundle attributes & code signatures
-        let ditto = Process()
-        ditto.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
-        ditto.arguments = ["-xk", zipURL.path, unpackDir.path]
-        let dittoPipe = Pipe()
-        ditto.standardOutput = dittoPipe
-        ditto.standardError = dittoPipe
-        try ditto.run()
-        ditto.waitUntilExit()
-
-        if ditto.terminationStatus != 0 {
-            // Fallback to unzip if ditto returns non-zero
-            let unzip = Process()
-            unzip.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
-            unzip.arguments = ["-q", "-o", zipURL.path, "-d", unpackDir.path]
-            let unzipPipe = Pipe()
-            unzip.standardOutput = unzipPipe
-            unzip.standardError = unzipPipe
-            try unzip.run()
-            unzip.waitUntilExit()
-            if unzip.terminationStatus != 0 {
-                throw UpdateError.unpackFailed("ditto and unzip failed to extract archive.")
-            }
-        }
-
-        // 2. Discover .app bundle (top-level or in immediate subdirectories)
+        let isDMG = archiveURL.pathExtension.lowercased() == "dmg"
         var foundAppURL: URL? = nil
-        let topItems = try fm.contentsOfDirectory(at: unpackDir, includingPropertiesForKeys: nil)
-        if let topApp = topItems.first(where: { $0.pathExtension == "app" }) {
-            foundAppURL = topApp
+
+        if isDMG {
+            let mountDir = fm.temporaryDirectory.appendingPathComponent("SuperShot-DMG-\(UUID().uuidString)")
+            try fm.createDirectory(at: mountDir, withIntermediateDirectories: true)
+
+            defer {
+                let detach = Process()
+                detach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+                detach.arguments = ["detach", mountDir.path, "-force"]
+                let detachPipe = Pipe()
+                detach.standardOutput = detachPipe
+                detach.standardError = detachPipe
+                try? detach.run()
+                detach.waitUntilExit()
+                try? fm.removeItem(at: mountDir)
+            }
+
+            let attach = Process()
+            attach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+            attach.arguments = ["attach", "-nobrowse", "-readonly", archiveURL.path, "-mountpoint", mountDir.path]
+            let attachPipe = Pipe()
+            attach.standardOutput = attachPipe
+            attach.standardError = attachPipe
+            try attach.run()
+            attach.waitUntilExit()
+
+            if attach.terminationStatus != 0 {
+                throw UpdateError.unpackFailed("hdiutil failed to mount disk image.")
+            }
+
+            let topItems = (try? fm.contentsOfDirectory(at: mountDir, includingPropertiesForKeys: nil)) ?? []
+            if let topApp = topItems.first(where: { $0.pathExtension == "app" }) {
+                foundAppURL = topApp
+            } else {
+                for item in topItems {
+                    var isDir: ObjCBool = false
+                    if fm.fileExists(atPath: item.path, isDirectory: &isDir), isDir.boolValue {
+                        let subItems = (try? fm.contentsOfDirectory(at: item, includingPropertiesForKeys: nil)) ?? []
+                        if let subApp = subItems.first(where: { $0.pathExtension == "app" }) {
+                            foundAppURL = subApp
+                            break
+                        }
+                    }
+                }
+            }
+
+            guard let discoveredApp = foundAppURL else {
+                throw UpdateError.appBundleNotFound
+            }
+
+            let stagedCopy = unpackDir.appendingPathComponent(discoveredApp.lastPathComponent)
+            try fm.copyItem(at: discoveredApp, to: stagedCopy)
+            foundAppURL = stagedCopy
         } else {
-            for item in topItems {
-                var isDir: ObjCBool = false
-                if fm.fileExists(atPath: item.path, isDirectory: &isDir), isDir.boolValue {
-                    let subItems = (try? fm.contentsOfDirectory(at: item, includingPropertiesForKeys: nil)) ?? []
-                    if let subApp = subItems.first(where: { $0.pathExtension == "app" }) {
-                        foundAppURL = subApp
-                        break
+            // 1. Unpack with ditto to preserve bundle attributes & code signatures
+            let ditto = Process()
+            ditto.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+            ditto.arguments = ["-xk", archiveURL.path, unpackDir.path]
+            let dittoPipe = Pipe()
+            ditto.standardOutput = dittoPipe
+            ditto.standardError = dittoPipe
+            try ditto.run()
+            ditto.waitUntilExit()
+
+            if ditto.terminationStatus != 0 {
+                // Fallback to unzip if ditto returns non-zero
+                let unzip = Process()
+                unzip.executableURL = URL(fileURLWithPath: "/usr/bin/unzip")
+                unzip.arguments = ["-q", "-o", archiveURL.path, "-d", unpackDir.path]
+                let unzipPipe = Pipe()
+                unzip.standardOutput = unzipPipe
+                unzip.standardError = unzipPipe
+                try unzip.run()
+                unzip.waitUntilExit()
+                if unzip.terminationStatus != 0 {
+                    throw UpdateError.unpackFailed("ditto and unzip failed to extract archive.")
+                }
+            }
+
+            // 2. Discover .app bundle (top-level or in immediate subdirectories)
+            let topItems = try fm.contentsOfDirectory(at: unpackDir, includingPropertiesForKeys: nil)
+            if let topApp = topItems.first(where: { $0.pathExtension == "app" }) {
+                foundAppURL = topApp
+            } else {
+                for item in topItems {
+                    var isDir: ObjCBool = false
+                    if fm.fileExists(atPath: item.path, isDirectory: &isDir), isDir.boolValue {
+                        let subItems = (try? fm.contentsOfDirectory(at: item, includingPropertiesForKeys: nil)) ?? []
+                        if let subApp = subItems.first(where: { $0.pathExtension == "app" }) {
+                            foundAppURL = subApp
+                            break
+                        }
                     }
                 }
             }
@@ -838,14 +951,168 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
             }
         }
 
+        // 6. Clean quarantine removal on staged bundle
+        Self.removeQuarantineAttribute(at: target)
+
         return target
+    }
+
+    /// Removes com.apple.quarantine extended attribute from the application bundle.
+    @discardableResult
+    public static func removeQuarantineAttribute(at url: URL) -> Bool {
+        let xattr = Process()
+        xattr.executableURL = URL(fileURLWithPath: "/usr/bin/xattr")
+        xattr.arguments = ["-r", "-d", "com.apple.quarantine", url.path]
+        let pipe = Pipe()
+        xattr.standardOutput = pipe
+        xattr.standardError = pipe
+        do {
+            try xattr.run()
+            xattr.waitUntilExit()
+            return xattr.terminationStatus == 0
+        } catch {
+            return false
+        }
     }
 
     // MARK: - Restart Application
 
     public func restartApp() {
         let target = stagedAppURL ?? stagingTargetURL
-        appLauncher(target)
-        terminationHandler()
+        if let custom = _customAppLauncher {
+            custom(target)
+            terminationHandler()
+        } else {
+            appLauncher(target)
+        }
+    }
+}
+
+/// Streaming download delegate reporting progressive byte delivery for application update assets.
+public final class UpdateDownloadDelegate: NSObject, URLSessionDownloadDelegate, @unchecked Sendable {
+    public let destinationURL: URL
+    public weak var updateManager: UpdateManager?
+    public var onProgress: ((Double) -> Void)?
+    public var onCompletion: ((Result<URL, Error>) -> Void)?
+    private var hasCompleted = false
+    private let lock = NSLock()
+
+    public init(
+        destinationURL: URL,
+        updateManager: UpdateManager? = nil,
+        onProgress: ((Double) -> Void)? = nil,
+        onCompletion: ((Result<URL, Error>) -> Void)? = nil
+    ) {
+        self.destinationURL = destinationURL
+        self.updateManager = updateManager
+        self.onProgress = onProgress
+        self.onCompletion = onCompletion
+        super.init()
+    }
+
+    public func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didWriteData bytesWritten: Int64,
+        totalBytesWritten: Int64,
+        totalBytesExpectedToWrite: Int64
+    ) {
+        guard totalBytesExpectedToWrite > 0 else { return }
+        let progress = min(1.0, max(0.0, Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)))
+        let updateBlock: () -> Void = { [weak self] in
+            guard let self = self else { return }
+            self.updateManager?.downloadProgress = progress
+            self.updateManager?.status = .downloading(progress: progress)
+            self.onProgress?(progress)
+        }
+        if Thread.isMainThread {
+            updateBlock()
+        } else {
+            DispatchQueue.main.async(execute: updateBlock)
+        }
+    }
+
+    public func urlSession(
+        _ session: URLSession,
+        downloadTask: URLSessionDownloadTask,
+        didFinishDownloadingTo location: URL
+    ) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !hasCompleted else { return }
+
+        if let response = downloadTask.response as? HTTPURLResponse, !(200...299).contains(response.statusCode) {
+            hasCompleted = true
+            session.finishTasksAndInvalidate()
+            let err = UpdateError.downloadFailed("HTTP error \(response.statusCode)")
+            let failBlock: () -> Void = { [weak self] in
+                self?.onCompletion?(.failure(err))
+            }
+            if Thread.isMainThread {
+                failBlock()
+            } else {
+                DispatchQueue.main.async(execute: failBlock)
+            }
+            return
+        }
+
+        do {
+            let fm = FileManager.default
+            let parentDir = destinationURL.deletingLastPathComponent()
+            if !fm.fileExists(atPath: parentDir.path) {
+                try fm.createDirectory(at: parentDir, withIntermediateDirectories: true)
+            }
+            if fm.fileExists(atPath: destinationURL.path) {
+                try fm.removeItem(at: destinationURL)
+            }
+            try fm.moveItem(at: location, to: destinationURL)
+            hasCompleted = true
+            session.finishTasksAndInvalidate()
+            let completeBlock: () -> Void = { [weak self] in
+                guard let self = self else { return }
+                self.updateManager?.downloadProgress = 1.0
+                self.onProgress?(1.0)
+                self.onCompletion?(.success(self.destinationURL))
+            }
+            if Thread.isMainThread {
+                completeBlock()
+            } else {
+                DispatchQueue.main.async(execute: completeBlock)
+            }
+        } catch {
+            hasCompleted = true
+            session.finishTasksAndInvalidate()
+            let failBlock: () -> Void = { [weak self] in
+                self?.onCompletion?(.failure(error))
+            }
+            if Thread.isMainThread {
+                failBlock()
+            } else {
+                DispatchQueue.main.async(execute: failBlock)
+            }
+        }
+    }
+
+    public func urlSession(
+        _ session: URLSession,
+        task: URLSessionTask,
+        didCompleteWithError error: Error?
+    ) {
+        lock.lock()
+        defer { lock.unlock() }
+        guard !hasCompleted else { return }
+
+        if let error = error {
+            hasCompleted = true
+            session.finishTasksAndInvalidate()
+            let failBlock: () -> Void = { [weak self] in
+                self?.onCompletion?(.failure(error))
+            }
+            if Thread.isMainThread {
+                failBlock()
+            } else {
+                DispatchQueue.main.async(execute: failBlock)
+            }
+        }
     }
 }

@@ -407,7 +407,11 @@ public struct MainShotView: View {
                 .pointingHandCursor()
 
                 Button(action: {
-                    updateManager.startDownloadAndInstall(release: release)
+                    if release.preferredAssetURL != nil {
+                        updateManager.startDownloadAndInstall(release: release)
+                    } else {
+                        NSWorkspace.shared.open(release.htmlURL)
+                    }
                 }) {
                     Text(localizationManager.tr(.updateNow))
                         .font(.system(size: 10, weight: .semibold))

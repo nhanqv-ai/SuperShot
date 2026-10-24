@@ -156,33 +156,43 @@ public struct ShotRowView: View {
             }
         }
         .contextMenu {
-            Button("\(localizationManager.tr(.actionCopy)) (⌘C)") {
+            Button(action: {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 triggerLocalCopyFeedback()
                 onCopy?(item)
+            }) {
+                Label("\(localizationManager.tr(.actionCopy)) (⌘C)", systemImage: "doc.on.doc")
             }
-            Button("\(localizationManager.tr(.actionSave))... (⌘S)") {
+            Button(action: {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onSave?(item)
+            }) {
+                Label("\(localizationManager.tr(.actionSave))... (⌘S)", systemImage: "square.and.arrow.down")
             }
-            Button("\(localizationManager.tr(.actionShare)) (⌘E)") {
+            Button(action: {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onShare?(item)
+            }) {
+                Label("\(localizationManager.tr(.actionShare)) (⌘E)", systemImage: "square.and.arrow.up")
             }
-            Button("\(localizationManager.tr(.actionAnnotate)) (⌘⇧A)") {
+            Button(action: {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 if let onAnnotate = onAnnotate {
                     onAnnotate(item)
                 } else if let appDelegate = NSApp.delegate as? AppDelegate {
                     appDelegate.openInAnnotationWindow(item: item)
                 }
+            }) {
+                Label("\(localizationManager.tr(.actionAnnotate)) (⌘⇧A)", systemImage: "pencil.tip.crop.circle")
             }
-            Button("\(localizationManager.tr(item.isPinned ? .unpinButton : .pinButton)) (⌘P)") {
+            Button(action: {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onTogglePin?(item)
+            }) {
+                Label("\(localizationManager.tr(item.isPinned ? .unpinButton : .pinButton)) (⌘P)", systemImage: item.isPinned ? "pin.fill" : "pin")
             }
             Divider()
-            Button("\(localizationManager.tr(.openInFinder)) (⌘O)") {
+            Button(action: {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 let url: URL
                 if let sm = storageManager {
@@ -192,11 +202,15 @@ public struct ShotRowView: View {
                     url = appSupport.appendingPathComponent("SuperShot/images").appendingPathComponent(item.filePath)
                 }
                 NSWorkspace.shared.activateFileViewerSelecting([url])
+            }) {
+                Label("\(localizationManager.tr(.openInFinder)) (⌘O)", systemImage: "folder")
             }
             Divider()
-            Button("\(localizationManager.tr(.deleteButton)) (⌫)") {
+            Button(action: {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onDelete?(item)
+            }) {
+                Label("\(localizationManager.tr(.deleteButton)) (⌫)", systemImage: "trash")
             }
         }
     }
