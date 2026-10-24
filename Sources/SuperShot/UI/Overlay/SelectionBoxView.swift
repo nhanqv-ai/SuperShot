@@ -44,9 +44,15 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     private var editingObjectID: UUID?
     public var currentMousePoint: CGPoint?
     private var trackingAreaRef: NSTrackingArea?
-    private var cancellables = Set<AnyCancellable>()
+    public private(set) var spaceKeyDragging: Bool = false
+    public private(set) var isHoveringDimensionBadge: Bool = false
+    public private(set) var isHoveringQuickCopyPill: Bool = false
+    private var isSpaceKeyPressed: Bool = false
+    private var previousDragPoint: CGPoint?
+
     public private(set) var toolHUDText: String? = nil
     private var toolHUDTimer: Timer? = nil
+    private var cancellables = Set<AnyCancellable>()
 
     public init(
         frame: NSRect,
@@ -140,6 +146,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             guard let self = self else { return }
             self.commitActiveTextEditing()
             self.annotationEngine.activeTool = Self.mapTool(toolType)
+            self.updateTextTargetState()
             let pt = self.currentMousePoint ?? (self.window.map { self.convert($0.mouseLocationOutsideOfEventStream, from: nil) }) ?? CGPoint(x: self.bounds.midX, y: self.bounds.midY)
             self.updateCanvasCursor(at: pt)
             self.showToolSelectionHUD(tool: toolType)
@@ -164,10 +171,11 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
         toolbarsViewModel.onFontSizeSelected = { [weak self] size in
             guard let self = self else { return }
-            if self.annotationEngine.selectedObjectID != nil {
+            if let sel = self.annotationEngine.selectedObject, sel.tool == .text {
                 self.annotationEngine.updateSelectedFontSize(size)
-                self.needsDisplay = true
             }
+            self.showFontSizeHUD(size: Int(round(size)))
+            self.needsDisplay = true
         }
 
         toolbarsViewModel.onUndoRequested = { [weak self] in
@@ -392,8 +400,9 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                 handlePath.stroke()
             }
 
-            // Step 5: Draw live dimension badge
+            // Step 5: Draw live dimension badge & quick copy action pill
             drawDimensionBadge(in: context)
+            drawQuickCopyPill(in: context)
         }
         context.restoreGState()
 
@@ -642,6 +651,31 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         )
     }
 
+    public func quickCopyPillFrame() -> CGRect {
+        let badgeFrame = dimensionBadgeFrame()
+        guard !selectionRect.isEmpty, !badgeFrame.isEmpty else { return .zero }
+        let text = LocalizationManager.shared.tr(.quickCopy)
+        let font = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let attributes: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white
+        ]
+        let str = NSAttributedString(string: text, attributes: attributes)
+        let textSize = str.size()
+        let pillW = max(56.0, textSize.width + 28.0)
+        let pillH = badgeFrame.height
+
+        var x = badgeFrame.maxX + 6.0
+        let y = badgeFrame.minY
+
+        if x + pillW > bounds.maxX - 8.0 {
+            x = badgeFrame.minX - 6.0 - pillW
+        }
+        x = max(bounds.minX + 8.0, min(bounds.maxX - 8.0 - pillW, x))
+
+        return CGRect(x: x, y: y, width: pillW, height: pillH)
+    }
+
     private func drawDimensionBadge(in context: CGContext) {
         let text = SelectionBoxGeometry.formatDimensionBadge(
             width: selectionRect.width,
@@ -659,12 +693,71 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         let badgeFrame = dimensionBadgeFrame()
 
         let badgePath = NSBezierPath(roundedRect: badgeFrame, xRadius: 4.0, yRadius: 4.0)
-        NSColor.black.withAlphaComponent(0.75).setFill()
+        let fillColor = isHoveringDimensionBadge ? NSColor.black.withAlphaComponent(0.85) : NSColor.black.withAlphaComponent(0.75)
+        fillColor.setFill()
         badgePath.fill()
+
+        if isHoveringDimensionBadge {
+            NSColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 0.9).setStroke()
+            badgePath.lineWidth = 1.0
+            badgePath.stroke()
+        }
 
         let textRect = CGRect(
             x: badgeFrame.midX - textSize.width / 2.0,
             y: badgeFrame.midY - textSize.height / 2.0,
+            width: textSize.width,
+            height: textSize.height
+        )
+        str.draw(in: textRect)
+    }
+
+    private func drawQuickCopyPill(in context: CGContext) {
+        let pillFrame = quickCopyPillFrame()
+        guard !pillFrame.isEmpty else { return }
+
+        let pillPath = NSBezierPath(roundedRect: pillFrame, xRadius: 4.0, yRadius: 4.0)
+        let fillColor = isHoveringQuickCopyPill
+            ? NSColor(red: 0.0, green: 0.48, blue: 1.0, alpha: 0.95)
+            : NSColor.black.withAlphaComponent(0.75)
+        fillColor.setFill()
+        pillPath.fill()
+
+        if isHoveringQuickCopyPill {
+            NSColor.white.withAlphaComponent(0.8).setStroke()
+            pillPath.lineWidth = 1.0
+            pillPath.stroke()
+        } else {
+            NSColor.white.withAlphaComponent(0.2).setStroke()
+            pillPath.lineWidth = 0.5
+            pillPath.stroke()
+        }
+
+        let text = LocalizationManager.shared.tr(.quickCopy)
+        let font = NSFont.systemFont(ofSize: 11, weight: .semibold)
+        let attrs: [NSAttributedString.Key: Any] = [
+            .font: font,
+            .foregroundColor: NSColor.white
+        ]
+        let str = NSAttributedString(string: text, attributes: attrs)
+        let textSize = str.size()
+
+        var textStartX = pillFrame.minX + 8.0
+        let iconSize: CGFloat = 11.0
+        if let icon = NSImage(systemSymbolName: "doc.on.doc", accessibilityDescription: nil) {
+            let iconRect = CGRect(
+                x: pillFrame.minX + 7.0,
+                y: pillFrame.midY - iconSize / 2.0,
+                width: iconSize,
+                height: iconSize
+            )
+            icon.draw(in: iconRect)
+            textStartX = iconRect.maxX + 4.0
+        }
+
+        let textRect = CGRect(
+            x: textStartX,
+            y: pillFrame.midY - textSize.height / 2.0,
             width: textSize.width,
             height: textSize.height
         )
@@ -718,6 +811,20 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
     public func showStrokeWidthHUD(width: Int) {
         showHUDNotification(text: LocalizationManager.shared.tr(.strokeWidthHUD(width)))
+    }
+
+    public func showFontSizeHUD(size: Int) {
+        showHUDNotification(text: LocalizationManager.shared.tr(.fontSizeHUD(size)))
+    }
+
+    public func updateTextTargetState() {
+        let isTextSelected = (annotationEngine.selectedObject?.tool == .text)
+        toolbarsViewModel.isTextTargetActive = isTextSelected || (toolbarsViewModel.activeTool == .text)
+        if isTextSelected, let sel = annotationEngine.selectedObject {
+            toolbarsViewModel.selectedFontSize = sel.fontSize
+        } else {
+            toolbarsViewModel.selectedFontSize = nil
+        }
     }
 
     private func showToolSelectionHUD(tool: AnnotationToolType) {
@@ -789,8 +896,18 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         // Tier 2: Escape deselects active vector object if any object is selected
         if event.keyCode == 53 && annotationEngine.selectedObjectID != nil {
             annotationEngine.deselectAll()
+            updateTextTargetState()
             needsDisplay = true
             return true
+        }
+
+        // Tier 2b: Spacebar (keyCode 49) initiates spacebar repositioning during drag creation
+        if event.keyCode == 49 {
+            isSpaceKeyPressed = true
+            if case .creating = dragMode {
+                spaceKeyDragging = true
+                return true
+            }
         }
 
         // Tier 3: Escape reverts active drawing tool to .select if another tool is active
@@ -992,14 +1109,57 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         return false
     }
 
+    public func handleOverlayKeyUp(with event: NSEvent) -> Bool {
+        if event.keyCode == 49 {
+            isSpaceKeyPressed = false
+            spaceKeyDragging = false
+            return true
+        }
+        return false
+    }
+
+    public override func keyUp(with event: NSEvent) {
+        if handleOverlayKeyUp(with: event) {
+            return
+        }
+        super.keyUp(with: event)
+    }
+
+    // MARK: - Hit Testing & Mouse Event Routing
+
+    public override func hitTest(_ point: NSPoint) -> NSView? {
+        let localPoint = superview != nil ? convert(point, from: superview) : point
+        guard bounds.contains(localPoint) else { return nil }
+
+        // Quick Copy pill and Dimension Badge take hit-test precedence over subviews
+        if !selectionRect.isEmpty {
+            if quickCopyPillFrame().contains(localPoint) || dimensionBadgeFrame().contains(localPoint) {
+                return self
+            }
+        }
+        return super.hitTest(point)
+    }
+
     public override func mouseDown(with event: NSEvent) {
         commitActiveTextEditing()
         let point = convert(event.locationInWindow, from: nil)
         currentMousePoint = point
-        guard !isPointOverFloatingUI(point) else { return }
+        previousDragPoint = point
+        spaceKeyDragging = false
 
-        // 0. Interactive Dimension Badge Click-to-Copy
+        // Popovers absorb canvas clicks to dismiss safely
+        if toolbarsViewModel.isColorPalettePresented || toolbarsViewModel.isStrokeWidthPresented {
+            return
+        }
+
+        // 0. Interactive Quick Copy Action Pill & Dimension Badge Click-to-Copy take top priority
         if !selectionRect.isEmpty {
+            let copyPill = quickCopyPillFrame()
+            if copyPill.contains(point) {
+                toolbarsViewModel.triggerCopy()
+                return
+            }
+
             let badgeFrame = dimensionBadgeFrame()
             if badgeFrame.contains(point) {
                 let dimString = SelectionBoxGeometry.formatDimensionBadge(
@@ -1014,6 +1174,9 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                 return
             }
         }
+
+        // Guard against clicking over floating toolbars for region moving / annotation drawing
+        guard !isPointOverFloatingUI(point) else { return }
 
         // 1. Selection Box Grab Handles always take priority for resizing the region
         if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
@@ -1030,6 +1193,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             if event.clickCount == 2 {
                 if let hitObj = annotationEngine.selectObject(at: point), hitObj.tool == .text {
                     startInlineTextEditing(for: hitObj)
+                    updateTextTargetState()
                     updateCanvasCursor(at: point)
                     needsDisplay = true
                     return
@@ -1049,6 +1213,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                     strokeWidth: CGFloat(appSettings.activeStrokeWidth),
                     fontSize: CGFloat(appSettings.activeFontSize)
                 )
+                updateTextTargetState()
                 updateCanvasCursor(at: point)
                 needsDisplay = true
                 return
@@ -1064,6 +1229,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                     strokeWidth: CGFloat(appSettings.activeStrokeWidth),
                     fontSize: CGFloat(appSettings.activeFontSize)
                 )
+                updateTextTargetState()
                 updateCanvasCursor(at: point)
                 needsDisplay = true
                 return
@@ -1078,6 +1244,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                     strokeWidth: CGFloat(appSettings.activeStrokeWidth),
                     fontSize: CGFloat(appSettings.activeFontSize)
                 )
+                updateTextTargetState()
                 updateCanvasCursor(at: point)
                 needsDisplay = true
                 return
@@ -1085,6 +1252,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
             // Otherwise, move the entire selection box
             annotationEngine.deselectAll()
+            updateTextTargetState()
             dragMode = .moving(startPoint: point, originalRect: selectionRect)
             updateCanvasCursor(at: point)
             return
@@ -1092,6 +1260,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
         // 3. Outside Selection Box: Start creating a new selection region
         annotationEngine.deselectAll()
+        updateTextTargetState()
         dragMode = .creating(startPoint: point)
         selectionRect = CGRect(origin: point, size: CGSize(width: 1, height: 1))
         updateCanvasCursor(at: point)
@@ -1115,7 +1284,27 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             )
             needsDisplay = true
         case .creating(let startPoint):
-            updateCreatingSelection(startPoint: startPoint, currentPoint: currentPoint, modifierFlags: event.modifierFlags)
+            let isSpace = isSpaceKeyPressed || CGEventSource.keyState(.combinedSessionState, key: CGKeyCode(49))
+            if isSpace {
+                spaceKeyDragging = true
+                let prev = previousDragPoint ?? currentPoint
+                let dx = currentPoint.x - prev.x
+                let dy = currentPoint.y - prev.y
+                var newRect = selectionRect.offsetBy(dx: dx, dy: dy)
+                if newRect.minX < bounds.minX { newRect.origin.x = bounds.minX }
+                if newRect.maxX > bounds.maxX { newRect.origin.x = bounds.maxX - newRect.width }
+                if newRect.minY < bounds.minY { newRect.origin.y = bounds.minY }
+                if newRect.maxY > bounds.maxY { newRect.origin.y = bounds.maxY - newRect.height }
+                let actualDx = newRect.origin.x - selectionRect.origin.x
+                let actualDy = newRect.origin.y - selectionRect.origin.y
+                selectionRect = newRect
+                let newStart = CGPoint(x: startPoint.x + actualDx, y: startPoint.y + actualDy)
+                dragMode = .creating(startPoint: newStart)
+            } else {
+                spaceKeyDragging = false
+                updateCreatingSelection(startPoint: startPoint, currentPoint: currentPoint, modifierFlags: event.modifierFlags)
+            }
+            previousDragPoint = currentPoint
         case .moving(let startPoint, let originalRect):
             let dx = currentPoint.x - startPoint.x
             let dy = currentPoint.y - startPoint.y
@@ -1176,6 +1365,9 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     public override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         currentMousePoint = point
+        spaceKeyDragging = false
+        previousDragPoint = nil
+        isSpaceKeyPressed = false
         if dragMode == .annotating {
             let committed = annotationEngine.endDrag(at: point)
             if let obj = committed, obj.tool == .text {
@@ -1184,6 +1376,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         }
         dragMode = .none
         initialResizingRect = .zero
+        updateTextTargetState()
         updateToolbarPositions()
         updateCanvasCursor(at: point)
         needsDisplay = true
@@ -1234,6 +1427,12 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         if toolbarsViewModel.isColorPalettePresented || toolbarsViewModel.isStrokeWidthPresented {
             return true
         }
+        // Exclude interactive Quick Copy pill and Dimension badge so they are never blocked
+        if !selectionRect.isEmpty {
+            if quickCopyPillFrame().contains(point) || dimensionBadgeFrame().contains(point) {
+                return false
+            }
+        }
         if let vHost = verticalToolbarHost, !vHost.isHidden, vHost.frame.insetBy(dx: -4, dy: -4).contains(point) {
             return true
         }
@@ -1246,14 +1445,11 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     /// Resolves the appropriate AppKit cursor for the given point on the capture overlay canvas.
     /// Returns nil when the point is over a floating toolbar or popover so button cursors are preserved.
     public func resolveCanvasCursor(at point: CGPoint) -> NSCursor? {
-        if isPointOverFloatingUI(point) {
-            return nil
-        }
         if let tf = activeTextField, tf.frame.contains(point) {
             return .iBeam
         }
 
-        // 1. Active drag state cursor
+        // 1. Active drag state cursor takes priority during active gesture
         switch dragMode {
         case .moving:
             return .closedHand
@@ -1273,14 +1469,21 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             break
         }
 
-        // 2. Hover state over selection box handles
-        if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
-            return handle.cursor
+        // 2. Interactive Quick Copy action pill & Dimension badge hover cursor
+        if !selectionRect.isEmpty {
+            if quickCopyPillFrame().contains(point) || dimensionBadgeFrame().contains(point) {
+                return .pointingHand
+            }
         }
 
-        // 2.5. Hover state over interactive dimension badge
-        if !selectionRect.isEmpty && dimensionBadgeFrame().contains(point) {
-            return .pointingHand
+        // 3. Floating toolbars or open popover: return nil to preserve toolbar button cursor
+        if isPointOverFloatingUI(point) {
+            return nil
+        }
+
+        // 4. Hover state over selection box handles
+        if let handle = SelectionBoxGeometry.hitTestHandle(point: point, in: selectionRect) {
+            return handle.cursor
         }
 
 
@@ -1314,10 +1517,28 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     public override func mouseMoved(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         currentMousePoint = point
+
+        let badgeHover = !selectionRect.isEmpty && dimensionBadgeFrame().contains(point)
+        let copyHover = !selectionRect.isEmpty && quickCopyPillFrame().contains(point)
+        if badgeHover != isHoveringDimensionBadge || copyHover != isHoveringQuickCopyPill {
+            isHoveringDimensionBadge = badgeHover
+            isHoveringQuickCopyPill = copyHover
+            needsDisplay = true
+        }
+
         if selectionRect.isEmpty {
             needsDisplay = true
         }
         updateCanvasCursor(at: point)
+    }
+
+    public override func mouseExited(with event: NSEvent) {
+        super.mouseExited(with: event)
+        if isHoveringDimensionBadge || isHoveringQuickCopyPill {
+            isHoveringDimensionBadge = false
+            isHoveringQuickCopyPill = false
+            needsDisplay = true
+        }
     }
 
     // MARK: - Inline Text Editing
@@ -1348,6 +1569,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
         self.activeTextField = field
         self.editingObjectID = obj.id
+        updateTextTargetState()
     }
 
     public func commitActiveTextEditing() {
@@ -1362,6 +1584,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         field.removeFromSuperview()
         activeTextField = nil
         editingObjectID = nil
+        updateTextTargetState()
         window?.makeFirstResponder(self)
         needsDisplay = true
     }

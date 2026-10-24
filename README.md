@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.23"><img src="https://img.shields.io/badge/version-v1.0.23-blue.svg?style=flat-square" alt="Version v1.0.23"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.24"><img src="https://img.shields.io/badge/version-v1.0.24-blue.svg?style=flat-square" alt="Version v1.0.24"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -118,6 +118,18 @@ SuperShot provides a fast, flexible color management system for all vector annot
    - Manage presets directly: right-click to delete a preset, or reset presets to factory defaults in **Preferences** -> **Capture & Save**.
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
+
+### What's New in v1.0.24
+
+- **Interactive Quick Copy Action Pill on Selection Box**: Clickable `[ doc.on.doc Copy ]` pill attached adjacent to the live dimension badge with `pointingHand` cursor, visual hover highlight, and 1-click clipboard copy.
+- **Spacebar Selection Repositioning (`Space + Drag`)**: Holding the Spacebar while dragging freezes the active selection dimensions and pans the selection box origin smoothly.
+- **Text Annotation Font Size Stepping (`[` / `]`) & HUD Pill**: Dedicated bracket keys step text font size (10pt–72pt) for active text annotations with real-time `Font Size: X pt` HUD pill feedback.
+- **Tall Canvas "Fit to Window" Zoom Action**: Replaced redundant zoom button with dedicated "Fit to Window" button (`rectangle.inset.filled`) in `ScrollableCanvasView` for instant full-document overview.
+- **Visual Hover Affordance on Dimension & Quick Copy Pills**: Subtle accent border and fill highlight on mouse hover matching `pointingHand` cursor feedback on all floating pills.
+- **Direct History Keyboard Shortcuts (`⌘⇧C` & `⌥⌘C`)**: Dedicated keyboard shortcuts to Copy File Path (`Cmd+Shift+C`) and Copy Dimensions (`Cmd+Option+C`) directly in `MainShotView` with transient HUD notifications.
+- **Tall Canvas Double-Click Quick Copy Parity**: Double-clicking an empty area in `ScrollableCanvasView` copies the complete stitched image to clipboard and closes the window.
+- **Screen Boundary Collision Avoidance**: 5-tier placement cascade prevents dimension badge and quick copy pill overlap with the horizontal action toolbar near display edges.
+- **Zero-Emoji 9-Language Localization Completeness**: Comprehensive localized strings for quick copy, font size HUD, fit window tooltip, and copy notifications across all 9 supported languages.
 
 ### What's New in v1.0.23
 
@@ -267,7 +279,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.23.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.24.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -410,6 +422,18 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
    - Quản lý nhanh: Nhấp chuột phải để xóa màu preset, hoặc khôi phục 8 màu ban đầu trong **Cài đặt** -> **Chụp & Lưu**.
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
+
+### Điểm mới trong v1.0.24
+
+- **Huy hiệu thao tác Sao chép nhanh trên khung chọn**: Nút bấm `[ doc.on.doc Sao chép ]` tương tác gắn liền cạnh huy hiệu kích thước với con trỏ bàn tay chỉ, hiệu ứng sáng viền khi rê chuột và sao chép 1 chạm vào bộ nhớ tạm.
+- **Dịch chuyển vị trí khung chọn bằng phím Space (`Space + Kéo chuột`)**: Nhấn giữ phím Space trong lúc kéo tạo vùng chọn để cố định kích thước và di chuyển vị trí gốc khung chọn mượt mà.
+- **Phím tắt tăng giảm cỡ chữ chú thích (`[` / `]`) & Huy hiệu HUD**: Sử dụng các phím ngoặc vuông để tăng giảm kích thước chữ (10pt–72pt) cho đối tượng văn bản đang chọn kèm phản hồi HUD thời gian thực.
+- **Nút "Vừa với cửa sổ" trên khung vẽ cuộn dài**: Thay thế nút thu phóng trùng lặp bằng nút chuyên dụng "Vừa với cửa sổ" (`rectangle.inset.filled`) trong `ScrollableCanvasView` giúp bao quát toàn bộ tài liệu ngay lập tức.
+- **Hiệu ứng trực quan khi rê chuột lên huy hiệu kích thước & sao chép**: Viền và nền sáng màu điểm nhấn khi rê chuột, đồng bộ hoàn hảo với con trỏ bàn tay chỉ.
+- **Phím tắt sao chép siêu dữ liệu lịch sử (`⌘⇧C` & `⌥⌘C`)**: Phím tắt trực tiếp để sao chép đường dẫn tệp (`Cmd+Shift+C`) và kích thước (`Cmd+Option+C`) trong `MainShotView` kèm thông báo HUD xác nhận.
+- **Đồng bộ thao tác nhấp đúp sao chép nhanh trên khung vẽ cuộn**: Nhấp đúp chuột vào vùng trống trên khung vẽ `ScrollableCanvasView` để sao chép toàn bộ ảnh cuộn vào bộ nhớ tạm và đóng cửa sổ.
+- **Thuật toán tránh va chạm biên màn hình**: Cơ chế xếp tầng 5 lớp thông minh ngăn ngừa hiện tượng chồng lấn giữa huy hiệu kích thước/sao chép nhanh và thanh công cụ ngang gần mép màn hình.
+- **Bản địa hóa 9 ngôn ngữ chuẩn mực (0 emoji)**: Hoàn thiện chuỗi bản địa hóa cho tính năng sao chép nhanh, HUD cỡ chữ, gợi ý vừa cửa sổ và thông báo trên cả 9 ngôn ngữ hỗ trợ.
 
 ### Điểm mới trong v1.0.23
 
@@ -559,7 +583,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.23.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.24.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

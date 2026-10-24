@@ -4837,7 +4837,7 @@ struct AdversarialChallenge {
         // Sub-scenario 26E: Rapid Repeated Update Checks (100 Concurrent Requests)
         // -------------------------------------------------------------
         let concurrentCheckMgr = UpdateManager()
-        concurrentCheckMgr.currentVersion = "1.0.23"
+        concurrentCheckMgr.currentVersion = "1.0.24"
         let checkGroup = DispatchGroup()
         let checkQueue = DispatchQueue(label: "adv.check.stress", attributes: .concurrent)
         for _ in 0..<100 {
@@ -4964,12 +4964,12 @@ struct AdversarialChallenge {
         }
 
         let dummyRelease = ReleaseInfo(
-            tagName: "v1.0.23",
-            name: "SuperShot v1.0.23",
+            tagName: "v1.0.24",
+            name: "SuperShot v1.0.24",
             releaseNotes: "## Improvements\n- Interactive dimension badge click-to-copy\n- Double-click to quick copy",
-            htmlURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.23")!,
-            zipAssetURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.23/SuperShot-v1.0.23.zip")!,
-            dmgAssetURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.23/SuperShot-v1.0.23.dmg")!
+            htmlURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.24")!,
+            zipAssetURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.24/SuperShot-v1.0.24.zip")!,
+            dmgAssetURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.24/SuperShot-v1.0.24.dmg")!
         )
 
         // -------------------------------------------------------------
@@ -5081,16 +5081,16 @@ struct AdversarialChallenge {
         // Sub-scenario 27D: ReleaseNotesSheetView Malformed, Corrupted & Extreme Boundary Stress (F3)
         // -------------------------------------------------------------
         let adversarialNoteCases: [(name: String, notes: String, tag: String, urlStr: String, expectFallback: Bool)] = [
-            ("Empty String", "", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", true),
-            ("Whitespace Only Spaces", "     ", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", true),
-            ("Whitespace Only Newlines & Tabs", "\n\n\t\t\r\n", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", true),
-            ("Mixed Blank", "   \t \r \n  ", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", true),
-            ("Massive 100k Markdown", String(repeating: "## Section Header\n- Fix issue with item rendering\n", count: 2500), "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", false),
-            ("Null Bytes & Control Codes", "Update\u{0000}Notes\u{0007}\u{001B}[31mEscaped\u{0008}", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", false),
-            ("RTL Override & Zero-Width", "LTR \u{202E}RTL-Inverted\u{202C} \u{200B}\u{200C}\u{FEFF} Hidden", "v1.0.23", "https://github.com/nhanqv-ai/SuperShot", false),
+            ("Empty String", "", "v1.0.24", "https://github.com/nhanqv-ai/SuperShot", true),
+            ("Whitespace Only Spaces", "     ", "v1.0.24", "https://github.com/nhanqv-ai/SuperShot", true),
+            ("Whitespace Only Newlines & Tabs", "\n\n\t\t\r\n", "v1.0.24", "https://github.com/nhanqv-ai/SuperShot", true),
+            ("Mixed Blank", "   \t \r \n  ", "v1.0.24", "https://github.com/nhanqv-ai/SuperShot", true),
+            ("Massive 100k Markdown", String(repeating: "## Section Header\n- Fix issue with item rendering\n", count: 2500), "v1.0.24", "https://github.com/nhanqv-ai/SuperShot", false),
+            ("Null Bytes & Control Codes", "Update\u{0000}Notes\u{0007}\u{001B}[31mEscaped\u{0008}", "v1.0.24", "https://github.com/nhanqv-ai/SuperShot", false),
+            ("RTL Override & Zero-Width", "LTR \u{202E}RTL-Inverted\u{202C} \u{200B}\u{200C}\u{FEFF} Hidden", "v1.0.24", "https://github.com/nhanqv-ai/SuperShot", false),
             ("Empty Tag Name", "Fixed bugs", "", "https://github.com/nhanqv-ai/SuperShot", false),
-            ("Custom URL Scheme", "Changelog", "v1.0.23", "supershot://release/23", false),
-            ("File URL", "Changelog", "v1.0.23", "file:///tmp/changelog.txt", false)
+            ("Custom URL Scheme", "Changelog", "v1.0.24", "supershot://release/24", false),
+            ("File URL", "Changelog", "v1.0.24", "file:///tmp/changelog.txt", false)
         ]
 
         for tc in adversarialNoteCases {
@@ -5119,7 +5119,7 @@ struct AdversarialChallenge {
 
         // Verify all 9 languages for all F3 localization keys
         for lang in AppLanguage.allCases {
-            let title = LocalizationKey.releaseNotesSheetTitle("v1.0.23").localized(for: lang)
+            let title = LocalizationKey.releaseNotesSheetTitle("v1.0.24").localized(for: lang)
             let fallback = LocalizationKey.releaseNotesFallback.localized(for: lang)
             let viewNotes = LocalizationKey.viewReleaseNotes.localized(for: lang)
             let cancelDl = LocalizationKey.cancelDownload.localized(for: lang)
@@ -5255,7 +5255,7 @@ struct AdversarialChallenge {
         let preMem = getResidentMemoryBytes()
         for _ in 0..<200 {
             let testRel = ReleaseInfo(
-                tagName: "v1.0.23",
+                tagName: "v1.0.24",
                 name: "Stress Test",
                 releaseNotes: "Some release notes",
                 htmlURL: URL(string: "https://example.com")!,
