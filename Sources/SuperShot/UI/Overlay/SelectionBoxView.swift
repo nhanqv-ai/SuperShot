@@ -171,12 +171,14 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         toolbarsViewModel.onUndoRequested = { [weak self] in
             self?.commitActiveTextEditing()
             self?.annotationEngine.undo()
+            self?.showHUDNotification(text: LocalizationManager.shared.tr(.hudUndo))
             self?.needsDisplay = true
         }
 
         toolbarsViewModel.onRedoRequested = { [weak self] in
             self?.commitActiveTextEditing()
             self?.annotationEngine.redo()
+            self?.showHUDNotification(text: LocalizationManager.shared.tr(.hudRedo))
             self?.needsDisplay = true
         }
 
@@ -185,6 +187,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             self.commitActiveTextEditing()
             if self.annotationEngine.selectedObjectID != nil {
                 self.annotationEngine.duplicateSelected(within: self.selectionRect)
+                self.showHUDNotification(text: LocalizationManager.shared.tr(.hudDuplicate))
                 self.needsDisplay = true
             }
         }
@@ -782,6 +785,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         if flags == .command && (event.keyCode == 2 || event.charactersIgnoringModifiers?.lowercased() == "d"),
            annotationEngine.selectedObjectID != nil {
             annotationEngine.duplicateSelected(within: selectionRect)
+            showHUDNotification(text: LocalizationManager.shared.tr(.hudDuplicate))
             needsDisplay = true
             return true
         }
@@ -1250,8 +1254,9 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             height: max(obj.fontSize + 12, obj.bounds.height)
         )
         let field = NSTextField(frame: fieldFrame)
-        field.stringValue = obj.text == "Text" ? "" : obj.text
-        field.placeholderString = "Text"
+        let defaultPlaceholder = LocalizationManager.shared.tr(.toolText)
+        field.stringValue = (obj.text == "Text" || obj.text == defaultPlaceholder) ? "" : obj.text
+        field.placeholderString = defaultPlaceholder
         field.font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
         field.textColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
         field.isBordered = true

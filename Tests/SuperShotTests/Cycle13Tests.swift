@@ -151,10 +151,10 @@ public struct Cycle13Tests {
         TestHarness.assertEqual(shotItem.captureType.rawValue, ShotCaptureType.region.rawValue, "F9: ShotItem captureType preserved")
 
         // ---------------------------------------------------------------------
-        // F10: Canonical Version 1.0.20 Verification
+        // F10: Canonical Version Verification
         // ---------------------------------------------------------------------
-        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.20", "F10: UpdateManager currentVersion is 1.0.20")
-        let diag = AboutSettingsTab.diagnosticString(version: "1.0.20")
-        TestHarness.assertTrue(diag.contains("SuperShot v1.0.20"), "F10: Diagnostic string contains v1.0.20")
+        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.21", "F10: UpdateManager currentVersion is 1.0.21")
+        let diag = AboutSettingsTab.diagnosticString(version: "1.0.21")
+        TestHarness.assertTrue(diag.contains("SuperShot v1.0.21"), "F10: Diagnostic string contains v1.0.21")
     }
 }

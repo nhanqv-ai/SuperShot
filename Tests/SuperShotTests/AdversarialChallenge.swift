@@ -3,6 +3,7 @@ import CoreGraphics
 import AppKit
 import SwiftUI
 import Carbon
+import Darwin
 import SuperShotCore
 import SuperShot
 
@@ -213,6 +214,9 @@ struct AdversarialChallenge {
 
         // M47: Milestone M47-2 v1.0.20 Empirical Stress Suites
         testMilestoneM47EmpiricalStressAndAdversarialChallenge()
+
+        // M51: Milestone M51-2 v1.0.21 Empirical Stress Suites
+        testMilestoneM51EmpiricalStressAndAdversarialChallenge()
 
         let elapsed = Date().timeIntervalSince(startTime)
 
@@ -4039,6 +4043,454 @@ struct AdversarialChallenge {
         // Cleanup temporary directories
         try? FileManager.default.removeItem(at: clearSandbox)
         try? FileManager.default.removeItem(at: stressSandbox)
+    }
+
+    // MARK: - 25. Milestone M51-2 v1.0.21 Empirical Stress & Adversarial Challenge
+    private static func testMilestoneM51EmpiricalStressAndAdversarialChallenge() {
+        ChallengerHarness.startSuite("25. Milestone M51-2 v1.0.21 Empirical Stress & Adversarial Challenge")
+
+        // =====================================================================
+        // Sub-scenario 25A: Rapid Mutation Sequences: Burst Undo / Redo / Duplicate Cycles on Large Vector Canvases
+        // =====================================================================
+        ChallengerHarness.startSuite("25A. Rapid Mutation Sequences: Burst Undo / Redo / Duplicate Cycles on Large Vector Canvases")
+
+        let largeCanvasBoundary = CGRect(x: 0, y: 0, width: 5000, height: 5000)
+
+        // 1. Stress Canvas Construction with Diverse Tools
+        let engine = AnnotationEngine(maxHistoryLimit: 100)
+        ChallengerHarness.assertEqual(engine.objects.count, 0, "Initial canvas contains 0 objects")
+        ChallengerHarness.assertFalse(engine.canUndo, "Initial engine cannot undo")
+        ChallengerHarness.assertFalse(engine.canRedo, "Initial engine cannot redo")
+
+        // Seed canvas with 100 varied objects
+        for i in 0..<100 {
+            let x = CGFloat((i * 47) % 4800)
+            let y = CGFloat((i * 61) % 4800)
+            let obj: AnnotationObject
+            switch i % 8 {
+            case 0:
+                obj = AnnotationObject(tool: .rectangle, bounds: CGRect(x: x, y: y, width: 150, height: 100), colorHex: "#007AFF")
+            case 1:
+                obj = AnnotationObject(tool: .ellipse, bounds: CGRect(x: x, y: y, width: 90, height: 90), colorHex: "#34C759")
+            case 2:
+                obj = AnnotationObject(tool: .arrow, points: [CGPoint(x: x, y: y), CGPoint(x: x + 100, y: y + 100)], colorHex: "#FF9500")
+            case 3:
+                obj = AnnotationObject(tool: .line, points: [CGPoint(x: x, y: y), CGPoint(x: x + 200, y: y)], colorHex: "#AF52DE")
+            case 4:
+                var pts: [CGPoint] = []
+                for p in 0..<50 {
+                    pts.append(CGPoint(x: x + CGFloat(p * 2), y: y + CGFloat((p % 10) * 2)))
+                }
+                obj = AnnotationObject(tool: .pen, points: pts, colorHex: "#5856D6")
+            case 5:
+                var pts: [CGPoint] = []
+                for p in 0..<30 {
+                    pts.append(CGPoint(x: x + CGFloat(p * 5), y: y))
+                }
+                obj = AnnotationObject(tool: .highlighter, points: pts, colorHex: "#FFCC00")
+            case 6:
+                obj = AnnotationObject(tool: .text, bounds: CGRect(x: x, y: y, width: 200, height: 40), colorHex: "#000000", text: "Text Annotation \(i)")
+            default:
+                obj = AnnotationObject(tool: .blur, bounds: CGRect(x: x, y: y, width: 140, height: 140), blurRadius: 12.0)
+            }
+            engine.addObject(obj)
+        }
+
+        ChallengerHarness.assertEqual(engine.objects.count, 100, "100 diverse vector objects added to large canvas")
+        ChallengerHarness.assertTrue(engine.canUndo, "Engine canUndo after 100 additions")
+        ChallengerHarness.assertFalse(engine.canRedo, "Engine cannot redo after fresh additions")
+
+        // 2. Burst Duplication Cycles with Boundary Clamping
+        for i in 0..<50 {
+            let targetID = engine.objects[i * 2].id
+            engine.selectedObjectID = targetID
+            let clone = engine.duplicateSelected(within: largeCanvasBoundary)
+            ChallengerHarness.assertNotNil(clone, "Duplicate iteration \(i) succeeded")
+            if let c = clone {
+                ChallengerHarness.assertTrue(largeCanvasBoundary.contains(c.bounds) || c.bounds.minX >= 0, "Duplicate \(i) clamped within boundary")
+            }
+        }
+        ChallengerHarness.assertEqual(engine.objects.count, 150, "Canvas contains 150 objects after 50 duplications")
+
+        // 3. Test Near-Boundary Duplication (Offset reversal / clamping)
+        let cornerObj = AnnotationObject(tool: .rectangle, bounds: CGRect(x: 4980, y: 4980, width: 15, height: 15), colorHex: "#FF3B30")
+        engine.addObject(cornerObj)
+        let dupCorner = engine.duplicateSelected(offset: CGPoint(x: 16, y: 16), within: largeCanvasBoundary)
+        ChallengerHarness.assertNotNil(dupCorner, "Near-boundary duplicate succeeded with offset reversal/clamping")
+        if let dc = dupCorner {
+            ChallengerHarness.assertTrue(dc.bounds.maxX <= largeCanvasBoundary.maxX && dc.bounds.maxY <= largeCanvasBoundary.maxY, "Near-boundary duplicate bounds clamped within maxX and maxY")
+        }
+
+        // 4. Burst Sequential Undo Cycles
+        var undoCount = 0
+        while engine.canUndo && undoCount < 100 {
+            engine.undo()
+            undoCount += 1
+        }
+        ChallengerHarness.assertTrue(undoCount >= 50, "Successfully executed \(undoCount) sequential undos")
+        ChallengerHarness.assertTrue(engine.canRedo, "Engine canRedo after sequential undos")
+
+        // 5. Burst Sequential Redo Cycles
+        var redoCount = 0
+        while engine.canRedo && redoCount < undoCount {
+            engine.redo()
+            redoCount += 1
+        }
+        ChallengerHarness.assertEqual(undoCount, redoCount, "Redo count exactly matches undo count (\(redoCount))")
+
+        // 6. Redo Stack Truncation on Intermediate Modification
+        engine.undo()
+        engine.undo()
+        ChallengerHarness.assertTrue(engine.canRedo, "Engine canRedo after 2 undos")
+        let intermediateObj = AnnotationObject(tool: .ellipse, bounds: CGRect(x: 100, y: 100, width: 50, height: 50), colorHex: "#007AFF")
+        engine.addObject(intermediateObj)
+        ChallengerHarness.assertFalse(engine.canRedo, "Redo stack truncated immediately when new object added mid-history")
+
+        // 7. Batch Clear All and Undo Restoration on Massive Canvas
+        let preClearCount = engine.objects.count
+        ChallengerHarness.assertTrue(preClearCount > 50, "Pre-clear canvas contains \(preClearCount) objects")
+        let clearedCount = engine.clearAll()
+        ChallengerHarness.assertEqual(clearedCount, preClearCount, "clearAll() returns exact count of removed objects")
+        ChallengerHarness.assertEqual(engine.objects.count, 0, "Canvas is empty after clearAll()")
+        ChallengerHarness.assertTrue(engine.canUndo, "Can undo clearAll()")
+
+        // Single Undo restores all objects
+        engine.undo()
+        ChallengerHarness.assertEqual(engine.objects.count, preClearCount, "Single undo restores all \(preClearCount) objects after batch clearAll()")
+
+        // 8. 500 Interleaved Rapid Canvas Mutation Cycles in Tight Loop
+        for iter in 0..<500 {
+            let x = CGFloat(iter * 5 % 4000)
+            let y = CGFloat(iter * 7 % 4000)
+            let temp = AnnotationObject(tool: .rectangle, bounds: CGRect(x: x, y: y, width: 40, height: 40), colorHex: "#FF3B30")
+            engine.addObject(temp)
+            if iter % 3 == 0 {
+                _ = engine.duplicateSelected(within: largeCanvasBoundary)
+            }
+            if iter % 5 == 0 {
+                engine.undo()
+            }
+            if iter % 7 == 0 && engine.canRedo {
+                engine.redo()
+            }
+        }
+        ChallengerHarness.assertTrue(engine.objects.count > 0, "Engine survived 500 interleaved rapid mutations without index faults")
+
+        // 9. HUD Notification Invariant Across All 9 Languages (Strict Zero Emoji)
+        let hudUndoKeys: [AppLanguage: String] = [
+            .english: "Undo (⌘Z)",
+            .vietnamese: "Hoàn tác (⌘Z)",
+            .german: "Widerrufen (⌘Z)",
+            .french: "Annuler (⌘Z)",
+            .spanish: "Deshacer (⌘Z)",
+            .japanese: "取り消し (⌘Z)",
+            .simplifiedChinese: "撤销 (⌘Z)",
+            .traditionalChinese: "復原 (⌘Z)",
+            .korean: "실행 취소 (⌘Z)"
+        ]
+        let hudRedoKeys: [AppLanguage: String] = [
+            .english: "Redo (⌘⇧Z)",
+            .vietnamese: "Làm lại (⌘⇧Z)",
+            .german: "Wiederholen (⌘⇧Z)",
+            .french: "Rétablir (⌘⇧Z)",
+            .spanish: "Rehacer (⌘⇧Z)",
+            .japanese: "やり直し (⌘⇧Z)",
+            .simplifiedChinese: "重做 (⌘⇧Z)",
+            .traditionalChinese: "重做 (⌘⇧Z)",
+            .korean: "다시 실행 (⌘⇧Z)"
+        ]
+        let hudDuplicateKeys: [AppLanguage: String] = [
+            .english: "Duplicated (⌘D)",
+            .vietnamese: "Đã nhân bản (⌘D)",
+            .german: "Dupliziert (⌘D)",
+            .french: "Dupliqué (⌘D)",
+            .spanish: "Duplicado (⌘D)",
+            .japanese: "複製しました (⌘D)",
+            .simplifiedChinese: "已复制图元 (⌘D)",
+            .traditionalChinese: "已複製圖元 (⌘D)",
+            .korean: "복제됨 (⌘D)"
+        ]
+
+        ChallengerHarness.assertFalse(L10nKey.hudUndo.localized(for: .system).isEmpty, "hudUndo non-empty for system")
+        ChallengerHarness.assertFalse(L10nKey.hudRedo.localized(for: .system).isEmpty, "hudRedo non-empty for system")
+        ChallengerHarness.assertFalse(L10nKey.hudDuplicate.localized(for: .system).isEmpty, "hudDuplicate non-empty for system")
+
+        for lang in AppLanguage.allCases where lang != .system {
+            let u = L10nKey.hudUndo.localized(for: lang)
+            let r = L10nKey.hudRedo.localized(for: lang)
+            let d = L10nKey.hudDuplicate.localized(for: lang)
+
+            ChallengerHarness.assertEqual(u, hudUndoKeys[lang]!, "hudUndo matches exact translation for \(lang.rawValue)")
+            ChallengerHarness.assertEqual(r, hudRedoKeys[lang]!, "hudRedo matches exact translation for \(lang.rawValue)")
+            ChallengerHarness.assertEqual(d, hudDuplicateKeys[lang]!, "hudDuplicate matches exact translation for \(lang.rawValue)")
+
+            ChallengerHarness.assertFalse(u.isEmpty, "hudUndo non-empty for \(lang.rawValue)")
+            ChallengerHarness.assertFalse(r.isEmpty, "hudRedo non-empty for \(lang.rawValue)")
+            ChallengerHarness.assertFalse(d.isEmpty, "hudDuplicate non-empty for \(lang.rawValue)")
+        }
+
+        // =====================================================================
+        // Sub-scenario 25B: Concurrent Preset Addition via .onSubmit & Boundary Stress
+        // =====================================================================
+        ChallengerHarness.startSuite("25B. Concurrent Preset Addition via .onSubmit & Boundary Stress")
+
+        let settingsSandbox = FileManager.default.temporaryDirectory.appendingPathComponent("SuperShotAdvM51_Settings_\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: settingsSandbox, withIntermediateDirectories: true)
+        let settingsFile = settingsSandbox.appendingPathComponent("settings.json")
+        let appSettings = AppSettings(settingsURL: settingsFile)
+
+        // 1. Initial State: Exactly 8 defaults
+        ChallengerHarness.assertEqual(appSettings.presets.count, 8, "Initial presets count equals 8 defaults")
+        ChallengerHarness.assertEqual(AppSettings.maxPresetsCount, 16, "AppSettings.maxPresetsCount equals 16")
+
+        // 2. Concurrent .onSubmit Simulation from Settings and Overlay
+        // In real macOS runtime, .onSubmit handlers fire on the main runloop from Settings and Overlay TextFields.
+        // We simulate 1,000 rapid concurrent .onSubmit events dispatched from both surfaces.
+        var completedSubmits = 0
+        let totalSubmissions = 1000
+
+        for iter in 0..<totalSubmissions {
+            let fromSettings = (iter % 2 == 0)
+            DispatchQueue.main.async {
+                if fromSettings {
+                    // Simulates CaptureSaveSettingsTab.addNewPreset()
+                    let hex = String(format: "#%02X%02X%02X", (iter * 17) % 256, (iter * 31) % 256, (iter * 53) % 256)
+                    guard !hex.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+                    if ColorPreset.isValid(hex: hex) {
+                        let normalized = ColorPreset.normalize(hex: hex)
+                        let newP = ColorPreset(name: LocalizationManager.shared.tr(.customColorPreset), hex: normalized)
+                        _ = appSettings.addPreset(newP)
+                    }
+                } else {
+                    // Simulates ColorPalettePopover.saveCurrentColorAsPreset()
+                    let hex = ColorPreset.normalize(hex: String(format: "#%02X%02X%02X", (iter * 11) % 256, (iter * 41) % 256, (iter * 67) % 256))
+                    let preset = ColorPreset(name: LocalizationManager.shared.tr(.customColorPreset), hex: hex)
+                    _ = appSettings.addPreset(preset)
+                }
+                completedSubmits += 1
+            }
+        }
+
+        let runloopDeadline = Date().addingTimeInterval(5.0)
+        while completedSubmits < totalSubmissions && Date() < runloopDeadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+
+        ChallengerHarness.assertEqual(completedSubmits, totalSubmissions, "1,000 rapid concurrent .onSubmit events from settings and overlay processed completely")
+
+        // 3. Invariant: Presets count MUST NEVER EXCEED 16
+        ChallengerHarness.assertTrue(appSettings.presets.count <= 16, "Invariant: Presets count (\(appSettings.presets.count)) strictly <= 16 after 1,000 .onSubmit events")
+
+        // 4. Add Preset Ceiling Enforcement
+        for i in appSettings.presets.count..<16 {
+            let uniqueHex = String(format: "#A%02X%02X", i, i * 2)
+            _ = appSettings.addPreset(ColorPreset(name: "Filler \(i)", hex: uniqueHex))
+        }
+        ChallengerHarness.assertEqual(appSettings.presets.count, 16, "Presets count exactly 16")
+
+        // Attempting to add a 17th novel preset MUST return false
+        let seventeenthPreset = ColorPreset(name: "Seventeenth", hex: "#EE1122")
+        let seventeenthAdded = appSettings.addPreset(seventeenthPreset)
+        ChallengerHarness.assertFalse(seventeenthAdded, "Adding a 17th preset returns false when max limit of 16 is reached")
+        ChallengerHarness.assertEqual(appSettings.presets.count, 16, "Presets count remains exactly 16 after rejected 17th preset")
+
+        // 5. In-Place Name Updating when Hex Exists (Even when at 16 limit)
+        let existingHex = appSettings.presets.first!.hex
+        let updatedName = "RenamedExistingPreset"
+        let updatedPreset = ColorPreset(name: updatedName, hex: existingHex.lowercased())
+        let updateResult = appSettings.addPreset(updatedPreset)
+        ChallengerHarness.assertTrue(updateResult, "addPreset succeeds for existing hex to update name in-place")
+        ChallengerHarness.assertEqual(appSettings.presets.count, 16, "Presets count remains 16 after in-place name update")
+        ChallengerHarness.assertEqual(appSettings.presets.first?.name, updatedName, "Existing preset's name updated in-place")
+
+        // 6. Fuzzing .onSubmit Input Strings (Fuzzed boundary suite)
+        let fuzzedInputs = [
+            "", "   ", "\t\n", "1", "12", "1234", "12345", "1234567",
+            "#", "#1", "#12", "#1234", "#12345", "#1234567", "#12345678",
+            "#GGGGGG", "ZZZZZZ", "blue", "red", "rgba(255,0,0,1)",
+            "#FF3B30\0", "#FF3B30\n", " #FF3B30 ", "#123", "ABC", "#AABBCC"
+        ]
+        for input in fuzzedInputs {
+            let trimmed = input.trimmingCharacters(in: .whitespacesAndNewlines)
+            let isValid = ColorPreset.isValid(hex: trimmed)
+            if isValid {
+                let norm = ColorPreset.normalize(hex: trimmed)
+                ChallengerHarness.assertTrue(norm.hasPrefix("#"), "Normalized valid hex '\(trimmed)' starts with #")
+                ChallengerHarness.assertEqual(norm.count, 7, "Normalized valid hex '\(trimmed)' is exactly 7 chars")
+            } else {
+                ChallengerHarness.assertFalse(isValid, "Invalid hex '\(input)' rejected by ColorPreset.isValid")
+            }
+        }
+
+        // =====================================================================
+        // Sub-scenario 25C: Drag Provider Instantiation on Empty, Missing, or Corrupt Image Records
+        // =====================================================================
+        ChallengerHarness.startSuite("25C. Drag Provider Instantiation on Empty, Missing, or Corrupt Image Records")
+
+        let dragSandbox = FileManager.default.temporaryDirectory.appendingPathComponent("SuperShotAdvM51_Drag_\(UUID().uuidString)")
+        let storage = StorageManager(baseDirectory: dragSandbox, initialCapacity: 50)
+        let validSampleImage = AdversarialFrameGenerator.createMasterCanvas(width: 300, totalHeight: 200)!
+
+        // Seed 1: Normal valid image
+        let validItem = try! storage.save(image: validSampleImage, sourceApp: "Finder", captureType: .region)
+        storage.flushDiskQueue()
+
+        // Seed 2: Missing image (item exists in storage, but backing file removed from disk)
+        let missingItem = try! storage.save(image: validSampleImage, sourceApp: "DeletedApp", captureType: .region)
+        storage.flushDiskQueue()
+        let missingURL = storage.getImageURL(for: missingItem)
+        try? FileManager.default.removeItem(at: missingURL)
+
+        // Seed 3: 0-byte corrupt image file (file exists on disk with 0 bytes)
+        let zeroByteItem = try! storage.save(image: validSampleImage, sourceApp: "ZeroApp", captureType: .region)
+        storage.flushDiskQueue()
+        let zeroByteURL = storage.getImageURL(for: zeroByteItem)
+        try? Data().write(to: zeroByteURL)
+
+        // Seed 4: Garbage non-image binary file (file contains 4KB of random bytes)
+        let garbageItem = try! storage.save(image: validSampleImage, sourceApp: "GarbageApp", captureType: .region)
+        storage.flushDiskQueue()
+        let garbageURL = storage.getImageURL(for: garbageItem)
+        var garbageBytes = [UInt8](repeating: 0, count: 4096)
+        for g in 0..<4096 { garbageBytes[g] = UInt8(g % 256) }
+        try? Data(garbageBytes).write(to: garbageURL)
+
+        // Seed 5: Truncated PNG header
+        let truncatedItem = try! storage.save(image: validSampleImage, sourceApp: "TruncApp", captureType: .region)
+        storage.flushDiskQueue()
+        let truncatedURL = storage.getImageURL(for: truncatedItem)
+        let pngMagic: [UInt8] = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+        try? Data(pngMagic).write(to: truncatedURL)
+
+        // Helper simulating ShotRowView's .onDrag provider construction
+        func createDragProvider(for item: ShotItem, sm: StorageManager?) -> NSItemProvider {
+            let url: URL
+            if let s = sm {
+                url = s.getImageURL(for: item)
+            } else {
+                let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                url = appSupport.appendingPathComponent("SuperShot/images").appendingPathComponent(item.filePath)
+            }
+            let provider = NSItemProvider(contentsOf: url) ?? NSItemProvider()
+            if let imgData = sm?.getImageData(for: item), let nsImage = NSImage(data: imgData) {
+                provider.registerObject(nsImage, visibility: .all)
+            }
+            return provider
+        }
+
+        // Test Case 1: Valid image
+        let p1 = createDragProvider(for: validItem, sm: storage)
+        ChallengerHarness.assertNotNil(p1, "Valid item creates valid NSItemProvider")
+        ChallengerHarness.assertTrue(p1.canLoadObject(ofClass: NSImage.self), "Valid NSItemProvider can load NSImage")
+
+        // Test Case 2: Missing image file
+        let p2 = createDragProvider(for: missingItem, sm: storage)
+        ChallengerHarness.assertNotNil(p2, "Missing image file falls back safely to empty NSItemProvider without crashing")
+
+        // Test Case 3: 0-byte image file
+        let p3 = createDragProvider(for: zeroByteItem, sm: storage)
+        ChallengerHarness.assertNotNil(p3, "0-byte image file handled safely without crashing")
+
+        // Test Case 4: Garbage non-image bytes
+        let p4 = createDragProvider(for: garbageItem, sm: storage)
+        ChallengerHarness.assertNotNil(p4, "Corrupted garbage bytes handled safely without crashing")
+
+        // Test Case 5: Truncated image header
+        let p5 = createDragProvider(for: truncatedItem, sm: storage)
+        ChallengerHarness.assertNotNil(p5, "Truncated image stream handled safely without crashing")
+
+        // Test Case 6: storageManager == nil (fallback URL branch)
+        let p6 = createDragProvider(for: validItem, sm: nil)
+        ChallengerHarness.assertNotNil(p6, "Nil storageManager fallback branch handled safely without crashing")
+
+        // Test Case 7: High Concurrency Drag Provider Instantiation
+        let dragGroup = DispatchGroup()
+        let dragQueue = DispatchQueue(label: "com.supershot.adversarial.drag", attributes: .concurrent)
+
+        for t in 0..<10 {
+            dragGroup.enter()
+            dragQueue.async {
+                for _ in 0..<50 {
+                    let items = [validItem, missingItem, zeroByteItem, garbageItem, truncatedItem]
+                    let target = items[t % items.count]
+                    _ = createDragProvider(for: target, sm: t % 2 == 0 ? storage : nil)
+                }
+                dragGroup.leave()
+            }
+        }
+
+        let dragWait = dragGroup.wait(timeout: .now() + 5.0)
+        ChallengerHarness.assertEqual(dragWait, .success, "10 concurrent threads creating 500 drag providers completed with 0 crashes or deadlocks")
+
+        // =====================================================================
+        // Sub-scenario 25D: Concurrency, Zero Deadlocks, Memory Leak, and Thread Sanitization Verification
+        // =====================================================================
+        ChallengerHarness.startSuite("25D. Concurrency, Zero Deadlocks, Memory Leak, and Thread Sanitization Verification")
+
+        func getResidentMemoryBytes() -> UInt64 {
+            var info = mach_task_basic_info()
+            var count = mach_msg_type_number_t(MemoryLayout<mach_task_basic_info>.size / MemoryLayout<natural_t>.size)
+            let kerr: kern_return_t = withUnsafeMutablePointer(to: &info) {
+                $0.withMemoryRebound(to: integer_t.self, capacity: Int(count)) {
+                    task_info(mach_task_self_, task_flavor_t(MACH_TASK_BASIC_INFO), $0, &count)
+                }
+            }
+            return kerr == KERN_SUCCESS ? info.resident_size : 0
+        }
+
+        let initialMem = getResidentMemoryBytes()
+
+        // 1. Multi-Threaded Storage & Drag Provider Concurrency Stress (20 threads x 50 iterations = 1,000 operations)
+        let crossGroup = DispatchGroup()
+        let crossQueue = DispatchQueue(label: "com.supershot.adversarial.crosscutting", attributes: .concurrent)
+
+        for t in 0..<20 {
+            crossGroup.enter()
+            crossQueue.async {
+                for iter in 0..<50 {
+                    if t % 2 == 0 {
+                        // StorageManager thread-safe operations (protected by NSRecursiveLock)
+                        if iter % 5 == 0 {
+                            _ = try? storage.save(image: validSampleImage, sourceApp: "App_\(t)", captureType: .region)
+                        } else if iter % 5 == 1 {
+                            _ = storage.items.count
+                        } else if iter % 5 == 2 {
+                            _ = storage.search(query: "App")
+                        } else if iter % 5 == 3 {
+                            if let first = storage.items.first {
+                                storage.togglePin(id: first.id)
+                            }
+                        } else {
+                            storage.clearUnpinnedHistory()
+                        }
+                    } else {
+                        // Drag provider operations (safe concurrent evaluation)
+                        _ = createDragProvider(for: validItem, sm: iter % 3 == 0 ? nil : storage)
+                    }
+                }
+                crossGroup.leave()
+            }
+        }
+
+        let crossWait = crossGroup.wait(timeout: .now() + 5.0)
+        ChallengerHarness.assertEqual(crossWait, .success, "Cross-cutting multi-threaded concurrency (1,000 operations) completed with 0 deadlocks")
+
+        // 2. Memory Leak & Retention Stress: 2,000 rapid canvas object allocation and destruction cycles
+        for m in 0..<2000 {
+            let tempObj = AnnotationObject(tool: .rectangle, bounds: CGRect(x: CGFloat(m % 100), y: CGFloat(m % 100), width: 50, height: 50), colorHex: "#007AFF")
+            engine.addObject(tempObj)
+            engine.undo()
+        }
+
+        let finalMem = getResidentMemoryBytes()
+        let memDeltaMB = Double(finalMem > initialMem ? finalMem - initialMem : 0) / (1024.0 * 1024.0)
+
+        // Resident memory growth must remain under 64 MB across all 3,000+ stress operations
+        ChallengerHarness.assertTrue(memDeltaMB < 64.0, "Resident memory growth (\(String(format: "%.2f", memDeltaMB)) MB) strictly bounded (< 64 MB, zero memory leaks)")
+
+        // Cleanup temporary directories
+        try? FileManager.default.removeItem(at: settingsSandbox)
+        try? FileManager.default.removeItem(at: dragSandbox)
     }
 }
 

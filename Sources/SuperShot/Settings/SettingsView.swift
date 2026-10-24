@@ -226,6 +226,8 @@ public struct SettingsTabButton: View {
         }
         .pointingHandCursor()
         .keyboardShortcut(KeyEquivalent(Character("\(tab.shortcutNumber)")), modifiers: .command)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
         .help("\(tab.localizedTitle) (\(tab.shortcutHint))")
     }
 }

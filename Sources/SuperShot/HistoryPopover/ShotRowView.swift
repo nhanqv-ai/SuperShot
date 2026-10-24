@@ -125,6 +125,21 @@ public struct ShotRowView: View {
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(item.displayTitle), \(item.dimensionsString), \(RelativeTimeFormatter.format(item.timestamp))")
         .accessibilityHint(localizationManager.tr(.actionCopy))
+        .onDrag {
+            ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+            let url: URL
+            if let sm = storageManager {
+                url = sm.getImageURL(for: item)
+            } else {
+                let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                url = appSupport.appendingPathComponent("SuperShot/images").appendingPathComponent(item.filePath)
+            }
+            let provider = NSItemProvider(contentsOf: url) ?? NSItemProvider()
+            if let imgData = storageManager?.getImageData(for: item), let nsImage = NSImage(data: imgData) {
+                provider.registerObject(nsImage, visibility: .all)
+            }
+            return provider
+        }
         .onTapGesture {
             ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
             onSelect?(item)
@@ -154,7 +169,7 @@ public struct ShotRowView: View {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onShare?(item)
             }
-            Button("\(localizationManager.tr(.actionAnnotate))") {
+            Button("\(localizationManager.tr(.actionAnnotate)) (⌘⇧A)") {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 if let onAnnotate = onAnnotate {
                     onAnnotate(item)

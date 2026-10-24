@@ -336,6 +336,12 @@ public enum L10nKey: Sendable {
     case unpinnedHistoryCleared
     case copiedDiagnostics
 
+    // Canvas Mutation HUD Pills & Adaptive Popover (v1.0.21)
+    case hudUndo
+    case hudRedo
+    case hudDuplicate
+    case quickSelectHintWithPinned
+
     public func localized(for lang: AppLanguage) -> String {
         switch self {
         case .appTitle:
@@ -2775,6 +2781,58 @@ public enum L10nKey: Sendable {
             case .traditionalChinese: return "已複製診斷資訊"
             case .korean: return "진단 정보 복사됨"
             default: return "Diagnostic Info Copied"
+            }
+
+        case .hudUndo:
+            switch lang {
+            case .vietnamese: return "Hoàn tác (⌘Z)"
+            case .german: return "Widerrufen (⌘Z)"
+            case .french: return "Annuler (⌘Z)"
+            case .spanish: return "Deshacer (⌘Z)"
+            case .japanese: return "取り消し (⌘Z)"
+            case .simplifiedChinese: return "撤销 (⌘Z)"
+            case .traditionalChinese: return "復原 (⌘Z)"
+            case .korean: return "실행 취소 (⌘Z)"
+            default: return "Undo (⌘Z)"
+            }
+
+        case .hudRedo:
+            switch lang {
+            case .vietnamese: return "Làm lại (⌘⇧Z)"
+            case .german: return "Wiederholen (⌘⇧Z)"
+            case .french: return "Rétablir (⌘⇧Z)"
+            case .spanish: return "Rehacer (⌘⇧Z)"
+            case .japanese: return "やり直し (⌘⇧Z)"
+            case .simplifiedChinese: return "重做 (⌘⇧Z)"
+            case .traditionalChinese: return "重做 (⌘⇧Z)"
+            case .korean: return "다시 실행 (⌘⇧Z)"
+            default: return "Redo (⌘⇧Z)"
+            }
+
+        case .hudDuplicate:
+            switch lang {
+            case .vietnamese: return "Đã nhân bản (⌘D)"
+            case .german: return "Dupliziert (⌘D)"
+            case .french: return "Dupliqué (⌘D)"
+            case .spanish: return "Duplicado (⌘D)"
+            case .japanese: return "複製しました (⌘D)"
+            case .simplifiedChinese: return "已复制图元 (⌘D)"
+            case .traditionalChinese: return "已複製圖元 (⌘D)"
+            case .korean: return "복제됨 (⌘D)"
+            default: return "Duplicated (⌘D)"
+            }
+
+        case .quickSelectHintWithPinned:
+            switch lang {
+            case .vietnamese: return "⌥1-9: Đã ghim · 1-9: Gần đây"
+            case .german: return "⌥1-9: Angeheftet · 1-9: Zuletzt"
+            case .french: return "⌥1-9: Épinglés · 1-9: Récents"
+            case .spanish: return "⌥1-9: Fijados · 1-9: Recientes"
+            case .japanese: return "⌥1-9: 固定中 · 1-9: 最近"
+            case .simplifiedChinese: return "⌥1-9: 已固定 · 1-9: 最近"
+            case .traditionalChinese: return "⌥1-9: 已釘選 · 1-9: 最近"
+            case .korean: return "⌥1-9: 고정됨 · 1-9: 최근 항목"
+            default: return "⌥1-9: Pinned · 1-9: Recent"
             }
         }
     }

@@ -729,10 +729,10 @@ public struct MainShotView: View {
 
     private var footerHintBar: some View {
         HStack(spacing: 6) {
-            Image(systemName: "command")
+            Image(systemName: !pinnedItems.isEmpty ? "keyboard" : "command")
                 .font(.system(size: 9, weight: .medium))
                 .foregroundColor(.secondary.opacity(0.8))
-            Text(localizationManager.tr(.quickSelectHint))
+            Text(localizationManager.tr(!pinnedItems.isEmpty ? .quickSelectHintWithPinned : .quickSelectHint))
                 .font(.system(size: 10, weight: .medium))
                 .foregroundColor(.secondary)
             Spacer()
@@ -1084,6 +1084,14 @@ public struct MainShotView: View {
             if flags == .command && (event.keyCode == 14 || event.charactersIgnoringModifiers?.lowercased() == "e") {
                 if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
                     shareItem(visibleItems[idx])
+                    return nil
+                }
+            }
+
+            // 8c. Cmd+Shift+A: Re-annotate selected item in vector editor
+            if flags.contains([.command, .shift]) && (event.keyCode == 0 || event.charactersIgnoringModifiers?.lowercased() == "a") {
+                if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
+                    annotateItem(visibleItems[idx])
                     return nil
                 }
             }

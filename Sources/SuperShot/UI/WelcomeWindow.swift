@@ -15,7 +15,7 @@ public struct WelcomeView: View {
 
     public var appVersionString: String {
         let bundleVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        return "v\(bundleVersion ?? "1.0.20")"
+        return "v\(bundleVersion ?? "1.0.21")"
     }
 
     public var body: some View {
@@ -40,6 +40,7 @@ public struct WelcomeView: View {
             RoundedRectangle(cornerRadius: 12)
                 .fill(.regularMaterial)
         )
+        .ignoresSafeArea()
         .onAppear {
             refreshPermissions()
         }
@@ -145,7 +146,10 @@ public struct WelcomeView: View {
                         .font(.system(size: 10.5))
                     if !isScreenRecordingGranted {
                         Button(action: {
-                            _ = PermissionManager.shared.requestScreenRecording()
+                            let granted = PermissionManager.shared.requestScreenRecording()
+                            if !granted {
+                                PermissionManager.shared.openScreenRecordingSettings()
+                            }
                             refreshPermissions()
                         }) {
                             Text(localizationManager.tr(.grantPermissionButton))
@@ -168,7 +172,10 @@ public struct WelcomeView: View {
                         .font(.system(size: 10.5))
                     if !isAccessibilityGranted {
                         Button(action: {
-                            _ = PermissionManager.shared.requestAccessibility()
+                            let granted = PermissionManager.shared.requestAccessibility()
+                            if !granted {
+                                PermissionManager.shared.openAccessibilitySettings()
+                            }
                             refreshPermissions()
                         }) {
                             Text(localizationManager.tr(.grantPermissionButton))

@@ -70,7 +70,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.20"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.21"
                 Button(action: { copyDiagnosticsToClipboard(version: version) }) {
                     HStack(spacing: 4) {
                         Text(LocalizationManager.shared.tr(.versionLabel(version)))
@@ -178,7 +178,6 @@ public struct AboutSettingsTab: View {
                 }
 
                 HStack {
-                    Spacer()
                     Button(action: { showingResetAllConfirmation = true }) {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.counterclockwise")
@@ -229,7 +228,7 @@ public struct AboutSettingsTab: View {
         let arch = "unknown"
         #endif
         let os = ProcessInfo.processInfo.operatingSystemVersionString
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "20"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "21"
         return "SuperShot v\(version) (\(arch)) • macOS \(os) • Build \(build)"
     }
 

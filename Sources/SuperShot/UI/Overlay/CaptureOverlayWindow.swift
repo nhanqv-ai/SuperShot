@@ -81,7 +81,9 @@ public class CaptureOverlayWindow: NSPanel {
                 } else {
                     view.showHUDNotification(text: LocalizationManager.shared.tr(.copiedToClipboard))
                     captureDelegate?.overlayDidConfirmSelection(rect: rect, display: display)
-                    close()
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
+                        self?.close()
+                    }
                 }
                 return
             }
@@ -92,7 +94,9 @@ public class CaptureOverlayWindow: NSPanel {
             if let view = contentViewRef, !view.selectionRect.isEmpty {
                 view.showHUDNotification(text: LocalizationManager.shared.tr(.copiedToClipboard))
                 captureDelegate?.overlayDidConfirmSelection(rect: view.selectionRect, display: capturedScreen.displayInfo)
-                close()
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
+                    self?.close()
+                }
                 return
             }
         }

@@ -204,11 +204,28 @@ public struct LocalizationTests {
             }
         }
 
+        let v1021Keys: [L10nKey] = [
+            .hudUndo,
+            .hudRedo,
+            .hudDuplicate,
+            .quickSelectHintWithPinned
+        ]
+        for key in v1021Keys {
+            for lang in AppLanguage.allCases {
+                let text = key.localized(for: lang)
+                TestHarness.assertFalse(text.isEmpty, "v1.0.21 Key \(key) has non-empty translation in \(lang.rawValue)")
+            }
+        }
+
         // Specific translation verification for Vietnamese
         TestHarness.assertEqual(L10nKey.actionAnnotate.localized(for: .vietnamese), "Thêm chú thích...", "actionAnnotate translated to Vietnamese")
         TestHarness.assertEqual(L10nKey.saveTallScreenshotTitle.localized(for: .vietnamese), "Lưu ảnh chụp cuộn dài đã ghép", "saveTallScreenshotTitle translated to Vietnamese")
         TestHarness.assertEqual(L10nKey.tallScreenshotWindowTitle.localized(for: .vietnamese), "SuperShot — Ảnh chụp cuộn dài", "tallScreenshotWindowTitle translated to Vietnamese")
         TestHarness.assertEqual(L10nKey.customColorPreset.localized(for: .vietnamese), "Tự chọn", "customColorPreset translated to Vietnamese")
+        TestHarness.assertEqual(L10nKey.hudUndo.localized(for: .vietnamese), "Hoàn tác (⌘Z)", "hudUndo translated to Vietnamese")
+        TestHarness.assertEqual(L10nKey.hudRedo.localized(for: .vietnamese), "Làm lại (⌘⇧Z)", "hudRedo translated to Vietnamese")
+        TestHarness.assertEqual(L10nKey.hudDuplicate.localized(for: .vietnamese), "Đã nhân bản (⌘D)", "hudDuplicate translated to Vietnamese")
+        TestHarness.assertEqual(L10nKey.quickSelectHintWithPinned.localized(for: .vietnamese), "⌥1-9: Đã ghim · 1-9: Gần đây", "quickSelectHintWithPinned translated to Vietnamese")
 
         // 6. Zero emoji invariant check across all keys in all languages
         validateZeroEmojisAcrossDictionary()
@@ -240,7 +257,8 @@ public struct LocalizationTests {
             .zoomHUD(125), .captureOverlayInstruction, .directAutoPaste,
             .framesCount(10), .screenshotDeleted, .copiedDiagnostics,
             .rememberLabel, .unpinnedHistoryCleared,
-            .actionAnnotate, .saveTallScreenshotTitle, .tallScreenshotWindowTitle, .customColorPreset
+            .actionAnnotate, .saveTallScreenshotTitle, .tallScreenshotWindowTitle, .customColorPreset,
+            .hudUndo, .hudRedo, .hudDuplicate, .quickSelectHintWithPinned
         ]
 
         let emojiRanges: [ClosedRange<UInt32>] = [
