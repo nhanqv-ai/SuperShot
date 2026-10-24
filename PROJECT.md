@@ -229,6 +229,15 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 105 | ScrollableAnnotationWindow Dark Styling Fix | NSAppearance .darkAqua and dark background color (white: 0.12) on ScrollableAnnotationWindow & ScrollableAnnotationScrollView | M34 | DISPATCH §7 |
 | 106 | Instruction Banner & Auto-Paste Subtitle L10n | Update captureOverlayInstruction across 9 languages (⌘A fullscreen & Shift square) and refine auto-paste subtitle technical copy (0 emojis) | M34 | DISPATCH §8 |
 | 107 | Canonical Version Bump to v1.0.17 | Synchronize v1.0.17 across Info.plist (build 17), AboutSettingsTab, WelcomeWindow, UpdateManager, Makefile, README.md, SettingsViewTests, PROJECT.md | M34 | DISPATCH §9 |
+| 108 | Tool Single-Key Mnemonic Parity | 'M' for Mosaic Blur alongside 'B', 'E' for Ellipse alongside 'C', alternateMnemonicKey in AnnotationToolType | M38 | Explorer 2 Survey |
+| 109 | IME Composition (hasMarkedText) Input Guard | Yield Up/Down arrow and Return to active IME in MainShotView search | M38 | Explorer 2 Survey |
+| 110 | Real-Time Frame Counter on Live Preview | photo.stack badge in LiveStitchedPreviewPanel displaying localized framesCount | M38 | Explorer 2 Survey |
+| 111 | History Item Deletion Toast HUD & Shortcut Hints | showDeletedToast HUD in MainShotView and (⌘C), (⌘S), (⌘P), (⌫) shortcut hints in ShotRowView contextMenu | M38 | Explorer 2 Survey |
+| 112 | One-Click System Diagnostics & Version Copy | Interactive version pill with checkmark feedback in AboutSettingsTab copying system diagnostic string | M38 | Explorer 2 Survey |
+| 113 | Standard macOS Control+Tab Settings Tab Cycling | Support Control+Tab and Control+Shift+Tab (keyCode 48) tab cycling in SettingsWindowController | M38 | Explorer 2 Survey |
+| 114 | Capture Overlay Quick Copy Confirmation | In-place capture overlay showHUDNotification copiedToClipboard feedback pill | M38 | Explorer 2 Survey |
+| 115 | Strict Zero-Emoji 9-Language Localization Completeness | framesCount, screenshotDeleted, copiedDiagnostics in LocalizationManager across 9 languages | M38 | Explorer 2 Survey |
+| 116 | Canonical Version Bump to v1.0.18 | Synchronize v1.0.18 across Info.plist (build 18), AboutSettingsTab, WelcomeWindow, UpdateManager, Makefile, README.md, SettingsViewTests, PROJECT.md | M38 | Explorer 3 Survey |
 
 ## Milestones
 
@@ -264,9 +273,13 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M31 | Review, Adversarial Challenge & Forensic Audit | Independent review (x2), adversarial stress tests (x2), and forensic audit | M30 | DONE |
 | M32 | Live GUI Verification & Release Pipeline | Run LiveGUIDriver, execute make package/dmg, git branch/PR/merge, publish GitHub release v1.0.16, verify PUBLIC | M31 | DONE |
 | M33 | Survey & Live GUI Driver Audit | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UX/feature opportunities, verify release invariants | none | DONE |
-| M34 | Implementation of Proactive UX Polish & Version Bump | Implement Features 100-107, 0 emojis, bump 8 locations to 1.0.17, make lint, make test, make adversarial, make app, verify_bundle | M33 | IN_PROGRESS |
-| M35 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M34 | PLANNED |
-| M36 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.17 -> public repo check -> app relaunch | M35 | PLANNED |
+| M34 | Implementation of Proactive UX Polish & Version Bump | Implement Features 100-107, 0 emojis, bump 8 locations to 1.0.17, make lint, make test, make adversarial, make app, verify_bundle | M33 | DONE |
+| M35 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M34 | DONE |
+| M36 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.17 -> public repo check -> app relaunch | M35 | DONE |
+| M37 | Survey & Live GUI Driver Audit | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UX/feature opportunities, verify release invariants (v1.0.18) | none | DONE |
+| M38 | Implementation of Proactive UX Polish & Version Bump | Implement Features 108-116, 0 emojis, bump 8 locations to 1.0.18, make lint, make test, make adversarial, make app, verify_bundle | M37 | IN_PROGRESS |
+| M39 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M38 | PLANNED |
+| M40 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.18 -> public repo check -> app relaunch | M39 | PLANNED |
 
 ## Interface Contracts
 

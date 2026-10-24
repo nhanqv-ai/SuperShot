@@ -129,16 +129,16 @@ public struct ShotRowView: View {
             }
         }
         .contextMenu {
-            Button(localizationManager.tr(.actionCopy)) {
+            Button("\(localizationManager.tr(.actionCopy)) (⌘C)") {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 triggerLocalCopyFeedback()
                 onCopy?(item)
             }
-            Button(localizationManager.tr(.actionSave) + "...") {
+            Button("\(localizationManager.tr(.actionSave))... (⌘S)") {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onSave?(item)
             }
-            Button(localizationManager.tr(item.isPinned ? .unpinButton : .pinButton)) {
+            Button("\(localizationManager.tr(item.isPinned ? .unpinButton : .pinButton)) (⌘P)") {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onTogglePin?(item)
             }
@@ -155,7 +155,7 @@ public struct ShotRowView: View {
                 NSWorkspace.shared.activateFileViewerSelecting([url])
             }
             Divider()
-            Button(localizationManager.tr(.deleteButton)) {
+            Button("\(localizationManager.tr(.deleteButton)) (⌫)") {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onDelete?(item)
             }

@@ -323,6 +323,11 @@ public enum L10nKey: Sendable {
     case layerSendBackward
     case zoomHUD(Int)
 
+    // Live Progress, Deletion Feedback & Diagnostics (v1.0.18)
+    case framesCount(Int)
+    case screenshotDeleted
+    case copiedDiagnostics
+
     public func localized(for lang: AppLanguage) -> String {
         switch self {
         case .appTitle:
@@ -2645,6 +2650,45 @@ public enum L10nKey: Sendable {
             case .traditionalChinese: return "縮放: \(pct)%"
             case .korean: return "확대/축소: \(pct)%"
             default: return "Zoom: \(pct)%"
+            }
+
+        case .framesCount(let n):
+            switch lang {
+            case .vietnamese: return "\(n) khung hình"
+            case .german: return "\(n) Bilder"
+            case .french: return "\(n) images"
+            case .spanish: return "\(n) fotogramas"
+            case .japanese: return "\(n) フレーム"
+            case .simplifiedChinese: return "\(n) 帧"
+            case .traditionalChinese: return "\(n) 幀"
+            case .korean: return "\(n) 프레임"
+            default: return "\(n) frames"
+            }
+
+        case .screenshotDeleted:
+            switch lang {
+            case .vietnamese: return "Đã xóa ảnh chụp"
+            case .german: return "Screenshot gelöscht"
+            case .french: return "Capture supprimée"
+            case .spanish: return "Captura eliminada"
+            case .japanese: return "スクリーンショットを削除しました"
+            case .simplifiedChinese: return "已删除屏幕截图"
+            case .traditionalChinese: return "已刪除螢幕截圖"
+            case .korean: return "스크린샷 삭제됨"
+            default: return "Screenshot Deleted"
+            }
+
+        case .copiedDiagnostics:
+            switch lang {
+            case .vietnamese: return "Đã sao chép thông tin chẩn đoán"
+            case .german: return "Diagnosedaten kopiert"
+            case .french: return "Infos de diagnostic copiées"
+            case .spanish: return "Información de diagnóstico copiada"
+            case .japanese: return "診断情報をコピーしました"
+            case .simplifiedChinese: return "已复制诊断信息"
+            case .traditionalChinese: return "已複製診斷資訊"
+            case .korean: return "진단 정보 복사됨"
+            default: return "Diagnostic Info Copied"
             }
         }
     }

@@ -155,6 +155,13 @@ private final class SettingsWindow: NSWindow {
             }
         }
 
+        // Standard macOS Control+Tab (next tab) and Control+Shift+Tab (previous tab)
+        if (flags == .control || flags == [.control, .shift]) && event.keyCode == 48 {
+            let direction = flags.contains(.shift) ? -1 : 1
+            NotificationCenter.default.post(name: .settingsCycleTab, object: nil, userInfo: ["direction": direction])
+            return
+        }
+
         super.keyDown(with: event)
     }
 

@@ -64,6 +64,14 @@ public enum AnnotationToolType: Int, CaseIterable, Identifiable, Sendable {
         }
     }
 
+    public var alternateMnemonicKey: String? {
+        switch self {
+        case .ellipse: return "E"
+        case .blur: return "M"
+        default: return nil
+        }
+    }
+
     public var shortcutDisplay: String {
         "\(rawValue) / \(mnemonicKey)"
     }
@@ -826,7 +834,7 @@ public struct ToolbarKeyShortcutHandler {
             case "p": viewModel.selectTool(.pen); return true
             case "h": viewModel.selectTool(.highlighter); return true
             case "t": viewModel.selectTool(.text); return true
-            case "b": viewModel.selectTool(.blur); return true
+            case "b", "m": viewModel.selectTool(.blur); return true
             default: break
             }
         }

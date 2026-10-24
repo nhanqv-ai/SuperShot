@@ -12,6 +12,9 @@ public struct AboutSettingsTab: View {
     public var launchAtLoginManager: any LaunchAtLoginManaging
 
     @State private var showingResetAllConfirmation: Bool = false
+    @State private var isHoveringVersion: Bool = false
+    @State private var isDiagnosticsCopied: Bool = false
+    @State private var copyTask: Task<Void, Never>? = nil
 
     private static let cachedAppIcon: NSImage? = {
         guard let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
@@ -67,10 +70,27 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.17"
-                Text(LocalizationManager.shared.tr(.versionLabel(version)))
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.18"
+                Button(action: { copyDiagnosticsToClipboard(version: version) }) {
+                    HStack(spacing: 4) {
+                        Text(LocalizationManager.shared.tr(.versionLabel(version)))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(.secondary)
+                        Image(systemName: isDiagnosticsCopied ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 9))
+                            .foregroundColor(isDiagnosticsCopied ? .green : .secondary.opacity(0.7))
+                    }
+                    .padding(.horizontal, 6)
+                    .padding(.vertical, 2)
+                    .background(
+                        RoundedRectangle(cornerRadius: 4, style: .continuous)
+                            .fill(Color(nsColor: .separatorColor).opacity(isHoveringVersion ? 0.25 : 0.10))
+                    )
+                }
+                .buttonStyle(.plain)
+                .pointingHandCursor()
+                .onHover { isHoveringVersion = $0 }
+                .help(LocalizationManager.shared.tr(.copiedDiagnostics))
             }
 
             Text(LocalizationManager.shared.tr(.appDescription))
@@ -198,6 +218,39 @@ public struct AboutSettingsTab: View {
         .padding(14)
         .frame(maxWidth: .infinity)
         .cardStyle()
+    }
+
+    public static func diagnosticString(version: String) -> String {
+        #if arch(arm64)
+        let arch = "arm64"
+        #elseif arch(x86_64)
+        let arch = "x86_64"
+        #else
+        let arch = "unknown"
+        #endif
+        let os = ProcessInfo.processInfo.operatingSystemVersionString
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "18"
+        return "SuperShot v\(version) (\(arch)) • macOS \(os) • Build \(build)"
+    }
+
+    private func copyDiagnosticsToClipboard(version: String) {
+        let text = Self.diagnosticString(version: version)
+        let pasteboard = NSPasteboard.general
+        pasteboard.clearContents()
+        pasteboard.setString(text, forType: .string)
+
+        copyTask?.cancel()
+        withAnimation(.easeInOut(duration: 0.15)) {
+            isDiagnosticsCopied = true
+        }
+        copyTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            if !Task.isCancelled {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    self.isDiagnosticsCopied = false
+                }
+            }
+        }
     }
 
     private func resetAllDefaults() {

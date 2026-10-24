@@ -79,6 +79,7 @@ public class CaptureOverlayWindow: NSPanel {
                 if prefersScrollingOnConfirm {
                     captureDelegate?.overlayDidTriggerScroll(rect: rect, display: display)
                 } else {
+                    view.showHUDNotification(text: LocalizationManager.shared.tr(.copiedToClipboard))
                     captureDelegate?.overlayDidConfirmSelection(rect: rect, display: display)
                     close()
                 }
@@ -89,6 +90,7 @@ public class CaptureOverlayWindow: NSPanel {
         // Cmd+C: Copy to clipboard
         if event.modifierFlags.contains(.command) && event.charactersIgnoringModifiers == "c" {
             if let view = contentViewRef, !view.selectionRect.isEmpty {
+                view.showHUDNotification(text: LocalizationManager.shared.tr(.copiedToClipboard))
                 captureDelegate?.overlayDidConfirmSelection(rect: view.selectionRect, display: capturedScreen.displayInfo)
                 close()
                 return

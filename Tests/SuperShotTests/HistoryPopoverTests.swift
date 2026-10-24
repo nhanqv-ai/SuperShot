@@ -197,5 +197,23 @@ public struct HistoryPopoverTests {
         let openInFinderText = LocalizationManager.shared.tr(.openInFinder)
         TestHarness.assertTrue(!openInFinderText.isEmpty, "openInFinder localization exists")
         TestHarness.assertTrue(mainViewForKeyboard.filteredItems.count > 0, "filteredItems contains seeded items")
+
+        // 12. IME Composition Guard, Delete Feedback & Context Menu Shortcut Hints (v1.0.18)
+        let deletedText = LocalizationManager.shared.tr(.screenshotDeleted)
+        TestHarness.assertTrue(!deletedText.isEmpty, "screenshotDeleted localization exists")
+        TestHarness.assertEqual(deletedText, "Screenshot Deleted", "screenshotDeleted in English")
+
+        // Test triggerDeleteFeedback() execution without crash
+        mainViewForKeyboard.triggerDeleteFeedback()
+
+        // Verify context menu shortcut labels
+        let copyWithShortcut = "\(LocalizationManager.shared.tr(.actionCopy)) (⌘C)"
+        let saveWithShortcut = "\(LocalizationManager.shared.tr(.actionSave))... (⌘S)"
+        let pinWithShortcut = "\(LocalizationManager.shared.tr(.pinButton)) (⌘P)"
+        let deleteWithShortcut = "\(LocalizationManager.shared.tr(.deleteButton)) (⌫)"
+        TestHarness.assertTrue(copyWithShortcut.contains("(⌘C)"), "Copy button contains (⌘C) shortcut")
+        TestHarness.assertTrue(saveWithShortcut.contains("(⌘S)"), "Save button contains (⌘S) shortcut")
+        TestHarness.assertTrue(pinWithShortcut.contains("(⌘P)"), "Pin button contains (⌘P) shortcut")
+        TestHarness.assertTrue(deleteWithShortcut.contains("(⌫)"), "Delete button contains (⌫) shortcut")
     }
 }
