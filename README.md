@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.16"><img src="https://img.shields.io/badge/version-v1.0.16-blue.svg?style=flat-square" alt="Version v1.0.16"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.17"><img src="https://img.shields.io/badge/version-v1.0.17-blue.svg?style=flat-square" alt="Version v1.0.17"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -119,6 +119,17 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
+### What's New in v1.0.17
+
+- **Option-Modifier Center-Out Selection Box Creation**: Hold the `Option` key while dragging to expand the selection region outward symmetrically from its initial click center. Combine with `Shift` (`Option + Shift`) for center-out 1:1 square selection.
+- **Vector Annotation Layer Z-Index Reordering with Full Undo/Redo**: Reorder vector annotation layers dynamically with standard macOS shortcuts (`Cmd + ]` bring forward, `Cmd + [` send backward, `Cmd + Shift + ]` bring to front, `Cmd + Shift + [` send to back) and animated on-screen HUD confirmation.
+- **Tall Screenshot Viewport Keyboard Navigation & Zoom HUD**: Effortlessly navigate tall scrolling screenshots via Arrow keys (40pt / 120pt with Shift), Page Up, Page Down, Home, End, and Space / Shift+Space. Zoom actions now display a transient HUD pill (`Zoom: 125%`).
+- **History Popover Ergonomics (`Cmd + F` & `Cmd + O`)**: Press `Cmd + F` to focus the search field instantly alongside `/`. Press `Cmd + O` or `Cmd + Return` on any selected history item to reveal it immediately in macOS Finder.
+- **Dimension Badge Collision & Overlap Fix**: Dimension badge automatically offsets above flipped horizontal action toolbars near the bottom screen edge, preventing visual collision.
+- **Dark Styling Consistency**: Eliminated white bottom border artifact on tall screenshot scrollable canvas windows with `.darkAqua` appearance and dark background fill.
+- **Instruction Banner & Technical Auto-Paste Subtitle L10n**: Full 9-language localization update highlighting `⌘A` fullscreen & `Shift` square discovery, with precise technical auto-paste descriptions and strictly zero emojis.
+- **Universal 2 (`arm64` + `x86_64`) Binary Packaging**: Full Universal 2 build verified statically via `lipo` and `otool` without Rosetta 2 execution.
+
 ### What's New in v1.0.16
 
 - **Selection Box & Object Keyboard Resizing (`Option + Arrow`)**: Power users can now adjust the width and height of the selection region and selected vector annotations directly from the keyboard with 1-pixel precision (`Option + Arrow`) or 10-pixel steps (`Option + Shift + Arrow`).
@@ -184,7 +195,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.16.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.17.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -328,6 +339,17 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
+### Điểm mới trong v1.0.17
+
+- **Tạo khung chọn từ tâm đối xứng với phím Option (`Center-Out Selection`)**: Giữ phím `Option` khi kéo chuột để mở rộng khung chọn tỏa đều từ điểm nhấp chuột ban đầu. Kết hợp với `Shift` (`Option + Shift`) để tạo khung hình vuông 1:1 mở rộng từ tâm.
+- **Sắp xếp thứ tự lớp hình vẽ (Z-Index) kèm Hoàn tác đầy đủ**: Điều chỉnh thứ tự trước/sau của các hình vẽ vector bằng các phím tắt tiêu chuẩn macOS (`Cmd + ]` lên một lớp, `Cmd + [` xuống một lớp, `Cmd + Shift + ]` lên trên cùng, `Cmd + Shift + [` xuống dưới cùng) kèm huy hiệu HUD hiển thị trực quan.
+- **Điều hướng khung xem ảnh cuộn dài bằng bàn phím & Huy hiệu Zoom HUD**: Dễ dàng cuộn và duyệt ảnh chụp cuộn dài bằng các phím Mũi tên (40pt / 120pt với Shift), Page Up, Page Down, Home, End và Space / Shift+Space. Thao tác thu phóng hiển thị huy hiệu HUD trực tiếp (`Thu phóng: 125%`).
+- **Tối ưu trải nghiệm Popover Lịch sử (`Cmd + F` & `Cmd + O`)**: Nhấn `Cmd + F` để kích hoạt ô tìm kiếm tức thì bên cạnh phím `/`. Nhấn `Cmd + O` hoặc `Cmd + Return` trên ảnh đang chọn để mở và định vị trực tiếp file trong Finder.
+- **Khắc phục va chạm huy hiệu kích thước**: Tự động dịch chuyển huy hiệu kích thước lên trên thanh công cụ khi thanh công cụ bị lật lên ở mép dưới màn hình, tránh hoàn toàn che khuất thông số.
+- **Đồng bộ giao diện tối (Dark Appearance)**: Loại bỏ dải viền trắng dưới đáy cửa sổ ảnh cuộn dài với giao diện `.darkAqua` và màu nền tối chuẩn mực.
+- **Chuẩn hóa bản dịch thanh hướng dẫn & mô tả tự động dán (9 ngôn ngữ, 0 emoji)**: Cập nhật hướng dẫn lớp phủ chụp với phím tắt `⌘A` toàn màn hình và `Shift` vuông, cùng mô tả kỹ thuật chuẩn xác cho tính năng mô phỏng ⌘V tự động dán.
+- **Đóng gói Universal 2 (`arm64` + `x86_64`) chuẩn xác**: Bản phân phối nhị phân Universal 2 chạy gốc mượt mà trên cả chip Apple Silicon lẫn Intel.
+
 ### Điểm mới trong v1.0.16
 
 - **Thay đổi kích thước khung chọn & hình vẽ bằng bàn phím (`Option + Mũi tên`)**: Hỗ trợ tăng giảm chiều rộng và chiều cao của khung chọn cũng như hình chú thích đang chọn trực tiếp từ bàn phím với độ chính xác 1px (`Option + Mũi tên`) hoặc 10px (`Option + Shift + Mũi tên`).
@@ -393,7 +415,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.16.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.17.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

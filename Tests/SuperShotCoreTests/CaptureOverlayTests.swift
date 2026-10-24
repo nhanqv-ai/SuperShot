@@ -149,6 +149,13 @@ public struct CaptureOverlayTests {
         let flippedBadge = ToolbarPositionCalculator.calculateDimensionBadgeFrame(selectionRect: topSelection, screenBounds: screen)
         TestHarness.assertTrue(flippedBadge.maxY <= 900 - 8, "Badge does not exceed top screen boundary")
         TestHarness.assertTrue(flippedBadge.origin.y < topSelection.maxY, "Badge flipped below selection top edge")
+
+        // Bottom edge collision: horizontal toolbar flips above selection, badge positioned above toolbar
+        let bottomSelection = CGRect(x: 200, y: 20, width: 400, height: 100)
+        let bottomBadge = ToolbarPositionCalculator.calculateDimensionBadgeFrame(selectionRect: bottomSelection, screenBounds: screen)
+        let bottomHoriz = ToolbarPositionCalculator.calculateHorizontalToolbarFrame(selectionRect: bottomSelection, screenBounds: screen)
+        TestHarness.assertEqual(bottomBadge.origin.y, bottomHoriz.maxY + 6.0, "Badge positioned above flipped horizontal toolbar")
+        TestHarness.assertTrue(bottomBadge.minY >= bottomHoriz.maxY, "Badge does not visually overlap flipped horizontal toolbar")
     }
 
     // --- Test 6: Edge-Aware Toolbar Positioning & Collision Resolution ---
@@ -331,5 +338,35 @@ public struct CaptureOverlayTests {
         )
         TestHarness.assertEqual(constrainedRect.width, 250.0, "Constrained width is 250")
         TestHarness.assertEqual(constrainedRect.height, 250.0, "Constrained height is 250 (1:1 square)")
+
+        // 5. Option-Modifier Center-Out Selection Box Creation
+        let center = CGPoint(x: 500, y: 500)
+        let target = CGPoint(x: 550, y: 530)
+        let centerRect = SelectionBoxGeometry.calculateCenterRect(
+            center: center,
+            target: target,
+            bounds: bounds,
+            squareConstrained: false
+        )
+        TestHarness.assertEqual(centerRect.origin.x, 450.0, "Center-out rect minX is 450 (500 - 50)")
+        TestHarness.assertEqual(centerRect.origin.y, 470.0, "Center-out rect minY is 470 (500 - 30)")
+        TestHarness.assertEqual(centerRect.width, 100.0, "Center-out rect width is 100 (50 * 2)")
+        TestHarness.assertEqual(centerRect.height, 60.0, "Center-out rect height is 60 (30 * 2)")
+        TestHarness.assertEqual(centerRect.midX, center.x, "Center-out rect midX matches center point")
+        TestHarness.assertEqual(centerRect.midY, center.y, "Center-out rect midY matches center point")
+
+        // 6. Option+Shift Center-Out Square Selection
+        let centerSquareRect = SelectionBoxGeometry.calculateCenterRect(
+            center: center,
+            target: target,
+            bounds: bounds,
+            squareConstrained: true
+        )
+        TestHarness.assertEqual(centerSquareRect.origin.x, 450.0, "Center-out square minX is 450 (500 - 50)")
+        TestHarness.assertEqual(centerSquareRect.origin.y, 450.0, "Center-out square minY is 450 (500 - 50)")
+        TestHarness.assertEqual(centerSquareRect.width, 100.0, "Center-out square width is 100")
+        TestHarness.assertEqual(centerSquareRect.height, 100.0, "Center-out square height is 100")
+        TestHarness.assertEqual(centerSquareRect.midX, center.x, "Center-out square midX matches center point")
+        TestHarness.assertEqual(centerSquareRect.midY, center.y, "Center-out square midY matches center point")
     }
 }

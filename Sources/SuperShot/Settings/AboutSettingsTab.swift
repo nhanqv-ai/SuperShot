@@ -67,7 +67,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.16"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.17"
                 Text(LocalizationManager.shared.tr(.versionLabel(version)))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)

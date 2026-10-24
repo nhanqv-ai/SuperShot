@@ -316,6 +316,13 @@ public enum L10nKey: Sendable {
     case actionShareTooltip
     case annotationsCleared
 
+    // Layer Z-Index & Zoom HUD (v1.0.17)
+    case layerBringToFront
+    case layerSendToBack
+    case layerBringForward
+    case layerSendBackward
+    case zoomHUD(Int)
+
     public func localized(for lang: AppLanguage) -> String {
         switch self {
         case .appTitle:
@@ -505,15 +512,15 @@ public enum L10nKey: Sendable {
 
         case .captureOverlayInstruction:
             switch lang {
-            case .vietnamese: return "Kéo để chọn vùng chụp, nhấn Esc để hủy"
-            case .german: return "Bereich ziehen zum Erfassen, Esc zum Abbrechen"
-            case .french: return "Glisser pour sélectionner la zone, Échap pour annuler"
-            case .spanish: return "Arrastra para seleccionar el área, Esc para cancelar"
-            case .japanese: return "ドラッグして領域を選択、Escでキャンセル"
-            case .simplifiedChinese: return "拖动选择截图区域，按 Esc 取消"
-            case .traditionalChinese: return "拖曳選取截圖區域，按 Esc 取消"
-            case .korean: return "드래그하여 캡처 영역 선택, Esc로 취소"
-            default: return "Drag to select capture area, press Esc to cancel"
+            case .vietnamese: return "Kéo để chọn · ⌘A toàn màn hình · Shift hình vuông · Esc hủy"
+            case .german: return "Bereich ziehen · ⌘A Vollbild · Shift Quadrat · Esc Abbrechen"
+            case .french: return "Glisser pour sélectionner · ⌘A plein écran · Shift carré · Échap annuler"
+            case .spanish: return "Arrastrar para seleccionar · ⌘A pantalla completa · Shift cuadrado · Esc cancelar"
+            case .japanese: return "ドラッグで選択 · ⌘A 全画面 · Shift 正方形 · Esc キャンセル"
+            case .simplifiedChinese: return "拖动选择 · ⌘A 全屏 · Shift 正方形 · Esc 取消"
+            case .traditionalChinese: return "拖曳選取 · ⌘A 全螢幕 · Shift 正方形 · Esc 取消"
+            case .korean: return "드래그하여 선택 · ⌘A 전체 화면 · Shift 정사각형 · Esc 취소"
+            default: return "Drag to select · ⌘A full screen · Shift square · Esc cancel"
             }
 
         case .dimensionBadge(let w, let h):
@@ -1216,15 +1223,15 @@ public enum L10nKey: Sendable {
 
         case .directAutoPaste:
             switch lang {
-            case .vietnamese: return "Tự động dán vào ứng dụng trước"
-            case .german: return "Automatisch in aktive App einfügen"
-            case .french: return "Coller automatiquement dans l'application"
-            case .spanish: return "Pegar automáticamente en la aplicación"
-            case .japanese: return "直前のアプリへ自動貼り付け"
-            case .simplifiedChinese: return "自动粘贴到前台应用"
-            case .traditionalChinese: return "自動貼上至前台應用程式"
-            case .korean: return "이전 앱으로 자동 붙여넣기"
-            default: return "Auto-Paste into Active App"
+            case .vietnamese: return "Mô phỏng ⌘V ngay sau khi sao chép ảnh chụp vào bộ nhớ tạm"
+            case .german: return "Simuliert ⌘V sofort nach dem Kopieren der Aufnahme in die Zwischenablage"
+            case .french: return "Simule ⌘V immédiatement après la copie de la capture dans le presse-papiers"
+            case .spanish: return "Simula ⌘V inmediatamente después de copiar la captura al portapapeles"
+            case .japanese: return "スクリーンショットをクリップボードにコピーした直後に ⌘V を送信します"
+            case .simplifiedChinese: return "将截图复制到剪贴板后立即模拟 ⌘V 粘贴"
+            case .traditionalChinese: return "將截圖複製到剪貼簿後立即模擬 ⌘V 貼上"
+            case .korean: return "스크린샷을 클립보드에 복사한 즉시 ⌘V 키를 시뮬레이션합니다"
+            default: return "Simulates ⌘V immediately after copying screenshot to clipboard"
             }
 
         case .quickSelectHint:
@@ -2573,6 +2580,71 @@ public enum L10nKey: Sendable {
             case .traditionalChinese: return "已清除所有註釋 (⌘⇧K)"
             case .korean: return "모든 주석 삭제됨 (⌘⇧K)"
             default: return "Annotations Cleared (⌘⇧K)"
+            }
+
+        case .layerBringToFront:
+            switch lang {
+            case .vietnamese: return "Chuyển lên trên cùng (⌘⇧])"
+            case .german: return "Ganz nach vorne bringen (⌘⇧])"
+            case .french: return "Placer au premier plan (⌘⇧])"
+            case .spanish: return "Traer al frente (⌘⇧])"
+            case .japanese: return "最前面へ移動 (⌘⇧])"
+            case .simplifiedChinese: return "置于顶层 (⌘⇧])"
+            case .traditionalChinese: return "移至最上層 (⌘⇧])"
+            case .korean: return "맨 앞으로 가져오기 (⌘⇧])"
+            default: return "Bring to Front (⌘⇧])"
+            }
+
+        case .layerSendToBack:
+            switch lang {
+            case .vietnamese: return "Chuyển xuống dưới cùng (⌘⇧[)"
+            case .german: return "Ganz nach hinten senden (⌘⇧[)"
+            case .french: return "Placer à l'arrière-plan (⌘⇧[)"
+            case .spanish: return "Enviar al fondo (⌘⇧[)"
+            case .japanese: return "最背面へ移動 (⌘⇧[)"
+            case .simplifiedChinese: return "置于底层 (⌘⇧[)"
+            case .traditionalChinese: return "移至最下層 (⌘⇧[)"
+            case .korean: return "맨 뒤로 보내기 (⌘⇧[)"
+            default: return "Send to Back (⌘⇧[)"
+            }
+
+        case .layerBringForward:
+            switch lang {
+            case .vietnamese: return "Tiến lên một lớp (⌘])"
+            case .german: return "Schritt nach vorne (⌘])"
+            case .french: return "Avancer d'un plan (⌘])"
+            case .spanish: return "Traer adelante (⌘])"
+            case .japanese: return "前面へ移動 (⌘])"
+            case .simplifiedChinese: return "上移一层 (⌘])"
+            case .traditionalChinese: return "上移一層 (⌘])"
+            case .korean: return "앞으로 가져오기 (⌘])"
+            default: return "Bring Forward (⌘])"
+            }
+
+        case .layerSendBackward:
+            switch lang {
+            case .vietnamese: return "Lùi lại một lớp (⌘[)"
+            case .german: return "Schritt nach hinten (⌘[)"
+            case .french: return "Reculer d'un plan (⌘[)"
+            case .spanish: return "Enviar atrás (⌘[)"
+            case .japanese: return "背面へ移動 (⌘[)"
+            case .simplifiedChinese: return "下移一层 (⌘[)"
+            case .traditionalChinese: return "下移一層 (⌘[)"
+            case .korean: return "뒤로 보내기 (⌘[)"
+            default: return "Send Backward (⌘[)"
+            }
+
+        case .zoomHUD(let pct):
+            switch lang {
+            case .vietnamese: return "Thu phóng: \(pct)%"
+            case .german: return "Zoom: \(pct)%"
+            case .french: return "Zoom : \(pct)%"
+            case .spanish: return "Zoom: \(pct)%"
+            case .japanese: return "ズーム: \(pct)%"
+            case .simplifiedChinese: return "缩放: \(pct)%"
+            case .traditionalChinese: return "縮放: \(pct)%"
+            case .korean: return "확대/축소: \(pct)%"
+            default: return "Zoom: \(pct)%"
             }
         }
     }

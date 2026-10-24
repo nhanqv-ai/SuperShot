@@ -787,6 +787,45 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             return true
         }
 
+        // Layer Z-Index Reordering Shortcuts (Cmd+], Cmd+[, Cmd+Shift+], Cmd+Shift+[)
+        if annotationEngine.selectedObjectID != nil {
+            let chars = event.charactersIgnoringModifiers ?? ""
+            let isCloseBracket = (event.keyCode == 30 || chars == "]")
+            let isOpenBracket = (event.keyCode == 33 || chars == "[")
+
+            if flags == [.command, .shift] && isCloseBracket {
+                if annotationEngine.bringSelectedToFront() {
+                    showHUDNotification(text: LocalizationManager.shared.tr(.layerBringToFront))
+                    needsDisplay = true
+                }
+                return true
+            }
+
+            if flags == [.command, .shift] && isOpenBracket {
+                if annotationEngine.sendSelectedToBack() {
+                    showHUDNotification(text: LocalizationManager.shared.tr(.layerSendToBack))
+                    needsDisplay = true
+                }
+                return true
+            }
+
+            if flags == .command && isCloseBracket {
+                if annotationEngine.bringSelectedForward() {
+                    showHUDNotification(text: LocalizationManager.shared.tr(.layerBringForward))
+                    needsDisplay = true
+                }
+                return true
+            }
+
+            if flags == .command && isOpenBracket {
+                if annotationEngine.sendSelectedBackward() {
+                    showHUDNotification(text: LocalizationManager.shared.tr(.layerSendBackward))
+                    needsDisplay = true
+                }
+                return true
+            }
+        }
+
         // Delete / Backspace removes selected vector annotation object
         if (event.keyCode == 51 || event.keyCode == 117), annotationEngine.selectedObjectID != nil {
             annotationEngine.deleteSelected()
@@ -994,18 +1033,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             )
             needsDisplay = true
         case .creating(let startPoint):
-            if event.modifierFlags.contains(.shift) {
-                let dx = currentPoint.x - startPoint.x
-                let dy = currentPoint.y - startPoint.y
-                let side = max(abs(dx), abs(dy))
-                let squarePoint = CGPoint(
-                    x: startPoint.x + (dx >= 0 ? side : -side),
-                    y: startPoint.y + (dy >= 0 ? side : -side)
-                )
-                selectionRect = SelectionBoxGeometry.normalizeRect(p1: startPoint, p2: squarePoint, bounds: bounds)
-            } else {
-                selectionRect = SelectionBoxGeometry.normalizeRect(p1: startPoint, p2: currentPoint, bounds: bounds)
-            }
+            updateCreatingSelection(startPoint: startPoint, currentPoint: currentPoint, modifierFlags: event.modifierFlags)
         case .moving(let startPoint, let originalRect):
             let dx = currentPoint.x - startPoint.x
             let dy = currentPoint.y - startPoint.y
@@ -1054,6 +1082,31 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         updateCanvasCursor(at: currentPoint)
     }
 
+    private func updateCreatingSelection(startPoint: CGPoint, currentPoint: CGPoint, modifierFlags: NSEvent.ModifierFlags) {
+        let isOption = modifierFlags.contains(.option)
+        let isShift = modifierFlags.contains(.shift)
+
+        if isOption {
+            selectionRect = SelectionBoxGeometry.calculateCenterRect(
+                center: startPoint,
+                target: currentPoint,
+                bounds: bounds,
+                squareConstrained: isShift
+            )
+        } else if isShift {
+            let dx = currentPoint.x - startPoint.x
+            let dy = currentPoint.y - startPoint.y
+            let side = max(abs(dx), abs(dy))
+            let squarePoint = CGPoint(
+                x: startPoint.x + (dx >= 0 ? side : -side),
+                y: startPoint.y + (dy >= 0 ? side : -side)
+            )
+            selectionRect = SelectionBoxGeometry.normalizeRect(p1: startPoint, p2: squarePoint, bounds: bounds)
+        } else {
+            selectionRect = SelectionBoxGeometry.normalizeRect(p1: startPoint, p2: currentPoint, bounds: bounds)
+        }
+    }
+
     public override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         currentMousePoint = point
@@ -1071,16 +1124,26 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
     public override func flagsChanged(with event: NSEvent) {
         super.flagsChanged(with: event)
-        if dragMode == .annotating, let lastPt = currentMousePoint {
-            let clampedPoint = CGPoint(
-                x: max(selectionRect.minX, min(lastPt.x, selectionRect.maxX)),
-                y: max(selectionRect.minY, min(lastPt.y, selectionRect.maxY))
-            )
-            annotationEngine.updateDrag(
-                to: clampedPoint,
-                shiftKeyPressed: event.modifierFlags.contains(.shift)
-            )
-            needsDisplay = true
+        switch dragMode {
+        case .annotating:
+            if let lastPt = currentMousePoint {
+                let clampedPoint = CGPoint(
+                    x: max(selectionRect.minX, min(lastPt.x, selectionRect.maxX)),
+                    y: max(selectionRect.minY, min(lastPt.y, selectionRect.maxY))
+                )
+                annotationEngine.updateDrag(
+                    to: clampedPoint,
+                    shiftKeyPressed: event.modifierFlags.contains(.shift)
+                )
+                needsDisplay = true
+            }
+        case .creating(let startPoint):
+            if let lastPt = currentMousePoint {
+                updateCreatingSelection(startPoint: startPoint, currentPoint: lastPt, modifierFlags: event.modifierFlags)
+                needsDisplay = true
+            }
+        default:
+            break
         }
     }
 

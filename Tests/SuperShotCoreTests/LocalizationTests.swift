@@ -154,6 +154,11 @@ public struct LocalizationTests {
         TestHarness.assertEqual(loc.tr(.resetShortcutTooltip("Option+S")), "Đặt lại về Option+S", "Reset shortcut tooltip Vietnamese")
         TestHarness.assertEqual(loc.tr(.previewCancelTooltip), "Hủy (Esc)", "Cancel tooltip Vietnamese")
         TestHarness.assertEqual(loc.tr(.previewDoneTooltip), "Hoàn thành (Return / Enter)", "Done tooltip Vietnamese")
+        TestHarness.assertEqual(loc.tr(.layerBringToFront), "Chuyển lên trên cùng (⌘⇧])", "Layer bring to front Vietnamese")
+        TestHarness.assertEqual(loc.tr(.layerSendToBack), "Chuyển xuống dưới cùng (⌘⇧[)", "Layer send to back Vietnamese")
+        TestHarness.assertEqual(loc.tr(.layerBringForward), "Tiến lên một lớp (⌘])", "Layer bring forward Vietnamese")
+        TestHarness.assertEqual(loc.tr(.layerSendBackward), "Lùi lại một lớp (⌘[)", "Layer send backward Vietnamese")
+        TestHarness.assertEqual(loc.tr(.zoomHUD(125)), "Thu phóng: 125%", "Zoom HUD Vietnamese")
 
         // 6. Zero emoji invariant check across all keys in all languages
         validateZeroEmojisAcrossDictionary()
@@ -180,7 +185,9 @@ public struct LocalizationTests {
             .zoomOutTooltip, .zoomActualSizeTooltip,
             .zoomInTooltip, .zoomFitWidthTooltip,
             .strokeWidthHUD(4), .resetShortcutTooltip("Option+S"),
-            .previewCancelTooltip, .previewDoneTooltip
+            .previewCancelTooltip, .previewDoneTooltip,
+            .layerBringToFront, .layerSendToBack, .layerBringForward, .layerSendBackward,
+            .zoomHUD(125), .captureOverlayInstruction, .directAutoPaste
         ]
 
         let emojiRanges: [ClosedRange<UInt32>] = [

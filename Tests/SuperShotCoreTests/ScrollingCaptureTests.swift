@@ -375,8 +375,21 @@ public struct ScrollingCaptureTests {
         zoomVM.onZoomIn?()
         TestHarness.assertTrue(zoomInCalled, "ZoomViewModel onZoomIn triggers correctly")
 
+        // Test dark styling & viewport keyboard scrolling
+        TestHarness.assertTrue(scrollView.drawsBackground, "ScrollableAnnotationScrollView draws background")
+        TestHarness.assertEqual(scrollView.backgroundColor.whiteComponent, 0.12, "ScrollableAnnotationScrollView has 0.12 dark background")
+        scrollView.scrollToBottom()
+        TestHarness.assertTrue(scrollView.contentView.bounds.origin.y >= 0, "scrollToBottom executes")
+        scrollView.scrollToTop()
+        TestHarness.assertTrue(scrollView.contentView.bounds.origin.y <= 1.0, "scrollToTop executes")
+        scrollView.pageDown()
+        scrollView.pageUp()
+        scrollView.scrollBy(deltaX: 0, deltaY: 40)
+
         // Hierarchical Escape Key on ScrollableAnnotationWindow
         let win = ScrollableAnnotationWindow(baseImage: dummyImg)
+        TestHarness.assertEqual(win.appearance?.name, NSAppearance.Name.darkAqua, "ScrollableAnnotationWindow has darkAqua appearance")
+        TestHarness.assertEqual(win.backgroundColor.whiteComponent, 0.12, "ScrollableAnnotationWindow has 0.12 dark background")
         let escEvent = NSEvent.keyEvent(
             with: .keyDown,
             location: .zero,

@@ -143,7 +143,7 @@ public struct ShotRowView: View {
                 onTogglePin?(item)
             }
             Divider()
-            Button(localizationManager.tr(.openInFinder)) {
+            Button("\(localizationManager.tr(.openInFinder)) (⌘O)") {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 let url: URL
                 if let sm = storageManager {

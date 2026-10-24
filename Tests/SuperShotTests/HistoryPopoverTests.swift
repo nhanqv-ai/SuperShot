@@ -192,5 +192,10 @@ public struct HistoryPopoverTests {
         mainViewForKeyboard.focusSearchField()
         TestHarness.assertTrue(searchFocusNotificationReceived, "focusSearchField() posts SuperShotFocusSearchField notification")
         NotificationCenter.default.removeObserver(searchFocusObserver)
+
+        // 11. Finder Action & Open In Finder Localization (v1.0.17)
+        let openInFinderText = LocalizationManager.shared.tr(.openInFinder)
+        TestHarness.assertTrue(!openInFinderText.isEmpty, "openInFinder localization exists")
+        TestHarness.assertTrue(mainViewForKeyboard.filteredItems.count > 0, "filteredItems contains seeded items")
     }
 }
