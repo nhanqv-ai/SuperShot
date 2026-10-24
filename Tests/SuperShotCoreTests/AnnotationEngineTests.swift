@@ -409,6 +409,9 @@ public struct AnnotationEngineTests {
 
         // 12. M13: MainShotView Keyboard Shortcuts & Navigation
         testMainShotViewKeyboardShortcuts()
+
+        // 13. M34: Vector Layer Z-Index Reordering & Undo/Redo
+        testLayerZIndexReorderingAndUndoRedo()
     }
 
     private static func makeTestCGImage(width: Int = 400, height: Int = 300) -> CGImage {
@@ -843,5 +846,72 @@ public struct AnnotationEngineTests {
             let digit = ShortcutNavigator.parseShortcut(from: event, searchFieldHasFocus: false)
             TestHarness.assertEqual(digit, 3, "Parsed digit 3 from key event")
         }
+    }
+
+    private static func testLayerZIndexReorderingAndUndoRedo() {
+        let engine = AnnotationEngine(maxHistoryLimit: 50)
+        let objA = AnnotationObject(tool: .rectangle, bounds: CGRect(x: 10, y: 10, width: 50, height: 50))
+        let objB = AnnotationObject(tool: .ellipse, bounds: CGRect(x: 20, y: 20, width: 50, height: 50))
+        let objC = AnnotationObject(tool: .arrow, points: [CGPoint(x: 30, y: 30), CGPoint(x: 60, y: 60)])
+        let objD = AnnotationObject(tool: .text, bounds: CGRect(x: 40, y: 40, width: 50, height: 20), text: "D")
+
+        engine.addObject(objA)
+        engine.addObject(objB)
+        engine.addObject(objC)
+        engine.addObject(objD)
+
+        TestHarness.assertEqual(engine.objects.map { $0.id }, [objA.id, objB.id, objC.id, objD.id], "Initial order A, B, C, D")
+
+        // Select objB (index 1)
+        engine.selectedObjectID = objB.id
+
+        // 1. Bring forward (index 1 -> index 2)
+        let broughtForward = engine.bringSelectedForward()
+        TestHarness.assertTrue(broughtForward, "bringSelectedForward succeeded")
+        TestHarness.assertEqual(engine.objects.map { $0.id }, [objA.id, objC.id, objB.id, objD.id], "Order after bring forward: A, C, B, D")
+
+        // 2. Bring to front (index 2 -> index 3)
+        let broughtToFront = engine.bringSelectedToFront()
+        TestHarness.assertTrue(broughtToFront, "bringSelectedToFront succeeded")
+        TestHarness.assertEqual(engine.objects.map { $0.id }, [objA.id, objC.id, objD.id, objB.id], "Order after bring to front: A, C, D, B")
+
+        // Bring to front again when already at front returns false (no-op)
+        TestHarness.assertFalse(engine.bringSelectedToFront(), "bringSelectedToFront at front returns false")
+
+        // 3. Send backward (index 3 -> index 2)
+        let sentBackward = engine.sendSelectedBackward()
+        TestHarness.assertTrue(sentBackward, "sendSelectedBackward succeeded")
+        TestHarness.assertEqual(engine.objects.map { $0.id }, [objA.id, objC.id, objB.id, objD.id], "Order after send backward: A, C, B, D")
+
+        // 4. Send to back (index 2 -> index 0)
+        let sentToBack = engine.sendSelectedToBack()
+        TestHarness.assertTrue(sentToBack, "sendSelectedToBack succeeded")
+        TestHarness.assertEqual(engine.objects.map { $0.id }, [objB.id, objA.id, objC.id, objD.id], "Order after send to back: B, A, C, D")
+
+        // Send to back again when already at back returns false (no-op)
+        TestHarness.assertFalse(engine.sendSelectedToBack(), "sendSelectedToBack at back returns false")
+
+        // 5. Test Undo/Redo symmetry
+        // Undo send to back (0 -> 2)
+        TestHarness.assertTrue(engine.canUndo, "Can undo send to back")
+        engine.undo()
+        TestHarness.assertEqual(engine.objects.map { $0.id }, [objA.id, objC.id, objB.id, objD.id], "Undo send to back restores A, C, B, D")
+
+        // Undo send backward (2 -> 3)
+        engine.undo()
+        TestHarness.assertEqual(engine.objects.map { $0.id }, [objA.id, objC.id, objD.id, objB.id], "Undo send backward restores A, C, D, B")
+
+        // Undo bring to front (3 -> 2)
+        engine.undo()
+        TestHarness.assertEqual(engine.objects.map { $0.id }, [objA.id, objC.id, objB.id, objD.id], "Undo bring to front restores A, C, B, D")
+
+        // Undo bring forward (2 -> 1)
+        engine.undo()
+        TestHarness.assertEqual(engine.objects.map { $0.id }, [objA.id, objB.id, objC.id, objD.id], "Undo bring forward restores initial A, B, C, D")
+
+        // Redo bring forward (1 -> 2)
+        TestHarness.assertTrue(engine.canRedo, "Can redo")
+        engine.redo()
+        TestHarness.assertEqual(engine.objects.map { $0.id }, [objA.id, objC.id, objB.id, objD.id], "Redo bring forward restores A, C, B, D")
     }
 }

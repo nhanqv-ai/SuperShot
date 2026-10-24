@@ -427,6 +427,52 @@ public final class AnnotationEngine: ObservableObject {
         return count
     }
 
+    // MARK: - Layer Z-Index Reordering
+
+    /// Moves the currently selected annotation to the top of the z-order (front-most layer).
+    @discardableResult
+    public func bringSelectedToFront() -> Bool {
+        guard let id = selectedObjectID,
+              let currentIndex = objects.firstIndex(where: { $0.id == id }) else { return false }
+        let targetIndex = objects.count - 1
+        guard currentIndex < targetIndex else { return false }
+        execute(action: .reorder(id: id, oldIndex: currentIndex, newIndex: targetIndex))
+        return true
+    }
+
+    /// Moves the currently selected annotation to the bottom of the z-order (back-most layer).
+    @discardableResult
+    public func sendSelectedToBack() -> Bool {
+        guard let id = selectedObjectID,
+              let currentIndex = objects.firstIndex(where: { $0.id == id }) else { return false }
+        let targetIndex = 0
+        guard currentIndex > targetIndex else { return false }
+        execute(action: .reorder(id: id, oldIndex: currentIndex, newIndex: targetIndex))
+        return true
+    }
+
+    /// Moves the currently selected annotation one step forward towards the front.
+    @discardableResult
+    public func bringSelectedForward() -> Bool {
+        guard let id = selectedObjectID,
+              let currentIndex = objects.firstIndex(where: { $0.id == id }) else { return false }
+        let targetIndex = currentIndex + 1
+        guard targetIndex < objects.count else { return false }
+        execute(action: .reorder(id: id, oldIndex: currentIndex, newIndex: targetIndex))
+        return true
+    }
+
+    /// Moves the currently selected annotation one step backward towards the back.
+    @discardableResult
+    public func sendSelectedBackward() -> Bool {
+        guard let id = selectedObjectID,
+              let currentIndex = objects.firstIndex(where: { $0.id == id }) else { return false }
+        let targetIndex = currentIndex - 1
+        guard targetIndex >= 0 else { return false }
+        execute(action: .reorder(id: id, oldIndex: currentIndex, newIndex: targetIndex))
+        return true
+    }
+
     // MARK: - Command Pattern Undo / Redo
 
     public func undo() {
@@ -495,6 +541,13 @@ public final class AnnotationEngine: ObservableObject {
             if let idx = objects.firstIndex(where: { $0.id == id }) {
                 objects[idx].text = newText
                 objects[idx].bounds = newBounds
+            }
+        case .reorder(let id, _, let newIndex):
+            if let currentIndex = objects.firstIndex(where: { $0.id == id }) {
+                let obj = objects.remove(at: currentIndex)
+                let clampedIndex = max(0, min(newIndex, objects.count))
+                objects.insert(obj, at: clampedIndex)
+                selectedObjectID = id
             }
         case .batch(let actions):
             actions.forEach { applyForward(action: $0) }

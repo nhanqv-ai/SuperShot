@@ -360,6 +360,31 @@ public struct SelectionBoxGeometry {
         return CGRect(x: x1, y: y1, width: width, height: height)
     }
 
+    public static func calculateCenterRect(
+        center: CGPoint,
+        target: CGPoint,
+        bounds: CGRect? = nil,
+        squareConstrained: Bool = false
+    ) -> CGRect {
+        let dx = abs(target.x - center.x)
+        let dy = abs(target.y - center.y)
+        let halfWidth: CGFloat
+        let halfHeight: CGFloat
+
+        if squareConstrained {
+            let side = max(dx, dy)
+            halfWidth = side
+            halfHeight = side
+        } else {
+            halfWidth = dx
+            halfHeight = dy
+        }
+
+        let p1 = CGPoint(x: center.x - halfWidth, y: center.y - halfHeight)
+        let p2 = CGPoint(x: center.x + halfWidth, y: center.y + halfHeight)
+        return normalizeRect(p1: p1, p2: p2, bounds: bounds)
+    }
+
     public static func anchorPoint(for handle: SelectionHandle, in rect: CGRect) -> CGPoint {
         switch handle {
         case .topLeft: return CGPoint(x: rect.maxX, y: rect.minY)
@@ -467,6 +492,16 @@ public struct ToolbarPositionCalculator {
     ) -> CGRect {
         var originX = selectionRect.minX
         var originY = selectionRect.maxY + 6.0
+
+        // When horizontal toolbar flips above selectionRect.maxY in bottom-screen selections,
+        // position the dimension badge above horizontalToolbar.maxY + 6pt to prevent overlap
+        let horizFlipped = (selectionRect.minY - spacing - horizontalToolbarSize.height < screenBounds.minY + margin)
+        if horizFlipped {
+            let horizFrame = calculateHorizontalToolbarFrame(selectionRect: selectionRect, screenBounds: screenBounds)
+            if horizFrame.minY >= selectionRect.maxY {
+                originY = horizFrame.maxY + 6.0
+            }
+        }
 
         if originY + badgeSize.height > screenBounds.maxY - margin {
             originY = selectionRect.maxY - badgeSize.height - 6.0

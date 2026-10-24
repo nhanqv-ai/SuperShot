@@ -221,6 +221,14 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 97 | Search Bar Shortcut Hint Badge | Subtle [ / ] keyboard hint badge in SearchBarView when text.isEmpty | M30 | Explorers 1 & 2 Survey |
 | 98 | LiveGUIDriver Modernization & Expansion | Update LiveGUIDriver.swift for v1.0.16: cover Cmd+A, arrow nudging, Option-Arrow resizing, / shortcut, Cmd+9, dual-language Welcome window | M30 | Explorer 1 Survey |
 | 99 | Version Bump to 1.0.16 & Test Invariant Sync | Update all 7 version locations: Info.plist (1.0.16, build 16), AboutSettingsTab, WelcomeWindow, UpdateManager, Makefile, README.md, SettingsViewTests | M30 | Explorer 3 Survey |
+| 100 | Option-Modifier Center-Out Selection Box Creation | calculateCenterRect in SelectionBoxGeometry and dynamic Option / Shift handling in SelectionBoxView mouseDragged & flagsChanged | M34 | DISPATCH §2 |
+| 101 | Vector Layer Z-Index Reordering with Undo/Redo | Reorder action in AnnotationAction, bring/send front/back/forward/backward in AnnotationEngine, Cmd+[/], Cmd+Shift+[/] shortcuts & HUD | M34 | DISPATCH §3 |
+| 102 | Tall Viewport Keyboard Navigation & Zoom HUD | scrollBy, pageUp/Down, scrollToTop/Bottom in ScrollableAnnotationScrollView, arrow/page/home/end/space keys in ScrollableAnnotationWindow, transient zoom HUD pill | M34 | DISPATCH §4 |
+| 103 | History Popover Ergonomics (Cmd+F & Cmd+O) | Cmd+F to focus search field, Cmd+O & Cmd+Return to reveal item in macOS Finder via activateFileViewerSelecting, updated context menu hint | M34 | DISPATCH §5 |
+| 104 | Dimension Badge Overlap & Edge Clamping Fix | Prevent dimension badge visual collision when horizontal action toolbar flips above selectionRect.maxY in bottom-screen captures | M34 | DISPATCH §6 |
+| 105 | ScrollableAnnotationWindow Dark Styling Fix | NSAppearance .darkAqua and dark background color (white: 0.12) on ScrollableAnnotationWindow & ScrollableAnnotationScrollView | M34 | DISPATCH §7 |
+| 106 | Instruction Banner & Auto-Paste Subtitle L10n | Update captureOverlayInstruction across 9 languages (⌘A fullscreen & Shift square) and refine auto-paste subtitle technical copy (0 emojis) | M34 | DISPATCH §8 |
+| 107 | Canonical Version Bump to v1.0.17 | Synchronize v1.0.17 across Info.plist (build 17), AboutSettingsTab, WelcomeWindow, UpdateManager, Makefile, README.md, SettingsViewTests, PROJECT.md | M34 | DISPATCH §9 |
 
 ## Milestones
 
@@ -252,9 +260,13 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M26 | Automated Release Pipeline v1.0.10 & Live App Relaunch | Git branch, PR create/merge, clean build, Universal 2 zip & dmg release, app relaunch | M25 | DONE |
 | M28 | Proactive UX Polish, Hit-Target Refinement & Version Bump to v1.0.15 | Settings tab truncation fix, explicit contentShape across buttons/pills, Cmd+A / Arrow nudge / '/' shortcuts, version bump to v1.0.15 | M26 | DONE |
 | M29 | Survey & Live GUI Driver Audit | Explorers 1, 2, 3 survey codebase, live GUI driver, build/test, version locations | none | DONE |
-| M30 | Implementation of UX Polish & Version Bump | Implement Features 93-99 in Sources/SuperShot, Sources/SuperShotCore, Tests/, Makefile, README.md, PROJECT.md | M29 | IN_PROGRESS |
-| M31 | Review, Adversarial Challenge & Forensic Audit | Independent review (x2), adversarial stress tests (x2), and forensic audit | M30 | PLANNED |
-| M32 | Live GUI Verification & Release Pipeline | Run LiveGUIDriver, execute make package/dmg, git branch/PR/merge, publish GitHub release v1.0.16, verify PUBLIC | M31 | PLANNED |
+| M30 | Implementation of UX Polish & Version Bump | Implement Features 93-99 in Sources/SuperShot, Sources/SuperShotCore, Tests/, Makefile, README.md, PROJECT.md | M29 | DONE |
+| M31 | Review, Adversarial Challenge & Forensic Audit | Independent review (x2), adversarial stress tests (x2), and forensic audit | M30 | DONE |
+| M32 | Live GUI Verification & Release Pipeline | Run LiveGUIDriver, execute make package/dmg, git branch/PR/merge, publish GitHub release v1.0.16, verify PUBLIC | M31 | DONE |
+| M33 | Survey & Live GUI Driver Audit | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UX/feature opportunities, verify release invariants | none | DONE |
+| M34 | Implementation of Proactive UX Polish & Version Bump | Implement Features 100-107, 0 emojis, bump 8 locations to 1.0.17, make lint, make test, make adversarial, make app, verify_bundle | M33 | IN_PROGRESS |
+| M35 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M34 | PLANNED |
+| M36 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.17 -> public repo check -> app relaunch | M35 | PLANNED |
 
 ## Interface Contracts
 

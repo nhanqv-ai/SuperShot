@@ -206,6 +206,9 @@ struct AdversarialChallenge {
         // M30: Selection Box & Object Resizing, ClearAll Batch Undo/Redo & Share Shortcuts Stress
         testMilestoneM30EmpiricalStressAndAdversarialChallenge()
 
+        // M35: Milestone M35 v1.0.17 Empirical Stress Suites
+        testMilestoneM35EmpiricalStressAndAdversarialChallenge()
+
         let elapsed = Date().timeIntervalSince(startTime)
 
         print("\n\u{001B}[1;35m============================================================\u{001B}[0m")
@@ -2985,6 +2988,482 @@ struct AdversarialChallenge {
         let handled = ToolbarKeyShortcutHandler.handleKeyEvent(event: cmdEEvent, viewModel: unanchoredVM)
         ChallengerHarness.assertTrue(handled, "Cmd+E handled by ToolbarKeyShortcutHandler without focused window")
         ChallengerHarness.assertTrue(shareCalled, "Cmd+E successfully triggered share action safely")
+    }
+
+    // MARK: - 23. Milestone M35 Empirical Stress & Adversarial Challenge
+    private static func testMilestoneM35EmpiricalStressAndAdversarialChallenge() {
+        ChallengerHarness.startSuite("23. Milestone M35 v1.0.17 Empirical Stress & Adversarial Challenge")
+
+        // =====================================================================
+        // Sub-scenario 23A: Option Center-Out Geometry Stress & Boundary Clamping
+        // =====================================================================
+        ChallengerHarness.startSuite("23A. Option Center-Out Geometry Stress & Boundary Clamping")
+
+        let screenBounds = CGRect(x: 0, y: 0, width: 2560, height: 1440)
+        let centerPt = CGPoint(x: 1000, y: 800)
+
+        // 1. Standard center-out expansion (squareConstrained = false)
+        let targetPt = CGPoint(x: 1200, y: 950)
+        let rectStd = SelectionBoxGeometry.calculateCenterRect(
+            center: centerPt,
+            target: targetPt,
+            bounds: screenBounds,
+            squareConstrained: false
+        )
+        // dx = 200, dy = 150 -> halfW = 200, halfH = 150 -> width = 400, height = 300
+        ChallengerHarness.assertEqual(rectStd.origin.x, 800.0, "rectStd origin x is center.x - 200 = 800")
+        ChallengerHarness.assertEqual(rectStd.origin.y, 650.0, "rectStd origin y is center.y - 150 = 650")
+        ChallengerHarness.assertEqual(rectStd.width, 400.0, "rectStd width is 400.0")
+        ChallengerHarness.assertEqual(rectStd.height, 300.0, "rectStd height is 300.0")
+        ChallengerHarness.assertEqual(rectStd.midX, centerPt.x, "rectStd midX matches center point x (1000.0)")
+        ChallengerHarness.assertEqual(rectStd.midY, centerPt.y, "rectStd midY matches center point y (800.0)")
+
+        // 2. Square-constrained center-out expansion (squareConstrained = true)
+        let rectSquare = SelectionBoxGeometry.calculateCenterRect(
+            center: centerPt,
+            target: targetPt,
+            bounds: screenBounds,
+            squareConstrained: true
+        )
+        // max(dx, dy) = max(200, 150) = 200 -> side = 200, halfW = 200, halfH = 200 -> width = 400, height = 400
+        ChallengerHarness.assertEqual(rectSquare.width, 400.0, "rectSquare width is 400.0")
+        ChallengerHarness.assertEqual(rectSquare.height, 400.0, "rectSquare height is 400.0 (1:1 square)")
+        ChallengerHarness.assertEqual(rectSquare.origin.x, 800.0, "rectSquare origin x is 800.0")
+        ChallengerHarness.assertEqual(rectSquare.origin.y, 600.0, "rectSquare origin y is 600.0")
+        ChallengerHarness.assertEqual(rectSquare.midX, centerPt.x, "rectSquare midX is center x")
+        ChallengerHarness.assertEqual(rectSquare.midY, centerPt.y, "rectSquare midY is center y")
+
+        // 3. 4-Quadrant Symmetry Test:
+        // Dragging in any of the 4 quadrants with identical deltas produces identical bounding rectangles
+        let dx: CGFloat = 160
+        let dy: CGFloat = 90
+        let q1Target = CGPoint(x: centerPt.x + dx, y: centerPt.y + dy)
+        let q2Target = CGPoint(x: centerPt.x - dx, y: centerPt.y + dy)
+        let q3Target = CGPoint(x: centerPt.x - dx, y: centerPt.y - dy)
+        let q4Target = CGPoint(x: centerPt.x + dx, y: centerPt.y - dy)
+
+        let rQ1 = SelectionBoxGeometry.calculateCenterRect(center: centerPt, target: q1Target, bounds: screenBounds)
+        let rQ2 = SelectionBoxGeometry.calculateCenterRect(center: centerPt, target: q2Target, bounds: screenBounds)
+        let rQ3 = SelectionBoxGeometry.calculateCenterRect(center: centerPt, target: q3Target, bounds: screenBounds)
+        let rQ4 = SelectionBoxGeometry.calculateCenterRect(center: centerPt, target: q4Target, bounds: screenBounds)
+
+        ChallengerHarness.assertEqual(rQ1, rQ2, "Quadrant 1 and Quadrant 2 center-out rects are identical")
+        ChallengerHarness.assertEqual(rQ2, rQ3, "Quadrant 2 and Quadrant 3 center-out rects are identical")
+        ChallengerHarness.assertEqual(rQ3, rQ4, "Quadrant 3 and Quadrant 4 center-out rects are identical")
+        ChallengerHarness.assertEqual(rQ1.width, dx * 2, "Width is exactly 2 * dx = 320.0")
+        ChallengerHarness.assertEqual(rQ1.height, dy * 2, "Height is exactly 2 * dy = 180.0")
+
+        // 4. Extreme coordinates & Boundary Clamping
+        // Extreme negative coordinates (-1,000,000)
+        let extremeNeg = CGPoint(x: -1_000_000, y: -1_000_000)
+        let rNeg = SelectionBoxGeometry.calculateCenterRect(center: centerPt, target: extremeNeg, bounds: screenBounds)
+        ChallengerHarness.assertTrue(rNeg.minX >= screenBounds.minX, "Extreme negative target clamped to screen minX")
+        ChallengerHarness.assertTrue(rNeg.minY >= screenBounds.minY, "Extreme negative target clamped to screen minY")
+        ChallengerHarness.assertTrue(rNeg.maxX <= screenBounds.maxX, "Extreme negative target clamped to screen maxX")
+        ChallengerHarness.assertTrue(rNeg.maxY <= screenBounds.maxY, "Extreme negative target clamped to screen maxY")
+        ChallengerHarness.assertFalse(rNeg.width.isNaN, "Width is not NaN under extreme negative coordinates")
+        ChallengerHarness.assertFalse(rNeg.height.isNaN, "Height is not NaN under extreme negative coordinates")
+
+        // Extreme positive coordinates (+1,000,000)
+        let extremePos = CGPoint(x: 1_000_000, y: 1_000_000)
+        let rPos = SelectionBoxGeometry.calculateCenterRect(center: centerPt, target: extremePos, bounds: screenBounds)
+        ChallengerHarness.assertTrue(rPos.minX >= screenBounds.minX, "Extreme positive target clamped to screen minX")
+        ChallengerHarness.assertTrue(rPos.minY >= screenBounds.minY, "Extreme positive target clamped to screen minY")
+        ChallengerHarness.assertTrue(rPos.maxX <= screenBounds.maxX, "Extreme positive target clamped to screen maxX")
+        ChallengerHarness.assertTrue(rPos.maxY <= screenBounds.maxY, "Extreme positive target clamped to screen maxY")
+        ChallengerHarness.assertFalse(rPos.width.isNaN, "Width is not NaN under extreme positive coordinates")
+        ChallengerHarness.assertFalse(rPos.height.isNaN, "Height is not NaN under extreme positive coordinates")
+
+        // 5. Center outside bounds
+        let outCenter = CGPoint(x: -500, y: -500)
+        let rOutCenter = SelectionBoxGeometry.calculateCenterRect(center: outCenter, target: CGPoint(x: 100, y: 100), bounds: screenBounds)
+        ChallengerHarness.assertTrue(rOutCenter.minX >= screenBounds.minX, "Center outside bounds clamped safely to screen minX")
+        ChallengerHarness.assertTrue(rOutCenter.minY >= screenBounds.minY, "Center outside bounds clamped safely to screen minY")
+        ChallengerHarness.assertTrue(rOutCenter.width >= 1.0, "Center outside bounds produces width >= 1.0")
+        ChallengerHarness.assertTrue(rOutCenter.height >= 1.0, "Center outside bounds produces height >= 1.0")
+
+        // 6. Subpixel clicks & Micro displacements
+        let microTarget = CGPoint(x: centerPt.x + 0.000001, y: centerPt.y + 0.000001)
+        let rMicro = SelectionBoxGeometry.calculateCenterRect(center: centerPt, target: microTarget, bounds: screenBounds)
+        ChallengerHarness.assertTrue(rMicro.width >= 1.0, "Subpixel micro displacement produces width >= 1.0pt")
+        ChallengerHarness.assertTrue(rMicro.height >= 1.0, "Subpixel micro displacement produces height >= 1.0pt")
+
+        // 7. Zero distance (center == target)
+        let rZero = SelectionBoxGeometry.calculateCenterRect(center: centerPt, target: centerPt, bounds: screenBounds)
+        ChallengerHarness.assertTrue(rZero.width >= 1.0, "Zero distance produces width >= 1.0pt")
+        ChallengerHarness.assertTrue(rZero.height >= 1.0, "Zero distance produces height >= 1.0pt")
+
+        // 8. Zero-width and zero-height bounds
+        let zeroBounds = CGRect(x: 200, y: 200, width: 0, height: 0)
+        let rZeroBounds = SelectionBoxGeometry.calculateCenterRect(center: CGPoint(x: 200, y: 200), target: CGPoint(x: 250, y: 250), bounds: zeroBounds)
+        ChallengerHarness.assertTrue(rZeroBounds.width >= 1.0, "Zero-width bounds returns safe minimum width >= 1.0")
+        ChallengerHarness.assertTrue(rZeroBounds.height >= 1.0, "Zero-height bounds returns safe minimum height >= 1.0")
+
+        // 9. 1,000 pseudo-random coordinate fuzzing trials
+        var fuzzerSeed: UInt64 = 0x123456789ABCDEF0
+        var allFuzzValid = true
+        for _ in 0..<1000 {
+            fuzzerSeed = (fuzzerSeed &* 6364136223846793005) &+ 1
+            let randCX = CGFloat(Double(Int(fuzzerSeed % 10000) - 5000) * 2.5)
+            fuzzerSeed = (fuzzerSeed &* 6364136223846793005) &+ 1
+            let randCY = CGFloat(Double(Int(fuzzerSeed % 10000) - 5000) * 2.5)
+            fuzzerSeed = (fuzzerSeed &* 6364136223846793005) &+ 1
+            let randTX = CGFloat(Double(Int(fuzzerSeed % 10000) - 5000) * 2.5)
+            fuzzerSeed = (fuzzerSeed &* 6364136223846793005) &+ 1
+            let randTY = CGFloat(Double(Int(fuzzerSeed % 10000) - 5000) * 2.5)
+            fuzzerSeed = (fuzzerSeed &* 6364136223846793005) &+ 1
+            let sq = (fuzzerSeed % 2 == 0)
+
+            let fuzzed = SelectionBoxGeometry.calculateCenterRect(
+                center: CGPoint(x: randCX, y: randCY),
+                target: CGPoint(x: randTX, y: randTY),
+                bounds: screenBounds,
+                squareConstrained: sq
+            )
+            if fuzzed.width < 1.0 || fuzzed.height < 1.0 || fuzzed.width.isNaN || fuzzed.height.isNaN || fuzzed.width.isInfinite || fuzzed.height.isInfinite {
+                allFuzzValid = false
+                break
+            }
+        }
+        ChallengerHarness.assertTrue(allFuzzValid, "1,000 pseudo-random coordinate fuzzing trials generated strictly valid bounds")
+
+        // =====================================================================
+        // Sub-scenario 23B: 10,000 Rapid Layer Reorderings with Full Reverse Undo & Redo
+        // =====================================================================
+        ChallengerHarness.startSuite("23B. 10,000 Rapid Layer Reorderings with Full Reverse Undo & Redo")
+
+        let reorderEngine = AnnotationEngine(maxHistoryLimit: 25000)
+        let tools: [AnnotationTool] = [.rectangle, .ellipse, .arrow, .line, .pen, .highlighter, .text, .blur]
+        let objectCount = 40
+
+        for i in 0..<objectCount {
+            let tool = tools[i % tools.count]
+            let obj = AnnotationObject(
+                tool: tool,
+                points: [CGPoint(x: i * 5, y: i * 5), CGPoint(x: i * 5 + 30, y: i * 5 + 30)],
+                bounds: CGRect(x: CGFloat(i * 5), y: CGFloat(i * 5), width: 30, height: 30),
+                colorHex: "#FF0000",
+                strokeWidth: 2,
+                text: "Annotation \(i)"
+            )
+            reorderEngine.addObject(obj)
+        }
+
+        ChallengerHarness.assertEqual(reorderEngine.objects.count, objectCount, "Engine seeded with 40 distinct annotations")
+        let initialOrder = reorderEngine.objects.map { $0.id }
+        ChallengerHarness.assertEqual(Set(initialOrder).count, objectCount, "All 40 object IDs are unique")
+
+        // Perform 10,000 successful reordering operations
+        var reorderRng: UInt64 = 0xDEADBEEFCAFE1234
+        var successfulReorders = 0
+        var totalAttempts = 0
+
+        while successfulReorders < 10000 {
+            totalAttempts += 1
+            reorderRng = (reorderRng &* 6364136223846793005) &+ 1
+            let targetIdx = Int(reorderRng % UInt64(reorderEngine.objects.count))
+            let objId = reorderEngine.objects[targetIdx].id
+            reorderEngine.selectedObjectID = objId
+
+            reorderRng = (reorderRng &* 6364136223846793005) &+ 1
+            let op = Int(reorderRng % 4)
+
+            var didMutate = false
+            switch op {
+            case 0: didMutate = reorderEngine.bringSelectedToFront()
+            case 1: didMutate = reorderEngine.sendSelectedToBack()
+            case 2: didMutate = reorderEngine.bringSelectedForward()
+            case 3: didMutate = reorderEngine.sendSelectedBackward()
+            default: break
+            }
+
+            if didMutate {
+                successfulReorders += 1
+                if successfulReorders % 2500 == 0 {
+                    ChallengerHarness.assertEqual(reorderEngine.objects.count, objectCount, "Invariant: count remains 40 at step \(successfulReorders)")
+                    let currentSet = Set(reorderEngine.objects.map { $0.id })
+                    ChallengerHarness.assertEqual(currentSet, Set(initialOrder), "Invariant: 0 object loss or duplication at step \(successfulReorders)")
+                }
+            }
+        }
+
+        ChallengerHarness.assertEqual(successfulReorders, 10000, "Completed exactly 10,000 successful layer reordering mutations")
+        let scrambledOrder = reorderEngine.objects.map { $0.id }
+        ChallengerHarness.assertTrue(scrambledOrder != initialOrder, "Objects successfully scrambled after 10,000 reorder operations")
+        ChallengerHarness.assertTrue(reorderEngine.canUndo, "canUndo is true after 10,000 operations")
+
+        // Full Reverse Undo Sequence for the 10,000 reorders
+        var undosCompleted = 0
+        for _ in 0..<10000 {
+            reorderEngine.undo()
+            undosCompleted += 1
+        }
+        ChallengerHarness.assertEqual(undosCompleted, 10000, "Successfully executed all 10,000 undo steps")
+        ChallengerHarness.assertTrue(reorderEngine.canRedo, "Redo stack populated with 10,000 actions (canRedo == true)")
+
+        let restoredOrder = reorderEngine.objects.map { $0.id }
+        ChallengerHarness.assertEqual(restoredOrder, initialOrder, "100% z-index invariant preservation: initial order fully restored after 10,000 undos")
+
+        // Full Forward Redo Sequence for the 10,000 reorders
+        var redosCompleted = 0
+        for _ in 0..<10000 {
+            reorderEngine.redo()
+            redosCompleted += 1
+        }
+        ChallengerHarness.assertEqual(redosCompleted, 10000, "Successfully executed all 10,000 redo steps")
+        ChallengerHarness.assertFalse(reorderEngine.canRedo, "Redo stack fully drained (canRedo == false)")
+        ChallengerHarness.assertTrue(reorderEngine.canUndo, "Undo stack restored with 10,000 actions")
+
+        let redoneOrder = reorderEngine.objects.map { $0.id }
+        ChallengerHarness.assertEqual(redoneOrder, scrambledOrder, "100% z-index invariant preservation: scrambled order restored after 10,000 redos")
+
+        // Edge Cases: Empty canvas, single object, nil selectedObjectID
+        let emptyEngine = AnnotationEngine()
+        ChallengerHarness.assertFalse(emptyEngine.bringSelectedToFront(), "bringSelectedToFront on empty engine returns false")
+        ChallengerHarness.assertFalse(emptyEngine.sendSelectedToBack(), "sendSelectedToBack on empty engine returns false")
+        ChallengerHarness.assertFalse(emptyEngine.bringSelectedForward(), "bringSelectedForward on empty engine returns false")
+        ChallengerHarness.assertFalse(emptyEngine.sendSelectedBackward(), "sendSelectedBackward on empty engine returns false")
+        ChallengerHarness.assertFalse(emptyEngine.canUndo, "No undo actions created on empty engine")
+
+        let singleEngine = AnnotationEngine()
+        let singleObj = AnnotationObject(tool: .rectangle, bounds: CGRect(x: 10, y: 10, width: 20, height: 20))
+        singleEngine.addObject(singleObj)
+        singleEngine.selectedObjectID = singleObj.id
+        ChallengerHarness.assertFalse(singleEngine.bringSelectedToFront(), "bringSelectedToFront on 1-object engine returns false")
+        ChallengerHarness.assertFalse(singleEngine.sendSelectedToBack(), "sendSelectedToBack on 1-object engine returns false")
+        ChallengerHarness.assertFalse(singleEngine.bringSelectedForward(), "bringSelectedForward on 1-object engine returns false")
+        ChallengerHarness.assertFalse(singleEngine.sendSelectedBackward(), "sendSelectedBackward on 1-object engine returns false")
+
+        // =====================================================================
+        // Sub-scenario 23C: Viewport Scrolling Boundary Stress & Extreme Dimensions (Up to 30,000px)
+        // =====================================================================
+        ChallengerHarness.startSuite("23C. Viewport Scrolling Boundary Stress & Extreme Dimensions (30,000px)")
+
+        // Create base dummy image
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        guard let ctx = CGContext(
+            data: nil,
+            width: 100,
+            height: 100,
+            bitsPerComponent: 8,
+            bytesPerRow: 100 * 4,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ), let dummyBase = ctx.makeImage() else {
+            ChallengerHarness.recordFail("Viewport Stress Context", reason: "Could not create sample base image")
+            return
+        }
+
+        let tallDocView = ScrollableAnnotationDocumentView(baseImage: dummyBase, engine: AnnotationEngine(), scale: 1.0)
+        // Set document canvas frame to extreme height 30,000px and width 1,200px
+        let tallWidth: CGFloat = 1200.0
+        let tallHeight: CGFloat = 30000.0
+        tallDocView.frame = NSRect(x: 0, y: 0, width: tallWidth, height: tallHeight)
+
+        let tallScrollView = ScrollableAnnotationScrollView(documentCanvasView: tallDocView)
+        let viewportW: CGFloat = 1000.0
+        let viewportH: CGFloat = 800.0
+        tallScrollView.frame = NSRect(x: 0, y: 0, width: viewportW, height: viewportH)
+        tallScrollView.contentView.frame = NSRect(x: 0, y: 0, width: viewportW, height: viewportH)
+
+        let expectedMaxOriginX = max(0, tallWidth - viewportW)  // 200.0
+        let expectedMaxOriginY = max(0, tallHeight - viewportH) // 29200.0
+
+        // 1. Initial position & scrollToTop
+        tallScrollView.scrollToTop()
+        ChallengerHarness.assertEqual(tallScrollView.contentView.bounds.origin.y, 0.0, "scrollToTop sets origin y to 0.0")
+
+        // 2. scrollToBottom
+        tallScrollView.scrollToBottom()
+        ChallengerHarness.assertEqual(tallScrollView.contentView.bounds.origin.y, expectedMaxOriginY, "scrollToBottom sets origin y to expected max 29200.0")
+
+        // 3. Overscroll past bounds (huge positive delta)
+        tallScrollView.scrollBy(deltaX: 50000.0, deltaY: 500000.0)
+        ChallengerHarness.assertEqual(tallScrollView.contentView.bounds.origin.x, expectedMaxOriginX, "Extreme positive scroll delta clamped strictly to maxOriginX (200.0)")
+        ChallengerHarness.assertEqual(tallScrollView.contentView.bounds.origin.y, expectedMaxOriginY, "Extreme positive scroll delta clamped strictly to maxOriginY (29200.0)")
+
+        // 4. Overscroll past bounds (huge negative delta)
+        tallScrollView.scrollBy(deltaX: -50000.0, deltaY: -500000.0)
+        ChallengerHarness.assertEqual(tallScrollView.contentView.bounds.origin.x, 0.0, "Extreme negative scroll delta clamped strictly to origin x 0.0")
+        ChallengerHarness.assertEqual(tallScrollView.contentView.bounds.origin.y, 0.0, "Extreme negative scroll delta clamped strictly to origin y 0.0")
+
+        // 5. PageDown and PageUp sequences
+        let pageStep = viewportH * 0.85 // 680.0
+        tallScrollView.pageDown()
+        ChallengerHarness.assertEqual(tallScrollView.contentView.bounds.origin.y, pageStep, "Single pageDown stepped by 85% of viewport height (680.0)")
+        tallScrollView.pageUp()
+        ChallengerHarness.assertEqual(tallScrollView.contentView.bounds.origin.y, 0.0, "Single pageUp returned origin y to 0.0")
+
+        // 6. 1,000 rapid high-velocity deltas fuzzing
+        var scrollRng: UInt64 = 0x55AA55AA11223344
+        var allScrollBounded = true
+        for _ in 0..<1000 {
+            scrollRng = (scrollRng &* 6364136223846793005) &+ 1
+            let randDx = CGFloat(Double(Int(scrollRng % 200000) - 100000) * 0.5)
+            scrollRng = (scrollRng &* 6364136223846793005) &+ 1
+            let randDy = CGFloat(Double(Int(scrollRng % 200000) - 100000) * 0.5)
+
+            tallScrollView.scrollBy(deltaX: randDx, deltaY: randDy)
+            let currX = tallScrollView.contentView.bounds.origin.x
+            let currY = tallScrollView.contentView.bounds.origin.y
+
+            if currX < 0 || currX > expectedMaxOriginX || currY < 0 || currY > expectedMaxOriginY || currX.isNaN || currY.isNaN {
+                allScrollBounded = false
+                break
+            }
+        }
+        ChallengerHarness.assertTrue(allScrollBounded, "1,000 high-velocity scrolling deltas remained 100% within valid bounds [0, maxOrigin]")
+
+        // 7. NaN and Infinite coordinates robustness
+        tallScrollView.scrollToTop()
+        tallScrollView.scrollBy(deltaX: .infinity, deltaY: .infinity)
+        let infX = tallScrollView.contentView.bounds.origin.x
+        let infY = tallScrollView.contentView.bounds.origin.y
+        ChallengerHarness.assertTrue(!infX.isNaN && !infY.isNaN, "+Infinity deltas handled safely without NaN coordinates")
+
+        tallScrollView.scrollBy(deltaX: -.infinity, deltaY: -.infinity)
+        let negInfX = tallScrollView.contentView.bounds.origin.x
+        let negInfY = tallScrollView.contentView.bounds.origin.y
+        ChallengerHarness.assertTrue(!negInfX.isNaN && !negInfY.isNaN, "-Infinity deltas handled safely without NaN coordinates")
+
+        // =====================================================================
+        // Sub-scenario 23D: Popover Search Fuzzing with Unicode Strings & Rapid Shortcut Cycling
+        // =====================================================================
+        ChallengerHarness.startSuite("23D. Popover Search Fuzzing with Unicode Strings & Rapid Shortcut Cycling")
+
+        let sandboxDir = FileManager.default.temporaryDirectory.appendingPathComponent("SuperShotAdvM35_\(UUID().uuidString)")
+        let storage = StorageManager(baseDirectory: sandboxDir, initialCapacity: 50)
+
+        // Seed storage with diverse multi-lingual items
+        let testSeedData: [(app: String, type: ShotCaptureType, tags: [String])] = [
+            ("Xcode", .region, ["swift", "build", "debug"]),
+            ("Safari", .scrolling, ["web", "docs", "article"]),
+            ("Terminal", .region, ["cli", "zsh", "bash"]),
+            ("Notes", .region, ["meeting", "ideas"]),
+            ("Slack", .region, ["team", "chat", "urgent"]),
+            ("Vietnamese App", .region, ["anh", "chup", "man", "hinh"]),
+            ("Bao Cao", .scrolling, ["tieng", "viet", "ky", "thuat"]),
+            ("Japanese App", .region, ["nihon", "code", "review"]),
+            ("Chinese App", .scrolling, ["xitong", "jiagou", "shuju"]),
+            ("Arabic App", .region, ["taqrir", "nizam"]),
+            ("Alpha Beta", .region, ["greek", "math", "symbol"]),
+            ("Release v1.0.17", .region, ["milestone", "changelog"])
+        ]
+
+        for item in testSeedData {
+            _ = try? storage.save(image: dummyBase, sourceApp: item.app, captureType: item.type, tags: item.tags)
+        }
+
+        ChallengerHarness.assertEqual(storage.items.count, testSeedData.count, "Storage populated with \(testSeedData.count) seed items")
+
+        // Fuzz query list with Unicode strings (diacritics, CJK, symbols, whitespace, formatting, control chars)
+        let fuzzQueries: [String] = [
+            "", // empty
+            "   ", // whitespace only
+            "\t\n\r",
+            "xcode", // exact lower
+            "XCODE", // exact upper
+            "Xcode", // mixed
+            "Safari",
+            "v1.0.17",
+            "Vietnamese",
+            "man hinh",
+            "Bao Cao",
+            "review",
+            "team",
+            "math",
+            "Greek",
+            // Unicode characters (Vietnamese, CJK, Arabic, Math)
+            "Tiếng Việt",
+            "Ảnh chụp màn hình",
+            "Báo cáo",
+            "日本語",
+            "開発",
+            "系统架构",
+            "性能测试",
+            "تقرير فحص",
+            "العربية",
+            "∀x ∈ ℝ",
+            "α, β, γ",
+            "∑ ∏ ∫",
+            "⌘ ⌥ ⇧ ⌃",
+            // Metacharacters, SQL injection, Format strings
+            "%",
+            "%@",
+            "%s",
+            "%d",
+            "'; DROP TABLE items; --",
+            "<script>alert(1)</script>",
+            ".*",
+            "[a-z]+",
+            "\\d{4}",
+            "(code|review)",
+            // Invisible, combining & boundary characters
+            "\u{200B}", // Zero-width space
+            "\u{200C}", // Zero-width non-joiner
+            "\u{00A0}", // Non-breaking space
+            "\u{0000}", // Null byte
+            "\u{001F}", // Unit separator
+            String(repeating: "A", count: 2000), // Long string
+            String(repeating: "测", count: 1000)  // Long unicode
+        ]
+
+        var fuzzPassed = true
+        for q in fuzzQueries {
+            let results = storage.search(query: q)
+            // Empty / whitespace search query must return all items
+            let trimmed = q.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+            if trimmed.isEmpty {
+                if results.count != testSeedData.count {
+                    fuzzPassed = false
+                    break
+                }
+            } else {
+                // Must not crash and result count must be within [0, total]
+                if results.count < 0 || results.count > testSeedData.count {
+                    fuzzPassed = false
+                    break
+                }
+            }
+        }
+        ChallengerHarness.assertTrue(fuzzPassed, "All \(fuzzQueries.count) Unicode fuzz queries executed safely with 0 crashes")
+
+        // Rapid Shortcut Cycling Stress: 5,000 steps of stepDown and stepUp
+        var currentNavIndex: Int? = 0
+        let visibleCount = storage.items.count
+        var cyclingValid = true
+
+        for i in 0..<5000 {
+            if i % 2 == 0 {
+                currentNavIndex = ShortcutNavigator.stepDown(currentIndex: currentNavIndex, visibleCount: visibleCount)
+            } else {
+                currentNavIndex = ShortcutNavigator.stepUp(currentIndex: currentNavIndex, visibleCount: visibleCount)
+            }
+
+            if let idx = currentNavIndex {
+                if idx < 0 || idx >= visibleCount {
+                    cyclingValid = false
+                    break
+                }
+            }
+        }
+        ChallengerHarness.assertTrue(cyclingValid, "5,000 rapid ShortcutNavigator circular navigation steps remained within bounds")
+
+        // Rapid Search Focus Notification Center posting
+        var notifHandledCount = 0
+        let notifObserver = NotificationCenter.default.addObserver(forName: Notification.Name("SuperShotFocusSearchField"), object: nil, queue: nil) { _ in
+            notifHandledCount += 1
+        }
+
+        for _ in 0..<1000 {
+            NotificationCenter.default.post(name: Notification.Name("SuperShotFocusSearchField"), object: nil)
+        }
+
+        NotificationCenter.default.removeObserver(notifObserver)
+        ChallengerHarness.assertEqual(notifHandledCount, 1000, "1,000 rapid SuperShotFocusSearchField notifications dispatched and received safely")
+
+        try? FileManager.default.removeItem(at: sandboxDir)
     }
 }
 

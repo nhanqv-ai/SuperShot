@@ -519,6 +519,7 @@ public enum AnnotationAction: Equatable {
     case updateStrokeWidth(id: UUID, oldWidth: CGFloat, newWidth: CGFloat)
     case updateFontSize(id: UUID, oldSize: CGFloat, newSize: CGFloat)
     case editText(id: UUID, oldText: String, newText: String, oldBounds: CGRect, newBounds: CGRect)
+    case reorder(id: UUID, oldIndex: Int, newIndex: Int)
     case batch([AnnotationAction])
 
     /// Inverts the command action, producing an exact symmetrical inverse action.
@@ -540,6 +541,8 @@ public enum AnnotationAction: Equatable {
             return .updateFontSize(id: id, oldSize: newSize, newSize: oldSize)
         case .editText(let id, let oldText, let newText, let oldBounds, let newBounds):
             return .editText(id: id, oldText: newText, newText: oldText, oldBounds: newBounds, newBounds: oldBounds)
+        case .reorder(let id, let oldIndex, let newIndex):
+            return .reorder(id: id, oldIndex: newIndex, newIndex: oldIndex)
         case .batch(let actions):
             return .batch(actions.reversed().map { $0.inverted() })
         }

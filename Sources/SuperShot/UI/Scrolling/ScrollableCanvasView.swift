@@ -532,8 +532,9 @@ public final class ScrollableAnnotationScrollView: NSScrollView {
         self.hasVerticalScroller = true
         self.hasHorizontalScroller = true
         self.autohidesScrollers = true
-        self.drawsBackground = false
-        self.backgroundColor = .clear
+        self.appearance = NSAppearance(named: .darkAqua)
+        self.drawsBackground = true
+        self.backgroundColor = NSColor(white: 0.12, alpha: 1.0)
 
         self.allowsMagnification = true
         self.minMagnification = 0.1
@@ -567,12 +568,51 @@ public final class ScrollableAnnotationScrollView: NSScrollView {
         let visibleRect = documentVisibleRect
         let centerPoint = NSPoint(x: visibleRect.midX, y: visibleRect.midY)
         setMagnification(1.0, centeredAt: centerPoint)
+        onMagnificationChanged?(magnification)
     }
 
     public func zoomToFitWidth() {
         guard let doc = documentCanvasView, doc.bounds.width > 0 else { return }
         let visibleW = contentSize.width - 20
         magnification = max(minMagnification, min(maxMagnification, visibleW / doc.bounds.width))
+        onMagnificationChanged?(magnification)
+    }
+
+    // MARK: - Viewport Keyboard Navigation
+
+    public func scrollBy(deltaX: CGFloat, deltaY: CGFloat) {
+        guard let docView = documentView else { return }
+        let clipView = contentView
+        let maxOriginX = max(0, docView.bounds.width - clipView.bounds.width)
+        let maxOriginY = max(0, docView.bounds.height - clipView.bounds.height)
+        let newX = max(0, min(maxOriginX, clipView.bounds.origin.x + deltaX))
+        let newY = max(0, min(maxOriginY, clipView.bounds.origin.y + deltaY))
+        clipView.scroll(to: NSPoint(x: newX, y: newY))
+        reflectScrolledClipView(clipView)
+    }
+
+    public func pageDown() {
+        let pageStep = contentView.bounds.height * 0.85
+        scrollBy(deltaX: 0, deltaY: pageStep)
+    }
+
+    public func pageUp() {
+        let pageStep = contentView.bounds.height * 0.85
+        scrollBy(deltaX: 0, deltaY: -pageStep)
+    }
+
+    public func scrollToTop() {
+        let clipView = contentView
+        clipView.scroll(to: NSPoint(x: clipView.bounds.origin.x, y: 0))
+        reflectScrolledClipView(clipView)
+    }
+
+    public func scrollToBottom() {
+        guard let docView = documentView else { return }
+        let clipView = contentView
+        let maxY = max(0, docView.bounds.height - clipView.bounds.height)
+        clipView.scroll(to: NSPoint(x: clipView.bounds.origin.x, y: maxY))
+        reflectScrolledClipView(clipView)
     }
 }
 
@@ -717,8 +757,10 @@ public final class ScrollableCanvasView: NSView {
         addSubview(hToolbar)
         addSubview(zHUD)
 
-        sView.onMagnificationChanged = { [weak zModel] mag in
+        sView.onMagnificationChanged = { [weak self, weak zModel] mag in
             zModel?.magnification = mag
+            let pct = Int(round(mag * 100))
+            self?.showHUDNotification(text: LocalizationManager.shared.tr(.zoomHUD(pct)))
         }
         zModel.onZoomIn = { [weak sView] in
             sView?.zoomIn()
@@ -987,6 +1029,8 @@ public final class ScrollableAnnotationWindow: NSWindow {
         self.minSize = NSSize(width: 600, height: 400)
         self.isReleasedWhenClosed = false
         self.acceptsMouseMovedEvents = true
+        self.appearance = NSAppearance(named: .darkAqua)
+        self.backgroundColor = NSColor(white: 0.12, alpha: 1.0)
         self.contentView = canvas
         self.center()
 
@@ -1066,6 +1110,45 @@ public final class ScrollableAnnotationWindow: NSWindow {
             return
         }
 
+        // Layer Z-Index Reordering Shortcuts (Cmd+], Cmd+[, Cmd+Shift+], Cmd+Shift+[)
+        if canvasView.engine.selectedObjectID != nil {
+            let chars = event.charactersIgnoringModifiers ?? ""
+            let isCloseBracket = (keyCode == 30 || chars == "]")
+            let isOpenBracket = (keyCode == 33 || chars == "[")
+
+            if flags == [.command, .shift] && isCloseBracket {
+                if canvasView.engine.bringSelectedToFront() {
+                    canvasView.showHUDNotification(text: LocalizationManager.shared.tr(.layerBringToFront))
+                    canvasView.documentView.needsDisplay = true
+                }
+                return
+            }
+
+            if flags == [.command, .shift] && isOpenBracket {
+                if canvasView.engine.sendSelectedToBack() {
+                    canvasView.showHUDNotification(text: LocalizationManager.shared.tr(.layerSendToBack))
+                    canvasView.documentView.needsDisplay = true
+                }
+                return
+            }
+
+            if flags == .command && isCloseBracket {
+                if canvasView.engine.bringSelectedForward() {
+                    canvasView.showHUDNotification(text: LocalizationManager.shared.tr(.layerBringForward))
+                    canvasView.documentView.needsDisplay = true
+                }
+                return
+            }
+
+            if flags == .command && isOpenBracket {
+                if canvasView.engine.sendSelectedBackward() {
+                    canvasView.showHUDNotification(text: LocalizationManager.shared.tr(.layerSendBackward))
+                    canvasView.documentView.needsDisplay = true
+                }
+                return
+            }
+        }
+
         // Cmd+E: Share / Export
         if flags == .command && (keyCode == 14 || event.charactersIgnoringModifiers?.lowercased() == "e") {
             canvasView.toolbarsViewModel.triggerShare(from: canvasView)
@@ -1115,6 +1198,55 @@ public final class ScrollableAnnotationWindow: NSWindow {
             }
             canvasView.documentView.needsDisplay = true
             return
+        }
+
+        // Viewport Keyboard Navigation on Tall Canvas (when no vector object is selected and not editing text)
+        if canvasView.engine.selectedObjectID == nil && !canvasView.documentView.hasActiveTextEditing {
+            // Arrow Keys (40pt, or 120pt with Shift)
+            if keyCode >= 123 && keyCode <= 126 {
+                let step: CGFloat = flags.contains(.shift) ? 120.0 : 40.0
+                var dx: CGFloat = 0
+                var dy: CGFloat = 0
+                switch keyCode {
+                case 123: dx = -step // Left
+                case 124: dx = step  // Right
+                case 125: dy = step  // Down (flipped viewport: positive delta scrolls down)
+                case 126: dy = -step // Up
+                default: break
+                }
+                canvasView.scrollView.scrollBy(deltaX: dx, deltaY: dy)
+                return
+            }
+
+            // Page Up (116) / Page Down (121) (85% viewport height)
+            if keyCode == 116 {
+                canvasView.scrollView.pageUp()
+                return
+            }
+            if keyCode == 121 {
+                canvasView.scrollView.pageDown()
+                return
+            }
+
+            // Home (115) / End (119) (top / bottom of document)
+            if keyCode == 115 {
+                canvasView.scrollView.scrollToTop()
+                return
+            }
+            if keyCode == 119 {
+                canvasView.scrollView.scrollToBottom()
+                return
+            }
+
+            // Space (49): Page down, Shift+Space: Page up
+            if keyCode == 49 && (flags.isEmpty || flags == .shift) {
+                if flags.contains(.shift) {
+                    canvasView.scrollView.pageUp()
+                } else {
+                    canvasView.scrollView.pageDown()
+                }
+                return
+            }
         }
 
         if ToolbarKeyShortcutHandler.handleKeyEvent(event: event, viewModel: canvasView.toolbarsViewModel, allowScrollCapture: false) {

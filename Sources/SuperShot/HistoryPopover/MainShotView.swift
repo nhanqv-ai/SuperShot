@@ -755,8 +755,9 @@ public struct MainShotView: View {
                 return nil
             }
 
-            // 1b. Slash (44 / "/"): Focus search field when navigating history items
-            if !isSearchFocused && flags.isEmpty && (event.keyCode == 44 || event.characters == "/" || event.charactersIgnoringModifiers == "/") {
+            // 1b. Cmd+F or Slash (44 / "/"): Focus search field
+            if (!isSearchFocused && flags.isEmpty && (event.keyCode == 44 || event.characters == "/" || event.charactersIgnoringModifiers == "/")) ||
+               (flags == .command && (event.keyCode == 3 || event.charactersIgnoringModifiers?.lowercased() == "f")) {
                 NotificationCenter.default.post(name: Notification.Name("SuperShotFocusSearchField"), object: nil)
                 return nil
             }
@@ -802,8 +803,19 @@ public struct MainShotView: View {
                 return nil
             }
 
-            // 5. Return (36) or Keypad Enter (76)
-            if event.keyCode == 36 || event.keyCode == 76 {
+            // 5a. Cmd+O or Cmd+Return / Keypad Enter: Reveal selected item in macOS Finder
+            if flags == .command && (event.keyCode == 31 || event.charactersIgnoringModifiers?.lowercased() == "o" || event.keyCode == 36 || event.keyCode == 76) {
+                if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
+                    let item = visibleItems[idx]
+                    ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                    let url = storageManager.getImageURL(for: item)
+                    NSWorkspace.shared.activateFileViewerSelecting([url])
+                    return nil
+                }
+            }
+
+            // 5b. Return (36) or Keypad Enter (76): Select / copy item
+            if (event.keyCode == 36 || event.keyCode == 76) && flags.isEmpty {
                 handleReturnKey()
                 return nil
             }
