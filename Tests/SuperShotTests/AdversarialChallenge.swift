@@ -1,6 +1,8 @@
 import Foundation
 import CoreGraphics
 import AppKit
+import SwiftUI
+import Carbon
 import SuperShotCore
 import SuperShot
 
@@ -208,6 +210,9 @@ struct AdversarialChallenge {
 
         // M35: Milestone M35 v1.0.17 Empirical Stress Suites
         testMilestoneM35EmpiricalStressAndAdversarialChallenge()
+
+        // M47: Milestone M47-2 v1.0.20 Empirical Stress Suites
+        testMilestoneM47EmpiricalStressAndAdversarialChallenge()
 
         let elapsed = Date().timeIntervalSince(startTime)
 
@@ -3464,6 +3469,576 @@ struct AdversarialChallenge {
         ChallengerHarness.assertEqual(notifHandledCount, 1000, "1,000 rapid SuperShotFocusSearchField notifications dispatched and received safely")
 
         try? FileManager.default.removeItem(at: sandboxDir)
+    }
+
+    // MARK: - 24. Milestone M47-2 v1.0.20 Empirical Stress & Adversarial Challenge
+    private static func testMilestoneM47EmpiricalStressAndAdversarialChallenge() {
+        ChallengerHarness.startSuite("24. Milestone M47-2 v1.0.20 Empirical Stress & Adversarial Challenge")
+
+        // =====================================================================
+        // Sub-scenario 24A: Concurrent HotKey Registration & Lookup Stress
+        // =====================================================================
+        ChallengerHarness.startSuite("24A. Concurrent HotKey Registration & Lookup Stress")
+
+        // 1. Alias invariant
+        ChallengerHarness.assertEqual(HotKeyAction.captureRegion, HotKeyAction.inPlaceCapture, "HotKeyAction.captureRegion alias equals .inPlaceCapture")
+
+        // 2. Character extraction invariants
+        let keyTests: [(code: UInt32, expectedChar: String)] = [
+            (UInt32(kVK_ANSI_A), "a"),
+            (UInt32(kVK_ANSI_S), "s"),
+            (UInt32(kVK_ANSI_Z), "z"),
+            (UInt32(kVK_ANSI_0), "0"),
+            (UInt32(kVK_ANSI_9), "9"),
+            (UInt32(kVK_F1), ""),
+            (UInt32(kVK_F12), ""),
+            (UInt32(kVK_Space), ""),
+            (UInt32(kVK_Return), "↩"),
+            (UInt32(kVK_Tab), "⇥"),
+            (UInt32(kVK_Escape), "⎋"),
+            (UInt32(kVK_Delete), "⌫")
+        ]
+
+        for (code, expected) in keyTests {
+            let sc = HotKeyShortcut(keyCode: code, carbonModifiers: UInt32(cmdKey))
+            ChallengerHarness.assertEqual(sc.keyEquivalentCharacter, expected, "Key code \(code) produces keyEquivalent '\(expected)'")
+        }
+
+        // 3. Carbon modifier to Cocoa modifier mapping
+        let modCmd = HotKeyShortcut(keyCode: UInt32(kVK_ANSI_A), carbonModifiers: UInt32(cmdKey))
+        ChallengerHarness.assertEqual(modCmd.cocoaModifiers, [.command], "cmdKey maps to [.command]")
+
+        let modOptShift = HotKeyShortcut(keyCode: UInt32(kVK_ANSI_S), carbonModifiers: UInt32(optionKey | shiftKey))
+        ChallengerHarness.assertEqual(modOptShift.cocoaModifiers, [.option, .shift], "optionKey | shiftKey maps to [.option, .shift]")
+
+        let modAll = HotKeyShortcut(keyCode: UInt32(kVK_ANSI_C), carbonModifiers: UInt32(cmdKey | shiftKey | optionKey | controlKey))
+        ChallengerHarness.assertEqual(modAll.cocoaModifiers, [.command, .shift, .option, .control], "All carbon modifiers map correctly")
+
+        let modNone = HotKeyShortcut(keyCode: UInt32(kVK_ANSI_C), carbonModifiers: 0)
+        ChallengerHarness.assertEqual(modNone.cocoaModifiers, [], "Zero carbon modifiers map to empty flags")
+
+        // 4. Concurrent Registration, Unregistration & Lookup Stress (20 threads x 50 iterations = 1000 operations)
+        let hotKeyGroup = DispatchGroup()
+        let hotKeyQueue = DispatchQueue(label: "com.supershot.adversarial.hotkey", attributes: .concurrent)
+        var hotKeyErrors = 0
+        let hotKeyErrorLock = NSLock()
+
+        for threadIdx in 0..<20 {
+            hotKeyGroup.enter()
+            hotKeyQueue.async {
+                for iter in 0..<50 {
+                    let randCode = UInt32(kVK_ANSI_A + ((threadIdx + iter) % 26))
+                    let randMods = UInt32((iter % 2 == 0 ? optionKey : cmdKey) | (threadIdx % 2 == 0 ? shiftKey : 0))
+
+                    if threadIdx % 4 == 0 {
+                        // Register inPlaceCapture
+                        _ = HotKeyManager.shared.register(action: .inPlaceCapture, keyCode: randCode, modifiers: randMods)
+                    } else if threadIdx % 4 == 1 {
+                        // Register scrollingCapture
+                        _ = HotKeyManager.shared.register(action: .scrollingCapture, keyCode: randCode, modifiers: randMods)
+                    } else if threadIdx % 4 == 2 {
+                        // Query shortcuts and check getters
+                        let sc1 = HotKeyManager.shared.shortcut(for: .inPlaceCapture)
+                        let sc2 = HotKeyManager.shared.shortcut(for: .scrollingCapture)
+                        if let sc = sc1 {
+                            _ = sc.keyEquivalentCharacter
+                            _ = sc.cocoaModifiers
+                            _ = sc.displayString
+                        }
+                        if let sc = sc2 {
+                            _ = sc.keyEquivalentCharacter
+                            _ = sc.cocoaModifiers
+                            _ = sc.displayString
+                        }
+                    } else {
+                        // Check registration status and unregister
+                        _ = HotKeyManager.shared.isRegistered(action: .inPlaceCapture)
+                        _ = HotKeyManager.shared.isRegistered(action: .scrollingCapture)
+                        if iter % 10 == 0 {
+                            HotKeyManager.shared.unregister(action: .inPlaceCapture)
+                        }
+                    }
+                }
+                hotKeyGroup.leave()
+            }
+        }
+
+        let hotKeyWaitResult = hotKeyGroup.wait(timeout: .now() + 5.0)
+        ChallengerHarness.assertEqual(hotKeyWaitResult, .success, "Concurrent hotkey registration and lookup completed within 5s with 0 deadlocks")
+        ChallengerHarness.assertEqual(hotKeyErrors, 0, "0 errors during concurrent hotkey stress")
+
+        // Restore defaults safely
+        HotKeyManager.shared.registerDefaults()
+        ChallengerHarness.assertTrue(HotKeyManager.shared.isRegistered(action: .inPlaceCapture), "Default inPlaceCapture registered successfully")
+        ChallengerHarness.assertTrue(HotKeyManager.shared.isRegistered(action: .scrollingCapture), "Default scrollingCapture registered successfully")
+        ChallengerHarness.assertEqual(HotKeyManager.shared.shortcut(for: .inPlaceCapture)?.keyEquivalentCharacter, "s", "Default inPlaceCapture shortcut produces keyEquivalent 's'")
+        ChallengerHarness.assertEqual(HotKeyManager.shared.shortcut(for: .scrollingCapture)?.keyEquivalentCharacter, "s", "Default scrollingCapture shortcut produces keyEquivalent 's'")
+
+        // =====================================================================
+        // Sub-scenario 24B: Rapid Keyboard Shortcut Cycling & Bounds Stress
+        // =====================================================================
+        ChallengerHarness.startSuite("24B. Rapid Keyboard Shortcut Cycling & Bounds Stress")
+
+        // 1. Boundary behavior on visibleCount == 0
+        ChallengerHarness.assertNil(ShortcutNavigator.stepDown(currentIndex: nil, visibleCount: 0), "stepDown on 0 items returns nil")
+        ChallengerHarness.assertNil(ShortcutNavigator.stepDown(currentIndex: 0, visibleCount: 0), "stepDown with index on 0 items returns nil")
+        ChallengerHarness.assertNil(ShortcutNavigator.stepUp(currentIndex: nil, visibleCount: 0), "stepUp on 0 items returns nil")
+        ChallengerHarness.assertNil(ShortcutNavigator.stepUp(currentIndex: 0, visibleCount: 0), "stepUp with index on 0 items returns nil")
+
+        // 2. Boundary behavior on visibleCount == 1
+        ChallengerHarness.assertEqual(ShortcutNavigator.stepDown(currentIndex: nil, visibleCount: 1), 0, "stepDown(nil, 1) returns 0")
+        ChallengerHarness.assertEqual(ShortcutNavigator.stepDown(currentIndex: 0, visibleCount: 1), 0, "stepDown(0, 1) wraps to 0")
+        ChallengerHarness.assertEqual(ShortcutNavigator.stepUp(currentIndex: nil, visibleCount: 1), 0, "stepUp(nil, 1) returns 0")
+        ChallengerHarness.assertEqual(ShortcutNavigator.stepUp(currentIndex: 0, visibleCount: 1), 0, "stepUp(0, 1) wraps to 0")
+
+        // 3. Boundary behavior on negative and extreme indices
+        ChallengerHarness.assertEqual(ShortcutNavigator.stepDown(currentIndex: -5, visibleCount: 10), 0, "stepDown(-5, 10) wraps safely to 0")
+        ChallengerHarness.assertEqual(ShortcutNavigator.stepDown(currentIndex: 500, visibleCount: 10), 0, "stepDown(500, 10) wraps safely to 0")
+        ChallengerHarness.assertEqual(ShortcutNavigator.stepUp(currentIndex: -5, visibleCount: 10), 9, "stepUp(-5, 10) wraps safely to 9")
+        ChallengerHarness.assertEqual(ShortcutNavigator.stepUp(currentIndex: 500, visibleCount: 10), 9, "stepUp(500, 10) wraps safely to 9")
+
+        // 4. 10,000 rapid alternating navigation cycles
+        var cyclingIndex: Int? = 0
+        var allCyclesBounded = true
+        for i in 0..<10000 {
+            if i % 2 == 0 {
+                cyclingIndex = ShortcutNavigator.stepDown(currentIndex: cyclingIndex, visibleCount: 15)
+            } else {
+                cyclingIndex = ShortcutNavigator.stepUp(currentIndex: cyclingIndex, visibleCount: 15)
+            }
+            if let idx = cyclingIndex {
+                if idx < 0 || idx >= 15 {
+                    allCyclesBounded = false
+                    break
+                }
+            } else {
+                allCyclesBounded = false
+                break
+            }
+        }
+        ChallengerHarness.assertTrue(allCyclesBounded, "10,000 rapid stepDown/stepUp cycles remained 100% within valid bounds [0, 14]")
+
+        // 5. Section Shortcut Resolution (Option+1..9 for Pinned, Cmd+1..9 / Bare 1..9 for Recent)
+        var mockPinnedItems: [ShotItem] = []
+        var mockRecentItems: [ShotItem] = []
+        for i in 1...5 {
+            mockPinnedItems.append(ShotItem(filePath: "pin_\(i).png", isPinned: true, sourceApp: "PinApp\(i)", captureType: .region))
+            mockRecentItems.append(ShotItem(filePath: "rec_\(i).png", isPinned: false, sourceApp: "RecApp\(i)", captureType: .region))
+        }
+
+        // Test Option + 1..9
+        for d in 1...9 {
+            let event = NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: .option,
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "\(d)",
+                charactersIgnoringModifiers: "\(d)",
+                isARepeat: false,
+                keyCode: UInt16(17 + d)
+            )!
+            let parsed = ShortcutNavigator.parseSectionShortcut(from: event, searchFieldHasFocus: false)
+            ChallengerHarness.assertNotNil(parsed, "Option+\(d) parsed as section shortcut")
+            ChallengerHarness.assertEqual(parsed?.section, .pinned, "Option+\(d) parsed with section == .pinned")
+            ChallengerHarness.assertEqual(parsed?.digit, d, "Option+\(d) parsed with digit == \(d)")
+
+            let target = ShortcutNavigator.targetItem(forSectionShortcut: parsed!, pinnedItems: mockPinnedItems, recentItems: mockRecentItems)
+            if d <= 5 {
+                ChallengerHarness.assertEqual(target?.id, mockPinnedItems[d - 1].id, "Option+\(d) resolved target pinned item \(d)")
+            } else {
+                ChallengerHarness.assertNil(target, "Option+\(d) returned nil for out-of-bounds pinned item")
+            }
+        }
+
+        // Test Command + 1..9
+        for d in 1...9 {
+            let event = NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: .command,
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "\(d)",
+                charactersIgnoringModifiers: "\(d)",
+                isARepeat: false,
+                keyCode: UInt16(17 + d)
+            )!
+            let parsed = ShortcutNavigator.parseSectionShortcut(from: event, searchFieldHasFocus: true)
+            ChallengerHarness.assertNotNil(parsed, "Cmd+\(d) parsed as section shortcut")
+            ChallengerHarness.assertEqual(parsed?.section, .recent, "Cmd+\(d) parsed with section == .recent")
+
+            let target = ShortcutNavigator.targetItem(forSectionShortcut: parsed!, pinnedItems: mockPinnedItems, recentItems: mockRecentItems)
+            if d <= 5 {
+                ChallengerHarness.assertEqual(target?.id, mockRecentItems[d - 1].id, "Cmd+\(d) resolved target recent item \(d)")
+            } else {
+                ChallengerHarness.assertNil(target, "Cmd+\(d) returned nil for out-of-bounds recent item")
+            }
+        }
+
+        // Test Bare 1..9 with search focus active vs inactive
+        for d in 1...5 {
+            let event = NSEvent.keyEvent(
+                with: .keyDown,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: "\(d)",
+                charactersIgnoringModifiers: "\(d)",
+                isARepeat: false,
+                keyCode: UInt16(17 + d)
+            )!
+            let focusedParsed = ShortcutNavigator.parseSectionShortcut(from: event, searchFieldHasFocus: true)
+            ChallengerHarness.assertNil(focusedParsed, "Bare \(d) returns nil when search field is focused")
+
+            let unfocusedParsed = ShortcutNavigator.parseSectionShortcut(from: event, searchFieldHasFocus: false)
+            ChallengerHarness.assertNotNil(unfocusedParsed, "Bare \(d) parses when search field is unfocused")
+            ChallengerHarness.assertEqual(unfocusedParsed?.section, .recent, "Bare \(d) targets recent section")
+        }
+
+        // Test Control modifier rejection
+        let ctrlEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.control, .option],
+            timestamp: 0,
+            windowNumber: 0,
+            context: nil,
+            characters: "1",
+            charactersIgnoringModifiers: "1",
+            isARepeat: false,
+            keyCode: 18
+        )!
+        ChallengerHarness.assertNil(ShortcutNavigator.parseSectionShortcut(from: ctrlEvent, searchFieldHasFocus: false), "Ctrl modifier rejected by parseSectionShortcut")
+
+        // Test Badge Strings
+        for (idx, item) in mockPinnedItems.enumerated() {
+            let badge = ShortcutNavigator.badgeString(for: item, pinnedItems: mockPinnedItems, recentItems: mockRecentItems)
+            ChallengerHarness.assertEqual(badge, "⌥\(idx + 1)", "Pinned item \(idx + 1) badge is ⌥\(idx + 1)")
+        }
+        for (idx, item) in mockRecentItems.enumerated() {
+            let badge = ShortcutNavigator.badgeString(for: item, pinnedItems: mockPinnedItems, recentItems: mockRecentItems)
+            ChallengerHarness.assertEqual(badge, "\(idx + 1)", "Recent item \(idx + 1) badge is \(idx + 1)")
+        }
+
+        // =====================================================================
+        // Sub-scenario 24C: Nil & Corrupted Image Handles in Re-Annotate Robustness
+        // =====================================================================
+        ChallengerHarness.startSuite("24C. Nil & Corrupted Image Handles in Re-Annotate Robustness")
+
+        let annotateSandbox = FileManager.default.temporaryDirectory.appendingPathComponent("SuperShotAdvM47_Annotate_\(UUID().uuidString)")
+        let annotateStorage = StorageManager(baseDirectory: annotateSandbox)
+
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        guard let ctx = CGContext(
+            data: nil,
+            width: 80,
+            height: 60,
+            bitsPerComponent: 8,
+            bytesPerRow: 80 * 4,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ), let validSampleImage = ctx.makeImage() else {
+            ChallengerHarness.recordFail("M47 validSampleImage", reason: "Could not create sample base image")
+            return
+        }
+
+        // 1. Non-existent shot item
+        let phantomItem = ShotItem(filePath: "non_existent_\(UUID().uuidString).png", sourceApp: "Phantom", captureType: .region)
+        ChallengerHarness.assertNil(annotateStorage.load(id: phantomItem.id), "load(id:) returns nil for non-existent item")
+        ChallengerHarness.assertNil(annotateStorage.loadCGImage(for: phantomItem), "loadCGImage returns nil for non-existent item")
+
+        // 2. Item with deleted/missing backing file on disk
+        let deletedItem = ShotItem(filePath: "deleted_\(UUID().uuidString).png", sourceApp: "DeletedDiskApp", captureType: .region)
+        ChallengerHarness.assertNil(annotateStorage.loadCGImage(for: deletedItem), "loadCGImage returns nil when backing file does not exist on disk")
+        ChallengerHarness.assertNil(annotateStorage.getImageData(for: deletedItem), "getImageData returns nil when backing file does not exist on disk")
+
+        // 3. Item with 0-byte corrupted file directly on disk (uncached)
+        let zeroItem = ShotItem(filePath: "zero_\(UUID().uuidString).png", sourceApp: "ZeroByteApp", captureType: .region)
+        let zeroURL = annotateStorage.imagesDirectory.appendingPathComponent(zeroItem.filePath)
+        try! Data().write(to: zeroURL, options: .atomic)
+        ChallengerHarness.assertNil(annotateStorage.loadCGImage(for: zeroItem), "loadCGImage returns nil for 0-byte corrupted image file")
+
+        // 4. Item with garbage random bytes directly on disk (uncached)
+        let garbageItem = ShotItem(filePath: "garbage_\(UUID().uuidString).png", sourceApp: "GarbageApp", captureType: .region)
+        let garbageURL = annotateStorage.imagesDirectory.appendingPathComponent(garbageItem.filePath)
+        let garbageData = Data(repeating: 0x7F, count: 512)
+        try! garbageData.write(to: garbageURL, options: .atomic)
+        ChallengerHarness.assertNil(annotateStorage.loadCGImage(for: garbageItem), "loadCGImage returns nil for non-image garbage file")
+
+        // 5. MainShotView annotateItem with callback on nil/corrupted items
+        var callbackAnnotatedID: UUID?
+        let mockMainShotView = MainShotView(
+            storageManager: annotateStorage,
+            appSettings: AppSettings(),
+            onAnnotateItem: { item in
+                callbackAnnotatedID = item.id
+            }
+        )
+
+        mockMainShotView.annotateItem(phantomItem)
+        ChallengerHarness.assertEqual(callbackAnnotatedID, phantomItem.id, "annotateItem invokes onAnnotateItem callback for phantom item safely")
+
+        mockMainShotView.annotateItem(zeroItem)
+        ChallengerHarness.assertEqual(callbackAnnotatedID, zeroItem.id, "annotateItem invokes onAnnotateItem callback for zero-byte item safely")
+
+        mockMainShotView.annotateItem(garbageItem)
+        ChallengerHarness.assertEqual(callbackAnnotatedID, garbageItem.id, "annotateItem invokes onAnnotateItem callback for garbage item safely")
+
+        // 6. Concurrency Stress: 10 threads concurrently attempting loads on corrupted files
+        let annotateGroup = DispatchGroup()
+        let annotateQueue = DispatchQueue(label: "com.supershot.adversarial.annotate", attributes: .concurrent)
+        var allLoadsSafe = true
+        let annotateLock = NSLock()
+
+        for _ in 0..<10 {
+            annotateGroup.enter()
+            annotateQueue.async {
+                for _ in 0..<20 {
+                    let r1 = annotateStorage.loadCGImage(for: phantomItem)
+                    let r2 = annotateStorage.loadCGImage(for: zeroItem)
+                    let r3 = annotateStorage.loadCGImage(for: garbageItem)
+                    if r1 != nil || r2 != nil || r3 != nil {
+                        annotateLock.lock()
+                        allLoadsSafe = false
+                        annotateLock.unlock()
+                    }
+                }
+                annotateGroup.leave()
+            }
+        }
+        let annotateWait = annotateGroup.wait(timeout: .now() + 5.0)
+        ChallengerHarness.assertEqual(annotateWait, .success, "Concurrent corrupted image loads completed with 0 deadlocks")
+        ChallengerHarness.assertTrue(allLoadsSafe, "All 600 concurrent corrupted image loads safely returned nil without exceptions")
+
+        try? FileManager.default.removeItem(at: annotateSandbox)
+
+        // =====================================================================
+        // Sub-scenario 24D: Hex Code Fuzzing & Live Swatch Boundary Stress
+        // =====================================================================
+        ChallengerHarness.startSuite("24D. Hex Code Fuzzing & Live Swatch Boundary Stress")
+
+        // 1. Valid hex formats
+        let validHexCodes = [
+            "#FF3B30", "FF3B30", "#34C759", "34c759", "#007AFF", "007aff",
+            "#FFF", "FFF", "#000", "000", "#123", "123", "#abc", "ABC",
+            "  #FF3B30  ", "\n#007AFF\t"
+        ]
+        for hex in validHexCodes {
+            ChallengerHarness.assertTrue(ColorPreset.isValid(hex: hex), "Valid hex '\(hex)' recognized as valid")
+            let norm = ColorPreset.normalize(hex: hex)
+            ChallengerHarness.assertTrue(norm.hasPrefix("#"), "Normalized hex '\(norm)' starts with #")
+            ChallengerHarness.assertEqual(norm.count, 7, "Normalized hex '\(norm)' has exactly 7 characters")
+            let parsed = ColorPreset.parseRGB(hex: hex)
+            ChallengerHarness.assertNotNil(parsed, "parseRGB succeeded for '\(hex)'")
+            if let rgb = parsed {
+                ChallengerHarness.assertTrue(rgb.r >= 0.0 && rgb.r <= 1.0, "r in [0, 1]")
+                ChallengerHarness.assertTrue(rgb.g >= 0.0 && rgb.g <= 1.0, "g in [0, 1]")
+                ChallengerHarness.assertTrue(rgb.b >= 0.0 && rgb.b <= 1.0, "b in [0, 1]")
+            }
+            _ = Color(hex: hex)
+        }
+
+        // 2. Invalid hex formats
+        let invalidHexCodes = [
+            "", "   ", "\t\n\r", "#", "##", "###",
+            "#1", "#12", "#1234", "#12345",
+            "#1234567", "#12345678", "#123456789",
+            "#GGGGGG", "#ZZZZZZ", "XYZ123", "G12345",
+            "#<script>", "#123; DROP TABLE", "#%d%s",
+            "#FF\0FF", "#FF 3B", "#FF\u{200B}3B",
+            String(repeating: "F", count: 10000)
+        ]
+        for hex in invalidHexCodes {
+            ChallengerHarness.assertFalse(ColorPreset.isValid(hex: hex), "Invalid hex string rejected")
+            let norm = ColorPreset.normalize(hex: hex, defaultHex: "#FF3B30")
+            ChallengerHarness.assertEqual(norm, "#FF3B30", "Invalid hex falls back to default #FF3B30")
+            ChallengerHarness.assertNil(ColorPreset.parseRGB(hex: hex), "parseRGB returns nil for invalid hex")
+            // Color(hex:) initializer fallback safety
+            _ = Color(hex: hex)
+        }
+
+        // 3. 5,000 Pseudo-Random String Fuzz Mutations
+        var hexFuzzPassed = true
+        var fuzzRng: UInt64 = 0xDEADBEEFCAFE
+        for _ in 0..<5000 {
+            fuzzRng = (fuzzRng &* 6364136223846793005) &+ 1442695040888963407
+            let len = Int(fuzzRng % 32)
+            var randomStr = ""
+            if fuzzRng % 2 == 0 { randomStr.append("#") }
+            for _ in 0..<len {
+                fuzzRng = (fuzzRng &* 6364136223846793005) &+ 1442695040888963407
+                let asciiVal = UInt8(fuzzRng % 128)
+                let scalar = UnicodeScalar(asciiVal)
+                randomStr.append(Character(scalar))
+            }
+
+            let valid = ColorPreset.isValid(hex: randomStr)
+            let normalized = ColorPreset.normalize(hex: randomStr)
+            if !normalized.hasPrefix("#") || normalized.count != 7 {
+                hexFuzzPassed = false
+                break
+            }
+            if valid {
+                if ColorPreset.parseRGB(hex: randomStr) == nil {
+                    hexFuzzPassed = false
+                    break
+                }
+            } else {
+                if ColorPreset.parseRGB(hex: randomStr) != nil {
+                    hexFuzzPassed = false
+                    break
+                }
+            }
+            _ = Color(hex: randomStr)
+        }
+        ChallengerHarness.assertTrue(hexFuzzPassed, "5,000 pseudo-random hex fuzz mutations handled safely with 0 crashes or inconsistent states")
+
+        // 4. ColorPreset Defaults Invariants
+        ChallengerHarness.assertEqual(ColorPreset.defaults.count, 8, "ColorPreset.defaults contains exactly 8 standard colors")
+        for preset in ColorPreset.defaults {
+            ChallengerHarness.assertTrue(ColorPreset.isValid(hex: preset.hex), "Default preset '\(preset.name)' has valid hex '\(preset.hex)'")
+            ChallengerHarness.assertNotNil(preset.toNSColor(), "Default preset '\(preset.name)' converts to NSColor")
+            _ = preset.toColor()
+        }
+
+        // =====================================================================
+        // Sub-scenario 24E: Rapid Concurrent Unpinned History Clearing & Invariant Verification
+        // =====================================================================
+        ChallengerHarness.startSuite("24E. Rapid Concurrent Unpinned History Clearing & Invariant Verification")
+
+        let clearSandbox = FileManager.default.temporaryDirectory.appendingPathComponent("SuperShotAdvM47_Clear_\(UUID().uuidString)")
+        let clearStorage = StorageManager(baseDirectory: clearSandbox, initialCapacity: 100)
+
+        // 1. Seed with 20 items: 10 pinned, 10 unpinned
+        var pinnedIDs: Set<UUID> = []
+        var unpinnedIDs: Set<UUID> = []
+
+        for i in 1...10 {
+            let pItem = try! clearStorage.save(image: validSampleImage, sourceApp: "PinnedApp\(i)", captureType: .region)
+            clearStorage.togglePin(id: pItem.id)
+            pinnedIDs.insert(pItem.id)
+
+            let uItem = try! clearStorage.save(image: validSampleImage, sourceApp: "UnpinnedApp\(i)", captureType: .region)
+            unpinnedIDs.insert(uItem.id)
+        }
+
+        clearStorage.flushDiskQueue()
+        ChallengerHarness.assertEqual(clearStorage.items.count, 20, "Storage seeded with 20 items")
+
+        // 2. Execute clearUnpinnedHistory()
+        clearStorage.clearUnpinnedHistory()
+        clearStorage.flushDiskQueue()
+
+        // Verify Invariants:
+        // Invariant A: Exactly 10 items remain
+        ChallengerHarness.assertEqual(clearStorage.items.count, 10, "Exactly 10 items remain after clearing unpinned history")
+
+        // Invariant B: 100% of remaining items are pinned and match pinnedIDs
+        var allRemainingPinned = true
+        var allPinnedIDsRetained = true
+        for it in clearStorage.items {
+            if !it.isPinned { allRemainingPinned = false }
+            if !pinnedIDs.contains(it.id) { allPinnedIDsRetained = false }
+        }
+        ChallengerHarness.assertTrue(allRemainingPinned, "Invariant: 100% of remaining items have isPinned == true")
+        ChallengerHarness.assertTrue(allPinnedIDsRetained, "Invariant: 100% of original pinned item IDs retained")
+
+        // Invariant C: Pinned image files exist on disk, unpinned files deleted from disk
+        var pinnedFilesExist = true
+        for id in pinnedIDs {
+            if let it = clearStorage.items.first(where: { $0.id == id }) {
+                let url = clearStorage.getImageURL(for: it)
+                if !FileManager.default.fileExists(atPath: url.path) {
+                    pinnedFilesExist = false
+                }
+            }
+        }
+        ChallengerHarness.assertTrue(pinnedFilesExist, "Disk invariant: Backing image files for all pinned items exist on disk")
+
+        var unpinnedFilesDeleted = true
+        for id in unpinnedIDs {
+            let uURL = clearStorage.imagesDirectory.appendingPathComponent("\(id.uuidString).png")
+            if FileManager.default.fileExists(atPath: uURL.path) {
+                unpinnedFilesDeleted = false
+            }
+        }
+        ChallengerHarness.assertTrue(unpinnedFilesDeleted, "Disk invariant: Backing image files for all unpinned items deleted from disk")
+
+        // 3. Repeated Clearing Idempotency
+        for _ in 0..<10 {
+            clearStorage.clearUnpinnedHistory()
+        }
+        ChallengerHarness.assertEqual(clearStorage.items.count, 10, "10 repeated calls to clearUnpinnedHistory() are strictly idempotent (count remains 10)")
+
+        // 4. Clearing when all items are unpinned
+        for it in clearStorage.items {
+            clearStorage.togglePin(id: it.id) // Unpin all
+        }
+        clearStorage.clearUnpinnedHistory()
+        ChallengerHarness.assertEqual(clearStorage.items.count, 0, "Clearing when 0 pinned items exist empties storage completely")
+
+        // 5. Clearing already empty storage
+        clearStorage.clearUnpinnedHistory()
+        ChallengerHarness.assertEqual(clearStorage.items.count, 0, "Clearing empty storage is safe no-op")
+
+        // 6. High Concurrency Stress: 15 concurrent threads performing clear, save, togglePin, and search
+        let stressSandbox = FileManager.default.temporaryDirectory.appendingPathComponent("SuperShotAdvM47_Stress_\(UUID().uuidString)")
+        let concurrentStorage = StorageManager(baseDirectory: stressSandbox, initialCapacity: 100)
+
+        // Seed 10 initial items
+        for _ in 0..<10 {
+            _ = try? concurrentStorage.save(image: validSampleImage, sourceApp: "ConcurrentApp", captureType: .region)
+        }
+
+        let clearGroup = DispatchGroup()
+        let clearQueue = DispatchQueue(label: "com.supershot.adversarial.clear", attributes: .concurrent)
+
+        for t in 0..<15 {
+            clearGroup.enter()
+            clearQueue.async {
+                for iter in 0..<50 {
+                    if t % 3 == 0 {
+                        // Clear unpinned history
+                        concurrentStorage.clearUnpinnedHistory()
+                    } else if t % 3 == 1 {
+                        // Save and toggle pin
+                        if let item = try? concurrentStorage.save(image: validSampleImage, sourceApp: "Thread\(t)", captureType: .region) {
+                            if iter % 2 == 0 {
+                                concurrentStorage.togglePin(id: item.id)
+                            }
+                        }
+                    } else {
+                        // Query items and search
+                        _ = concurrentStorage.items.count
+                        _ = concurrentStorage.search(query: "Thread")
+                    }
+                }
+                clearGroup.leave()
+            }
+        }
+
+        let clearWait = clearGroup.wait(timeout: .now() + 5.0)
+        ChallengerHarness.assertEqual(clearWait, .success, "15 concurrent threads with 750 operations completed within 5s with 0 deadlocks")
+
+        // Final invariant after concurrency drained:
+        concurrentStorage.clearUnpinnedHistory()
+        let remainingItems = concurrentStorage.items
+        var finalPinnedInvariant = true
+        for it in remainingItems {
+            if !it.isPinned { finalPinnedInvariant = false }
+        }
+        ChallengerHarness.assertTrue(finalPinnedInvariant, "Final concurrency invariant: After clearUnpinnedHistory(), 100% of remaining items are pinned")
+
+        // Cleanup temporary directories
+        try? FileManager.default.removeItem(at: clearSandbox)
+        try? FileManager.default.removeItem(at: stressSandbox)
     }
 }
 

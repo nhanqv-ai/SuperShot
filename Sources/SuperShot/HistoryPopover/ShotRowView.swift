@@ -14,6 +14,8 @@ public struct ShotRowView: View {
     public var onSelect: ((ShotItem) -> Void)?
     public var onCopy: ((ShotItem) -> Void)?
     public var onSave: ((ShotItem) -> Void)?
+    public var onShare: ((ShotItem) -> Void)?
+    public var onAnnotate: ((ShotItem) -> Void)?
     public var onTogglePin: ((ShotItem) -> Void)?
     public var onDelete: ((ShotItem) -> Void)?
     public var onHoverChange: ((ShotItem, Bool) -> Void)?
@@ -36,6 +38,8 @@ public struct ShotRowView: View {
         onSelect: ((ShotItem) -> Void)? = nil,
         onCopy: ((ShotItem) -> Void)? = nil,
         onSave: ((ShotItem) -> Void)? = nil,
+        onShare: ((ShotItem) -> Void)? = nil,
+        onAnnotate: ((ShotItem) -> Void)? = nil,
         onTogglePin: ((ShotItem) -> Void)? = nil,
         onDelete: ((ShotItem) -> Void)? = nil,
         onHoverChange: ((ShotItem, Bool) -> Void)? = nil
@@ -49,6 +53,8 @@ public struct ShotRowView: View {
         self.onSelect = onSelect
         self.onCopy = onCopy
         self.onSave = onSave
+        self.onShare = onShare
+        self.onAnnotate = onAnnotate
         self.onTogglePin = onTogglePin
         self.onDelete = onDelete
         self.onHoverChange = onHoverChange
@@ -116,6 +122,9 @@ public struct ShotRowView: View {
         .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
         .contentShape(Rectangle())
         .pointingHandCursor()
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("\(item.displayTitle), \(item.dimensionsString), \(RelativeTimeFormatter.format(item.timestamp))")
+        .accessibilityHint(localizationManager.tr(.actionCopy))
         .onTapGesture {
             ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
             onSelect?(item)
@@ -140,6 +149,18 @@ public struct ShotRowView: View {
             Button("\(localizationManager.tr(.actionSave))... (⌘S)") {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                 onSave?(item)
+            }
+            Button("\(localizationManager.tr(.actionShare)) (⌘E)") {
+                ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                onShare?(item)
+            }
+            Button("\(localizationManager.tr(.actionAnnotate))") {
+                ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                if let onAnnotate = onAnnotate {
+                    onAnnotate(item)
+                } else if let appDelegate = NSApp.delegate as? AppDelegate {
+                    appDelegate.openInAnnotationWindow(item: item)
+                }
             }
             Button("\(localizationManager.tr(item.isPinned ? .unpinButton : .pinButton)) (⌘P)") {
                 ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
@@ -193,6 +214,32 @@ public struct ShotRowView: View {
                 ) {
                     ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                     onSave?(item)
+                }
+
+                // Share Button
+                RowActionButton(
+                    icon: "square.and.arrow.up",
+                    tooltip: localizationManager.tr(.actionShare),
+                    defaultTint: .secondary,
+                    hoverTint: .primary
+                ) {
+                    ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                    onShare?(item)
+                }
+
+                // Annotate Button
+                RowActionButton(
+                    icon: "pencil.tip.crop.circle",
+                    tooltip: localizationManager.tr(.actionAnnotate),
+                    defaultTint: .secondary,
+                    hoverTint: .primary
+                ) {
+                    ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+                    if let onAnnotate = onAnnotate {
+                        onAnnotate(item)
+                    } else if let appDelegate = NSApp.delegate as? AppDelegate {
+                        appDelegate.openInAnnotationWindow(item: item)
+                    }
                 }
 
                 // Pin / Unpin Button

@@ -15,7 +15,7 @@ public struct WelcomeView: View {
 
     public var appVersionString: String {
         let bundleVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String
-        return "v\(bundleVersion ?? "1.0.19")"
+        return "v\(bundleVersion ?? "1.0.20")"
     }
 
     public var body: some View {
@@ -35,7 +35,7 @@ public struct WelcomeView: View {
             actionsSection
         }
         .padding(20)
-        .frame(width: 520, height: 460)
+        .frame(minWidth: 520, maxWidth: .infinity, minHeight: 460, maxHeight: .infinity)
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(.regularMaterial)
@@ -227,11 +227,16 @@ public struct WelcomeView: View {
     }
 }
 
-// MARK: - Welcome Window with Escape Key Dismissal
+// MARK: - Welcome Window with Escape & Cmd+W Key Dismissal
 
 private final class WelcomeWindow: NSWindow {
     override func keyDown(with event: NSEvent) {
         if event.keyCode == 53 { // Escape
+            close()
+            return
+        }
+        let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+        if flags == .command && (event.keyCode == 13 || event.charactersIgnoringModifiers?.lowercased() == "w") { // Cmd+W
             close()
             return
         }
@@ -257,6 +262,8 @@ public final class WelcomeWindowController: NSWindowController, NSWindowDelegate
         window.title = LocalizationManager.shared.tr(.welcomeTitle)
         window.titleVisibility = .hidden
         window.titlebarAppearsTransparent = true
+        window.backgroundColor = .clear
+        window.isOpaque = false
         window.isMovableByWindowBackground = true
         window.isReleasedWhenClosed = false
         window.setContentSize(NSSize(width: 520, height: 460))

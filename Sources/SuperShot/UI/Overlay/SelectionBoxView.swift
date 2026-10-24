@@ -197,7 +197,9 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                 rect: self.selectionRect,
                 display: self.capturedScreen.displayInfo
             )
-            self.windowDelegate?.close()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.18) { [weak self] in
+                self?.windowDelegate?.close()
+            }
         }
 
         toolbarsViewModel.onSaveRequested = { [weak self] in

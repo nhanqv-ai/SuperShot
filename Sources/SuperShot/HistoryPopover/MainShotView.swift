@@ -14,6 +14,7 @@ public struct MainShotView: View {
     public var onOpenSettings: (() -> Void)?
     public var onDismiss: (() -> Void)?
     public var onItemSelected: ((ShotItem) -> Void)?
+    public var onAnnotateItem: ((ShotItem) -> Void)?
 
     @ObservedObject private var localizationManager = LocalizationManager.shared
     @State private var searchText: String = ""
@@ -39,7 +40,8 @@ public struct MainShotView: View {
         onOpenSettings: (() -> Void)? = nil,
         onTriggerRegionCapture: (() -> Void)? = nil,
         onTriggerScrollingCapture: (() -> Void)? = nil,
-        onItemSelected: ((ShotItem) -> Void)? = nil
+        onItemSelected: ((ShotItem) -> Void)? = nil,
+        onAnnotateItem: ((ShotItem) -> Void)? = nil
     ) {
         self.storageManager = storageManager
         self.appSettings = appSettings
@@ -51,6 +53,7 @@ public struct MainShotView: View {
         self.onCaptureRegion = onTriggerRegionCapture
         self.onScrollingCapture = onTriggerScrollingCapture
         self.onItemSelected = onItemSelected
+        self.onAnnotateItem = onAnnotateItem
     }
 
     // MARK: - Partitioned & Filtered Items
@@ -89,6 +92,10 @@ public struct MainShotView: View {
                     }
                     Divider().opacity(0.6)
                     contentSection(scrollProxy: proxy)
+                    if !visibleItems.isEmpty {
+                        Divider().opacity(0.4)
+                        footerHintBar
+                    }
                 }
 
                 if showCopiedToast {
@@ -240,7 +247,7 @@ public struct MainShotView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help(localizationManager.tr(.menuCapture) + " (Option+S)")
+            .help("\(localizationManager.tr(.menuCapture)) (\(HotKeyManager.shared.shortcut(for: .captureRegion)?.displayString ?? "⌥S"))")
 
             // Quick Scrolling Capture Button
             Button(action: {
@@ -255,7 +262,7 @@ public struct MainShotView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
-            .help(localizationManager.tr(.menuScrollingCapture) + " (Option+Shift+S)")
+            .help("\(localizationManager.tr(.menuScrollingCapture)) (\(HotKeyManager.shared.shortcut(for: .scrollingCapture)?.displayString ?? "⌥⇧S"))")
 
             // Settings Button
             Button(action: {
@@ -489,6 +496,8 @@ public struct MainShotView: View {
                                 onSelect: { selectItem($0) },
                                 onCopy: { copyItem($0) },
                                 onSave: { saveItem($0) },
+                                onShare: { shareItem($0) },
+                                onAnnotate: { annotateItem($0) },
                                 onTogglePin: { storageManager.togglePin(id: $0.id) },
                                 onDelete: {
                                     storageManager.deleteItem(id: $0.id)
@@ -519,6 +528,8 @@ public struct MainShotView: View {
                                 onSelect: { selectItem($0) },
                                 onCopy: { copyItem($0) },
                                 onSave: { saveItem($0) },
+                                onShare: { shareItem($0) },
+                                onAnnotate: { annotateItem($0) },
                                 onTogglePin: { storageManager.togglePin(id: $0.id) },
                                 onDelete: {
                                     storageManager.deleteItem(id: $0.id)
@@ -610,6 +621,7 @@ public struct MainShotView: View {
             }
             .buttonStyle(.plain)
             .pointingHandCursor()
+            .help("\(localizationManager.tr(.clearHistory)) (⌘⇧⌫)")
         }
         .padding(.horizontal, 4)
         .padding(.top, pinnedItems.isEmpty ? 4 : 8)
@@ -715,6 +727,21 @@ public struct MainShotView: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
+    private var footerHintBar: some View {
+        HStack(spacing: 6) {
+            Image(systemName: "command")
+                .font(.system(size: 9, weight: .medium))
+                .foregroundColor(.secondary.opacity(0.8))
+            Text(localizationManager.tr(.quickSelectHint))
+                .font(.system(size: 10, weight: .medium))
+                .foregroundColor(.secondary)
+            Spacer()
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 6)
+        .background(Color(nsColor: .windowBackgroundColor).opacity(0.5))
+    }
+
     // MARK: - Selection & Actions
 
     public func selectItem(_ item: ShotItem) {
@@ -815,6 +842,29 @@ public struct MainShotView: View {
             if response == .OK, let destinationURL = panel.url {
                 try? data.write(to: destinationURL, options: .atomic)
             }
+        }
+    }
+
+    public func shareItem(_ item: ShotItem, from view: NSView? = nil) {
+        ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+        let url = storageManager.getImageURL(for: item)
+        let picker = NSSharingServicePicker(items: [url])
+        let targetView = view ?? hostWindow?.contentView ?? NSApp.keyWindow?.contentView
+        if let target = targetView {
+            picker.show(relativeTo: target.bounds, of: target, preferredEdge: .minY)
+        }
+    }
+
+    public func annotateItem(_ item: ShotItem) {
+        ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
+        onDismiss?()
+        if let onAnnotate = onAnnotateItem {
+            onAnnotate(item)
+        } else if let appDelegate = NSApp.delegate as? AppDelegate {
+            appDelegate.openInAnnotationWindow(item: item)
+        } else if let cgImage = storageManager.loadCGImage(for: item) {
+            let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+            (NSApp.delegate as? AppDelegate)?.presentScrollableAnnotationWindow(image: cgImage, scale: scale)
         }
     }
 
@@ -1026,6 +1076,14 @@ public struct MainShotView: View {
             if flags == .command && (event.keyCode == 1 || event.charactersIgnoringModifiers?.lowercased() == "s") {
                 if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
                     saveItem(visibleItems[idx])
+                    return nil
+                }
+            }
+
+            // 8b. Cmd+E: Share selected item
+            if flags == .command && (event.keyCode == 14 || event.charactersIgnoringModifiers?.lowercased() == "e") {
+                if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
+                    shareItem(visibleItems[idx])
                     return nil
                 }
             }

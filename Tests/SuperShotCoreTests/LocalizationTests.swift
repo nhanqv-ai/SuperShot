@@ -191,6 +191,25 @@ public struct LocalizationTests {
             }
         }
 
+        let v1020Keys: [L10nKey] = [
+            .actionAnnotate,
+            .saveTallScreenshotTitle,
+            .tallScreenshotWindowTitle,
+            .customColorPreset
+        ]
+        for key in v1020Keys {
+            for lang in AppLanguage.allCases {
+                let text = key.localized(for: lang)
+                TestHarness.assertFalse(text.isEmpty, "v1.0.20 Key \(key) has non-empty translation in \(lang.rawValue)")
+            }
+        }
+
+        // Specific translation verification for Vietnamese
+        TestHarness.assertEqual(L10nKey.actionAnnotate.localized(for: .vietnamese), "Thêm chú thích...", "actionAnnotate translated to Vietnamese")
+        TestHarness.assertEqual(L10nKey.saveTallScreenshotTitle.localized(for: .vietnamese), "Lưu ảnh chụp cuộn dài đã ghép", "saveTallScreenshotTitle translated to Vietnamese")
+        TestHarness.assertEqual(L10nKey.tallScreenshotWindowTitle.localized(for: .vietnamese), "SuperShot — Ảnh chụp cuộn dài", "tallScreenshotWindowTitle translated to Vietnamese")
+        TestHarness.assertEqual(L10nKey.customColorPreset.localized(for: .vietnamese), "Tự chọn", "customColorPreset translated to Vietnamese")
+
         // 6. Zero emoji invariant check across all keys in all languages
         validateZeroEmojisAcrossDictionary()
 
@@ -220,7 +239,8 @@ public struct LocalizationTests {
             .layerBringToFront, .layerSendToBack, .layerBringForward, .layerSendBackward,
             .zoomHUD(125), .captureOverlayInstruction, .directAutoPaste,
             .framesCount(10), .screenshotDeleted, .copiedDiagnostics,
-            .rememberLabel, .unpinnedHistoryCleared
+            .rememberLabel, .unpinnedHistoryCleared,
+            .actionAnnotate, .saveTallScreenshotTitle, .tallScreenshotWindowTitle, .customColorPreset
         ]
 
         let emojiRanges: [ClosedRange<UInt32>] = [

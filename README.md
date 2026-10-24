@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.19"><img src="https://img.shields.io/badge/version-v1.0.19-blue.svg?style=flat-square" alt="Version v1.0.19"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.20"><img src="https://img.shields.io/badge/version-v1.0.20-blue.svg?style=flat-square" alt="Version v1.0.20"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -119,6 +119,18 @@ SuperShot provides a fast, flexible color management system for all vector annot
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
 
+### What's New in v1.0.20
+
+- **Dynamic Shortcut Synchronization in Menu & Popover**: System status menu bar items and Popover capture buttons dynamically synchronize their key shortcuts (`⌥S`, `⌥⇧S`) and typographic tooltips whenever customized in Preferences.
+- **Quick Share / Export Action & `Cmd+E` Shortcut in Popover**: Instantly export or share any screenshot via macOS `NSSharingServicePicker` directly from history row hover actions, context menu, or the `Cmd+E` keyboard shortcut.
+- **Re-Annotate / Edit Past Screenshots**: Re-open any past screenshot in the full-featured vector annotation editor (`pencil.tip.crop.circle`) from row hover buttons and context menu.
+- **WelcomeWindow Visual Polish & Standard `Cmd+W` Close**: Transparent titlebar rendering eliminates top background gaps in the onboarding window; `Cmd+W` closes both Welcome and Settings utility windows alongside `Escape`.
+- **In-Place Capture Copy Confirmation HUD Perception**: Copying a selection now preserves the feedback HUD pill for ~180ms before dismissing the overlay, providing crisp tactile confirmation.
+- **Popover Keyboard Shortcut Hint Footer Bar & Tooltip**: A subtle footer bar displays `.quickSelectHint` ("Press 1-9 to quick copy" across all 9 languages) and clear trash button features shortcut discovery tooltip `(⌘⇧⌫)`.
+- **Native macOS Eyedropper & Live Swatch Preview in Settings**: Capture & Save Preferences includes a 24x24 live color swatch preview and an Eyedropper tool using native `NSColorSampler`.
+- **Full Localization Parity for Tall Canvas & Color Presets**: All window titles, save dialogs, and preset naming across tall canvas and color cards now strictly adhere to 9-language localization parity.
+- **VoiceOver Accessibility & Layout Scaling Safeguards**: History rows are combined into accessible VoiceOver elements, and numeric unit labels scale gracefully to prevent edge-case clipping in German and French.
+
 ### What's New in v1.0.19
 
 - **Differentiated Section Shortcuts (`Option + 1..9` Pinned vs `1..9` / `Cmd + 1..9` Recent)**: History popover shortcuts now assign `Option + 1..9` exclusively to pinned screenshots and bare `1..9` / `Cmd + 1..9` to recent screenshots, with distinct visual badges (`⌥1`, `1`).
@@ -219,7 +231,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.19.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.20.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -363,6 +375,18 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
+### Điểm mới trong v1.0.20
+
+- **Đồng bộ phím tắt động trên thanh Menu & Popover**: Phím tắt trên thanh menu hệ thống và các nút chụp nhanh trong Popover tự động cập nhật ngay khi thay đổi trong Cài đặt (`⌥S`, `⌥⇧S`) với biểu tượng Apple chuẩn xác.
+- **Tính năng chia sẻ nhanh `Cmd+E` trong Popover**: Chia sẻ và xuất nhanh bất kỳ ảnh chụp nào qua hộp thoại chia sẻ macOS (`NSSharingServicePicker`) trực tiếp từ menu chuột phải, nút hover hàng ảnh, hoặc phím tắt `Cmd+E`.
+- **Mở lại và chú thích ảnh chụp cũ**: Mở lại bất kỳ ảnh chụp nào từ lịch sử trong cửa sổ biên tập vector đầy đủ (`pencil.tip.crop.circle`) để vẽ thêm mũi tên, văn bản, hình vẽ hoặc làm mờ bảo mật.
+- **Hoàn thiện giao diện cửa sổ Chào mừng & Đóng nhanh `Cmd+W`**: Khắc phục dải trắng viền trên của cửa sổ Chào mừng bằng nền trong suốt; hỗ trợ phím tắt `Cmd+W` chuẩn macOS để đóng cả cửa sổ Chào mừng lẫn Cài đặt.
+- **Giữ huy hiệu xác nhận sao chép HUD trực quan**: Tác vụ sao chép vùng chụp giữ huy hiệu HUD `Đã sao chép vào bộ nhớ tạm` trong ~180ms trước khi đóng lớp phủ, mang lại phản hồi xúc giác rõ nét.
+- **Thanh chân trang gợi ý phím tắt Popover & Tooltip xóa lịch sử**: Bổ sung thanh chân trang tinh tế hiển thị gợi ý sao chép nhanh phím 1-9 và bổ sung tooltip phím tắt `(⌘⇧⌫)` trên nút xóa sạch lịch sử chưa ghim.
+- **Công cụ lấy màu màn hình Eyedropper & Ô xem trước màu trực tiếp**: Tab Chụp & Lưu trong Cài đặt bổ sung ô màu mẫu xem trước 24x24 và công cụ hút màu màn hình native `NSColorSampler`.
+- **Đồng bộ hóa 9 ngôn ngữ cho cửa sổ cuộn dài & bảng màu**: Đồng bộ hóa toàn bộ tiêu đề cửa sổ, hộp thoại lưu ảnh cuộn dài và tên màu tự chọn trên cả 9 ngôn ngữ.
+- **Hỗ trợ VoiceOver & Bảo vệ bố cục hiển thị văn bản dài**: Hàng lịch sử được kết hợp thành phần tử VoiceOver chuẩn mực, đơn vị giới hạn lịch sử tự động thu nhỏ tránh tràn viền trong tiếng Đức và tiếng Pháp.
+
 ### Điểm mới trong v1.0.19
 
 - **Phím tắt phân tách theo từng khu vực (`Option + 1..9` Đã ghim & `1..9` / `Cmd + 1..9` Gần đây)**: Phím tắt trong cửa sổ Lịch sử phân tách rõ ràng với `Option + 1..9` dành riêng cho ảnh đã ghim và `1..9` / `Cmd + 1..9` cho ảnh gần đây, hiển thị huy hiệu trực quan (`⌥1`, `1`).
@@ -463,7 +487,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.19.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.20.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

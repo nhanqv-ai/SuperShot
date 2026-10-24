@@ -211,7 +211,7 @@ public struct SettingsViewTests {
         var welcomeDismissed = false
         let welcomeView = WelcomeView(onDismiss: { welcomeDismissed = true })
         let _ = welcomeView.body
-        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.19", "WelcomeView version string is v1.0.19")
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.20", "WelcomeView version string is v1.0.20")
         welcomeView.onDismiss?()
         TestHarness.assertTrue(welcomeDismissed, "WelcomeView onDismiss executes cleanly")
 
@@ -252,9 +252,9 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(L10nKey.tabCaptureSave.localized(for: .french), "Capture & Sauvegarde", "French tabCaptureSave is concise 'Capture & Sauvegarde'")
         TestHarness.assertEqual(SettingsTab.history.localizedTitle, "History", "SettingsTab.history default localizedTitle is 'History'")
 
-        // 12. Version Consistency & Fallback Verification (v1.0.19)
+        // 12. Version Consistency & Fallback Verification (v1.0.20)
         let updateMgr = UpdateManager.shared
-        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.19", "UpdateManager currentVersion fallback is 1.0.19")
+        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.20", "UpdateManager currentVersion fallback is 1.0.20")
 
         // 13. Overlay Cmd+A Fullscreen & Arrow Key Nudging Verification (v1.0.15)
         let colorSpace = CGColorSpaceCreateDeviceRGB()
@@ -510,9 +510,9 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(locMgr.tr(.annotationsCleared), "Annotations Cleared (⌘⇧K)", "annotationsCleared English string matches")
         TestHarness.assertEqual(locMgr.tr(.actionShareTooltip), "Share (⌘E)", "actionShareTooltip English string matches")
 
-        // 17. Diagnostic String Formatting & Control+Tab Cycling Verification (v1.0.19)
-        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.19")
-        TestHarness.assertTrue(diagString.hasPrefix("SuperShot v1.0.19"), "Diagnostic string starts with 'SuperShot v1.0.19'")
+        // 17. Diagnostic String Formatting & Control+Tab Cycling Verification (v1.0.20)
+        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.20")
+        TestHarness.assertTrue(diagString.hasPrefix("SuperShot v1.0.20"), "Diagnostic string starts with 'SuperShot v1.0.20'")
         TestHarness.assertTrue(diagString.contains("macOS"), "Diagnostic string contains 'macOS'")
         TestHarness.assertTrue(diagString.contains("Build"), "Diagnostic string contains 'Build'")
 
@@ -559,5 +559,31 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(cycleDirection, -1, "Control+Shift+Tab cycles to previous tab (direction -1)")
 
         NotificationCenter.default.removeObserver(ctrlTabObserver)
+
+        // 18. Cmd+W Window Dismissal & Version 1.0.20 Verification (v1.0.20)
+        let cmdWEvent = NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: .command,
+            timestamp: 0,
+            windowNumber: controller.window?.windowNumber ?? 0,
+            context: nil,
+            characters: "w",
+            charactersIgnoringModifiers: "w",
+            isARepeat: false,
+            keyCode: 13
+        )!
+        controller.window?.keyDown(with: cmdWEvent)
+        TestHarness.assertFalse(controller.window?.isVisible ?? true, "Cmd+W closes SettingsWindow")
+
+        // WelcomeWindow Cmd+W dismissal
+        let welcomeWinController = WelcomeWindowController()
+        welcomeWinController.showWelcomeWindow()
+        TestHarness.assertTrue(welcomeWinController.window?.isVisible == true, "WelcomeWindow is visible")
+        welcomeWinController.window?.keyDown(with: cmdWEvent)
+        TestHarness.assertFalse(welcomeWinController.window?.isVisible ?? true, "Cmd+W closes WelcomeWindow")
+
+        // UpdateManager version verification
+        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.20", "UpdateManager currentVersion is 1.0.20")
     }
 }

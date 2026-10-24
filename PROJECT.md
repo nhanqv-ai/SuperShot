@@ -248,6 +248,16 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 124 | Welcome Window Escape Dismissal Parity | Subclass WelcomeWindow from NSWindow to handle Escape (53) and cancelOperation | M42 | Explorer 2 Survey |
 | 125 | Dynamic Localized Status Item ToolTip | Update status item tooltip dynamically on language and hotkey changes in StatusItemManager | M42 | Explorer 2 Survey |
 | 126 | Canonical Version Bump to v1.0.19 | Synchronize v1.0.19 across Info.plist (build 19), AboutSettingsTab, WelcomeWindow, UpdateManager, Makefile, README.md, SettingsViewTests, PROJECT.md | M42 | Explorer 3 Survey |
+| 127 | Dynamic Shortcut Synchronization | Dynamic shortcut sync in StatusItemManager menuNeedsUpdate, MainShotView header tooltips, and GeneralSettingsTab typographic symbols | M46 | Cycle 13 Backlog |
+| 128 | Quick Share / Export Action & Cmd+E in Popover | Popover row hover and context menu share action with NSSharingServicePicker and Cmd+E shortcut | M46 | Cycle 13 Backlog |
+| 129 | Re-Annotate / Edit Past Screenshots | Open past screenshot in ScrollableAnnotationWindow vector editor from history row hover and context menu | M46 | Cycle 13 Backlog |
+| 130 | WelcomeWindow & SettingsWindow Ergonomics | Transparent titlebar fix for WelcomeWindow and standard macOS Cmd+W window close across utility windows | M46 | Cycle 13 Backlog |
+| 131 | In-Place Capture Copy HUD Feedback Delay | 180ms delay before overlay dismissal on copy so copiedToClipboard HUD pill is perceived | M46 | Cycle 13 Backlog |
+| 132 | Popover Keyboard Shortcut Hint Footer Bar & Tooltip | Subtle footer hint bar using quickSelectHint and clearHistory tooltip with shortcut discovery | M46 | Cycle 13 Backlog |
+| 133 | Native Eyedropper & Live Swatch Preview in Settings | 24x24 live preview swatch and NSColorSampler eyedropper in CaptureSaveSettingsTab | M46 | Cycle 13 Backlog |
+| 134 | Localization Parity for Tall Canvas & Color Presets | 9-language localization parity for tall canvas window title, save dialog, and custom preset naming | M46 | Cycle 13 Backlog |
+| 135 | VoiceOver Accessibility & Layout Scaling Safeguards | Combine ShotRowView into accessible element and protect capacity labels against clipping with minimumScaleFactor | M46 | Cycle 13 Backlog |
+| 136 | Canonical Version Bump to v1.0.20 | Increment version to 1.0.20 (Build 20) across all 8 canonical project locations | M46 | Cycle 13 Backlog |
 
 ## Milestones
 
@@ -291,9 +301,13 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M39 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M38 | DONE |
 | M40 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.18 -> public repo check -> app relaunch | M39 | DONE |
 | M41 | Survey & Live GUI Driver Audit | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UX/feature opportunities, verify release invariants (v1.0.19) | none | DONE |
-| M42 | Implementation of Proactive UX Polish & Version Bump | Implement Features 117-126, 0 emojis, bump 8 locations to 1.0.19, make lint, make test, make adversarial, make app, verify_bundle | M41 | IN_PROGRESS |
-| M43 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M42 | PLANNED |
-| M44 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.19 -> public repo check -> app relaunch | M43 | PLANNED |
+| M42 | Implementation of Proactive UX Polish & Version Bump | Implement Features 117-126, 0 emojis, bump 8 locations to 1.0.19, make lint, make test, make adversarial, make app, verify_bundle | M41 | DONE |
+| M43 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M42 | DONE |
+| M44 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.19 -> public repo check -> app relaunch | M43 | DONE |
+| M45 | Survey & Live GUI Driver Audit | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UX/feature opportunities, verify release invariants (v1.0.20) | none | DONE |
+| M46 | Implementation of Proactive UX Polish & Version Bump | Implement Features 127-136, 0 emojis, bump 8 locations to 1.0.20, make lint, make test, make adversarial, make app, verify_bundle | M45 | IN_PROGRESS |
+| M47 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M46 | PLANNED |
+| M48 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.20 -> public repo check -> app relaunch | M47 | PLANNED |
 
 ## Interface Contracts
 

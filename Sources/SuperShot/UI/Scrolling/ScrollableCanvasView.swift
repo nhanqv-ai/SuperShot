@@ -974,7 +974,7 @@ public final class ScrollableCanvasView: NSView {
         panel.allowedContentTypes = [.png, .jpeg]
         panel.canCreateDirectories = true
         panel.isExtensionHidden = false
-        panel.title = "Save Tall Stitched Screenshot"
+        panel.title = LocalizationManager.shared.tr(.saveTallScreenshotTitle)
         panel.nameFieldStringValue = "SuperShot_\(Int(Date().timeIntervalSince1970)).png"
 
         let handler: (NSApplication.ModalResponse) -> Void = { response in
@@ -1025,7 +1025,7 @@ public final class ScrollableAnnotationWindow: NSWindow {
             defer: false
         )
 
-        self.title = "SuperShot — Tall Scrolling Screenshot"
+        self.title = LocalizationManager.shared.tr(.tallScreenshotWindowTitle)
         self.minSize = NSSize(width: 600, height: 400)
         self.isReleasedWhenClosed = false
         self.acceptsMouseMovedEvents = true

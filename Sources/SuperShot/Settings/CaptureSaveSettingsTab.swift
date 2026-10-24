@@ -199,14 +199,36 @@ public struct CaptureSaveSettingsTab: View {
 
             // Add Custom Preset Row
             HStack(spacing: 8) {
+                // Live Color Preview Swatch
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(ColorPreset.isValid(hex: newPresetHex) ? Color(hex: ColorPreset.normalize(hex: newPresetHex)) : Color.clear)
+                    .frame(width: 24, height: 24)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(Color.primary.opacity(0.2), lineWidth: 1)
+                    )
+
                 TextField("#RRGGBB", text: $newPresetHex)
                     .textFieldStyle(.roundedBorder)
-                    .frame(width: 100)
+                    .frame(width: 95)
+
+                // Eyedropper Button
+                Button(action: activateEyedropper) {
+                    Image(systemName: "eyedropper")
+                        .font(.system(size: 11, weight: .medium))
+                        .frame(width: 24, height: 24)
+                        .background(Color.primary.opacity(0.08))
+                        .cornerRadius(4)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .pointingHandCursor()
+                .help(LocalizationManager.shared.tr(.eyedropperTooltip))
 
                 Button(LocalizationManager.shared.tr(.addPreset)) {
                     if ColorPreset.isValid(hex: newPresetHex) {
                         let normalized = ColorPreset.normalize(hex: newPresetHex)
-                        let newP = ColorPreset(name: "Custom", hex: normalized)
+                        let newP = ColorPreset(name: LocalizationManager.shared.tr(.customColorPreset), hex: normalized)
                         if appSettings.addPreset(newP) {
                             newPresetHex = ""
                             showingHexError = false
@@ -247,5 +269,21 @@ public struct CaptureSaveSettingsTab: View {
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .cardStyle()
+    }
+
+    private func activateEyedropper() {
+        let sampler = NSColorSampler()
+        sampler.show { selectedColor in
+            guard let color = selectedColor,
+                  let rgbColor = color.usingColorSpace(.sRGB) else { return }
+            let r = Int(round(rgbColor.redComponent * 255.0))
+            let g = Int(round(rgbColor.greenComponent * 255.0))
+            let b = Int(round(rgbColor.blueComponent * 255.0))
+            let hex = String(format: "#%02X%02X%02X", r, g, b)
+            DispatchQueue.main.async {
+                self.newPresetHex = hex
+                self.showingHexError = false
+            }
+        }
     }
 }
