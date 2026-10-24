@@ -6,6 +6,9 @@ import SuperShotCore
 
 public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayWindowDelegate, ScrollingCaptureDelegate {
     public static var shared: AppDelegate?
+    // Canonical Application Version: 1.0.22 (Build 22)
+    public static let canonicalVersion = "1.0.22"
+    public static let canonicalBuild = "22"
 
     // Core Managers & Services
     public var storageManager: StorageManager!

@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.21"><img src="https://img.shields.io/badge/version-v1.0.21-blue.svg?style=flat-square" alt="Version v1.0.21"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.22"><img src="https://img.shields.io/badge/version-v1.0.22-blue.svg?style=flat-square" alt="Version v1.0.22"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -118,6 +118,16 @@ SuperShot provides a fast, flexible color management system for all vector annot
    - Manage presets directly: right-click to delete a preset, or reset presets to factory defaults in **Preferences** -> **Capture & Save**.
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
+
+### What's New in v1.0.22
+
+- **Enhanced UpdateManager with DMG & Streaming Progress**: Comprehensive GitHub Releases update engine supporting automatic discovery and mounting of `.dmg` distributions via `hdiutil`, byte-level streaming progress reporting (`URLSessionDownloadDelegate`), dynamic non-admin user staging, and clean quarantine removal (`com.apple.quarantine`).
+- **Safe Application Relaunch & Fallback Guard**: Stage-and-relaunch mechanism powered by `NSWorkspace.shared.openApplication` with a 3.0s fallback timer ensuring seamless updates without hung processes.
+- **About Tab Status & Visual Checkmark Polish**: Resolved duplicate status text and button labels to distinct `.updateReadyRestart` and `.restart` strings, accompanied by a downloading progress indicator and a green `checkmark.circle.fill` badge when up to date.
+- **Annotation Deletion HUD Pill (`.hudDelete`) across 9 Languages**: Visual confirmation HUD pill displaying "Deleted (⌫)" appears instantly upon deleting vector objects via Delete/Backspace across English, Vietnamese, German, French, Spanish, Japanese, Simplified Chinese, Traditional Chinese, and Korean.
+- **Keyboard Vector Selection Cycling (`Tab` / `Shift+Tab`)**: Cycle forwards (`Tab`) and backwards (`Shift+Tab`) through active vector annotations with real-time HUD tool mnemonic and name feedback.
+- **History Popover Context Menu SF Symbols Modernization**: Native `Label(title, systemImage: icon)` integration with 100% SF Symbols and zero emojis.
+- **Safe Browser Fallback on Asset-less Releases**: Gracefully opens GitHub release page in the default web browser when binary assets are not attached.
 
 ### What's New in v1.0.21
 
@@ -243,7 +253,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.21.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.22.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -387,6 +397,16 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
 
+### Điểm mới trong v1.0.22
+
+- **Nâng cấp UpdateManager hỗ trợ gói DMG & Thanh tiến trình tải thời gian thực**: Trình quản lý cập nhật tự động nhận diện và giải nén tệp `.dmg` qua `hdiutil`, báo cáo tiến trình tải chi tiết theo byte (`URLSessionDownloadDelegate`), hỗ trợ cài đặt động vào thư mục ứng dụng người dùng, và tự động gỡ bỏ thuộc tính cách ly (`com.apple.quarantine`).
+- **Cơ chế khởi động lại an toàn & Bộ đếm thời gian dự phòng**: Khởi động bản cập nhật mới qua `NSWorkspace.shared.openApplication` kết hợp bộ hẹn giờ dự phòng 3.0 giây, đảm bảo quá trình cập nhật diễn ra liền mạch không bị treo ứng dụng.
+- **Hoàn thiện giao diện tab Thông tin & Biểu tượng thành công**: Phân định rõ ràng văn bản trạng thái và nhãn nút bấm (`Cài đặt & Khởi động lại` / `Khởi động lại`), bổ sung nhãn tiến trình đang tải và biểu tượng dấu tích xanh `checkmark.circle.fill` khi đã cập nhật mới nhất.
+- **Huy hiệu HUD thông báo xóa đối tượng (`.hudDelete`) trên 9 ngôn ngữ**: Hiển thị huy hiệu HUD trực quan "Đã xóa (⌫)" tức thì khi người dùng xóa đối tượng vector bằng phím Delete/Backspace trên cả 9 ngôn ngữ hỗ trợ.
+- **Chuyển đổi chọn đối tượng vector bằng bàn phím (`Tab` / `Shift+Tab`)**: Hỗ trợ nhấn `Tab` (chuyển tiếp) và `Shift+Tab` (lùi lại) để duyệt qua các đối tượng vẽ kèm phản hồi HUD hiển thị tên công cụ tức thì.
+- **Chuẩn hóa biểu tượng SF Symbols cho Context Menu trong Popover**: Sử dụng thành phần `Label(title, systemImage: icon)` chuẩn mực, đảm bảo 100% SF Symbols và 0 emoji.
+- **Dự phòng an toàn mở trình duyệt khi không có tệp đính kèm**: Tự động mở trang phát hành GitHub trên trình duyệt mặc định nếu bản phát hành không đính kèm tệp nhị phân nén.
+
 ### Điểm mới trong v1.0.21
 
 - **Kéo và thả ảnh chụp trực tiếp từ Lịch sử (`.onDrag`)**: Kéo thả ảnh chụp bất kỳ từ danh sách lịch sử trực tiếp vào Slack, Discord, Mail, Safari, Keynote hoặc thư mục Finder/màn hình nền.
@@ -511,7 +531,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.21.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.22.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

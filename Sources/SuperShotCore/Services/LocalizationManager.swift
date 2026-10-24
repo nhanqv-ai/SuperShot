@@ -340,6 +340,7 @@ public enum L10nKey: Sendable {
     case hudUndo
     case hudRedo
     case hudDuplicate
+    case hudDelete
     case quickSelectHintWithPinned
 
     public func localized(for lang: AppLanguage) -> String {
@@ -2820,6 +2821,19 @@ public enum L10nKey: Sendable {
             case .traditionalChinese: return "已複製圖元 (⌘D)"
             case .korean: return "복제됨 (⌘D)"
             default: return "Duplicated (⌘D)"
+            }
+
+        case .hudDelete:
+            switch lang {
+            case .vietnamese: return "Đã xoá (⌫)"
+            case .german: return "Gelöscht (⌫)"
+            case .french: return "Supprimé (⌫)"
+            case .spanish: return "Eliminado (⌫)"
+            case .japanese: return "削除しました (⌫)"
+            case .simplifiedChinese: return "已删除 (⌫)"
+            case .traditionalChinese: return "已刪除 (⌫)"
+            case .korean: return "삭제됨 (⌫)"
+            default: return "Deleted (⌫)"
             }
 
         case .quickSelectHintWithPinned:

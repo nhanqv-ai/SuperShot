@@ -835,9 +835,29 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             }
         }
 
+        // Tab (keyCode 48) cycles selection across vector annotations when not editing text
+        if event.keyCode == 48, activeTextField == nil {
+            let reverse = event.modifierFlags.contains(.shift)
+            if let selectedID = annotationEngine.selectNextObject(reverse: reverse) {
+                if let obj = annotationEngine.objects.first(where: { $0.id == selectedID }) {
+                    if let toolType = AnnotationToolType.allCases.first(where: { $0.sfSymbol == obj.tool.sfSymbolName }) {
+                        showHUDNotification(text: "\(toolType.localizedName) (\(toolType.mnemonicKey))")
+                    } else {
+                        showHUDNotification(text: obj.tool.displayName)
+                    }
+                }
+                needsDisplay = true
+                return true
+            } else if !annotationEngine.objects.isEmpty {
+                needsDisplay = true
+                return true
+            }
+        }
+
         // Delete / Backspace removes selected vector annotation object
         if (event.keyCode == 51 || event.keyCode == 117), annotationEngine.selectedObjectID != nil {
             annotationEngine.deleteSelected()
+            showHUDNotification(text: LocalizationManager.shared.tr(.hudDelete))
             needsDisplay = true
             return true
         }

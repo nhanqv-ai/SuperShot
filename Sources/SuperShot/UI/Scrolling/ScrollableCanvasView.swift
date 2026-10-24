@@ -1051,10 +1051,29 @@ public final class ScrollableAnnotationWindow: NSWindow {
     public override func keyDown(with event: NSEvent) {
         let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
         let keyCode = event.keyCode
+        // Tab (keyCode 48) cycles selection across vector annotations when not editing text
+        if keyCode == 48, !canvasView.documentView.hasActiveTextEditing {
+            let reverse = flags.contains(.shift)
+            if let selectedID = canvasView.engine.selectNextObject(reverse: reverse) {
+                if let obj = canvasView.engine.objects.first(where: { $0.id == selectedID }) {
+                    if let toolType = AnnotationToolType.allCases.first(where: { $0.sfSymbol == obj.tool.sfSymbolName }) {
+                        canvasView.documentView.showHUDNotification(text: "\(toolType.localizedName) (\(toolType.mnemonicKey))")
+                    } else {
+                        canvasView.documentView.showHUDNotification(text: obj.tool.displayName)
+                    }
+                }
+                canvasView.documentView.needsDisplay = true
+                return
+            } else if !canvasView.engine.objects.isEmpty {
+                canvasView.documentView.needsDisplay = true
+                return
+            }
+        }
 
         // Delete / Backspace removes selected annotation
         if (keyCode == 51 || keyCode == 117), canvasView.engine.selectedObjectID != nil {
             canvasView.engine.deleteSelected()
+            canvasView.documentView.showHUDNotification(text: LocalizationManager.shared.tr(.hudDelete))
             canvasView.documentView.needsDisplay = true
             return
         }

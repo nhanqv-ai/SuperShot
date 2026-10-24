@@ -70,7 +70,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.21"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.22"
                 Button(action: { copyDiagnosticsToClipboard(version: version) }) {
                     HStack(spacing: 4) {
                         Text(LocalizationManager.shared.tr(.versionLabel(version)))
@@ -228,7 +228,7 @@ public struct AboutSettingsTab: View {
         let arch = "unknown"
         #endif
         let os = ProcessInfo.processInfo.operatingSystemVersionString
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "21"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "22"
         return "SuperShot v\(version) (\(arch)) • macOS \(os) • Build \(build)"
     }
 
@@ -293,9 +293,14 @@ public struct AboutSettingsTab: View {
                     .foregroundColor(.secondary)
             }
         case .upToDate:
-            Text(LocalizationManager.shared.tr(.upToDate))
-                .font(.system(size: 11, weight: .medium))
-                .foregroundColor(.green)
+            HStack(spacing: 4) {
+                Image(systemName: "checkmark.circle.fill")
+                    .foregroundColor(.green)
+                    .font(.system(size: 11))
+                Text(LocalizationManager.shared.tr(.upToDate))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundColor(.green)
+            }
         case .updateAvailable(let release):
             HStack(spacing: 6) {
                 Text(localizationManager.tr(.updateAvailable(release.tagName)))
@@ -303,7 +308,7 @@ public struct AboutSettingsTab: View {
                     .foregroundColor(.accentColor)
 
                 Button(action: {
-                    if release.zipAssetURL != nil {
+                    if release.preferredAssetURL != nil {
                         updateManager.startDownloadAndInstall(release: release)
                     } else {
                         NSWorkspace.shared.open(release.htmlURL)
@@ -337,19 +342,22 @@ public struct AboutSettingsTab: View {
                 ProgressView()
                     .controlSize(.small)
                     .scaleEffect(0.6)
-                Text(String(format: "%.0f%%", progress * 100))
+                Text(LocalizationManager.shared.tr(.downloadingUpdate))
+                    .font(.system(size: 11))
+                    .foregroundColor(.secondary)
+                Text(String(format: "(%.0f%%)", progress * 100))
                     .font(.system(size: 11))
                     .foregroundColor(.secondary)
             }
         case .readyToRestart:
             HStack(spacing: 6) {
-                Text(LocalizationManager.shared.tr(.installAndRestart))
+                Text(LocalizationManager.shared.tr(.updateReadyRestart))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(.accentColor)
                 Button(action: {
                     updateManager.restartApp()
                 }) {
-                    Text(LocalizationManager.shared.tr(.installAndRestart))
+                    Text(LocalizationManager.shared.tr(.restart))
                         .font(.system(size: 10, weight: .medium))
                 }
                 .buttonStyle(.borderedProminent)

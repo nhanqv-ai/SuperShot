@@ -267,6 +267,18 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 144 | VoiceOver Accessibility Role & Traits in Settings | .accessibilityRole(.tab) and .isSelected trait on SettingsTabButton | M50 | Cycle 14 Backlog |
 | 145 | Localization Hygiene & Button Alignment | 9-language parity for presets and text tool, and flush-left Reset button alignment | M50 | Cycle 14 Backlog |
 | 146 | Canonical Version Bump to v1.0.21 | Synchronize v1.0.21 (Build 21) across all canonical files, README, and test suites | M50 | Cycle 14 Backlog |
+| 147 | UpdateManager DMG Support | Discover `.dmg` assets, mount via `hdiutil attach`, copy app bundle, unmount | M54 | Cycle 15 Backlog |
+| 148 | Streaming Download Progress | `URLSessionDownloadDelegate` byte-level progress reporting from 0.0 to 1.0 | M54 | Cycle 15 Backlog |
+| 149 | Dynamic Staging Destination | Resolve `Bundle.main.bundleURL` dynamically for non-admin user installs | M54 | Cycle 15 Backlog |
+| 150 | Safe App Relaunch | Call terminationHandler inside `openApplication` completion callback with fallback timer | M54 | Cycle 15 Backlog |
+| 151 | Clean Quarantine Removal | Strip `com.apple.quarantine` on staged bundle before relaunch via xattr | M54 | Cycle 15 Backlog |
+| 152 | About Tab Status Text & Button Fix | Resolve duplicate label to `.updateReadyRestart` + `.restart` | M54 | Cycle 15 Backlog |
+| 153 | About Tab Downloading Label & Checkmark | Add `.downloadingUpdate` context text and green checkmark icon to `.upToDate` state | M54 | Cycle 15 Backlog |
+| 154 | Annotation Deletion HUD Pill | Add `.hudDelete` across all 9 languages with transient HUD pill on Delete/Backspace | M54 | Cycle 15 Backlog |
+| 155 | Popover Context Menu SF Symbols | Native `Label(title, systemImage: icon)` with 0 emojis in `ShotRowView` | M54 | Cycle 15 Backlog |
+| 156 | Keyboard Selection Cycling | `Tab` / `Shift+Tab` cycling across vector annotations via `AnnotationEngine.selectNextObject` | M54 | Cycle 15 Backlog |
+| 157 | Popover Safe Download Fallback | Browser fallback when asset URL is nil in `MainShotView` | M54 | Cycle 15 Backlog |
+| 158 | Canonical Version Bump to v1.0.22 | Increment version to 1.0.22 (Build 22) across all 8 canonical project locations | M54 | Cycle 15 Backlog |
 
 ## Milestones
 
@@ -318,9 +330,13 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M47 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M46 | DONE |
 | M48 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.20 -> public repo check -> app relaunch | M47 | DONE |
 | M49 | Survey & Live GUI Driver Audit | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UX/feature opportunities, verify release invariants (v1.0.21) | none | DONE |
-| M50 | Implementation of Proactive UX Polish & Version Bump | Implement Features 137-146, 0 emojis, bump 8 locations to 1.0.21, make lint, make test, make adversarial, make app, verify_bundle | M49 | IN_PROGRESS |
-| M51 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M50 | PLANNED |
-| M52 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.21 -> public repo check -> app relaunch | M51 | PLANNED |
+| M50 | Implementation of Proactive UX Polish & Version Bump | Implement Features 137-146, 0 emojis, bump 8 locations to 1.0.21, make lint, make test, make adversarial, make app, verify_bundle | M49 | DONE |
+| M51 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M50 | DONE |
+| M52 | Live GUI Verification, Automated Release Pipeline & App Relaunch | Git branch -> PR -> merge -> Universal 2 build -> GitHub release v1.0.21 -> public repo check -> app relaunch | M51 | DONE |
+| M53 | Survey & Live GUI Driver Audit (v1.0.22) | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UpdateManager and UX opportunities (v1.0.22) | none | DONE |
+| M54 | UpdateManager & UX Implementation | Implement Features 147-158, 0 emojis, bump 8 locations to 1.0.22, make lint, make test, make adversarial | M53 | DONE |
+| M55 | Live GUI & Automated Verification | Execute LiveGUIDriverV1022 with 47 snapshots, pass all test suites | M54 | DONE |
+| M56 | Automated Release Pipeline v1.0.22 & Live App Relaunch | Git branch -> PR #22 -> merge -> Universal 2 build -> GitHub release v1.0.22 -> public repo check -> app relaunch | M55 | IN_PROGRESS |
 
 ## Interface Contracts
 

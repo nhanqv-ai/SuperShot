@@ -116,6 +116,33 @@ public final class AnnotationEngine: ObservableObject {
         updateSelectionFlags()
     }
 
+    /// Cycles through vector annotation objects in forward or reverse order.
+    /// Returns the UUID of the newly selected object, or nil if no objects exist.
+    @discardableResult
+    public func selectNextObject(reverse: Bool = false) -> UUID? {
+        guard !objects.isEmpty else {
+            selectedObjectID = nil
+            updateSelectionFlags()
+            return nil
+        }
+
+        let nextIndex: Int
+        if let currentID = selectedObjectID, let currentIndex = objects.firstIndex(where: { $0.id == currentID }) {
+            if reverse {
+                nextIndex = (currentIndex - 1 + objects.count) % objects.count
+            } else {
+                nextIndex = (currentIndex + 1) % objects.count
+            }
+        } else {
+            nextIndex = reverse ? (objects.count - 1) : 0
+        }
+
+        let nextID = objects[nextIndex].id
+        selectedObjectID = nextID
+        updateSelectionFlags()
+        return nextID
+    }
+
     private func updateSelectionFlags() {
         for i in 0..<objects.count {
             objects[i].isSelected = (objects[i].id == selectedObjectID)
