@@ -94,6 +94,10 @@ struct VerificationRunner {
         // 22. Cycle 15 UpdateManager Enhancements & UI Polish Tests (v1.0.22)
         Cycle15Tests.run(sandboxDir: sandboxURL.appendingPathComponent("Cycle15Test"))
 
+        // 23. Cycle 16 Proactive UX & Feature Polish Tests (v1.0.23)
+        Cycle16Tests.run(sandboxDir: sandboxURL.appendingPathComponent("Cycle16Test"))
+
+
         let elapsed = Date().timeIntervalSince(startTimestamp)
         print("\nVerification completed in \(String(format: "%.3f", elapsed)) seconds.")
 

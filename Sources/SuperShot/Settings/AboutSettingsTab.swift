@@ -14,7 +14,9 @@ public struct AboutSettingsTab: View {
     @State private var showingResetAllConfirmation: Bool = false
     @State private var isHoveringVersion: Bool = false
     @State private var isDiagnosticsCopied: Bool = false
+    @State private var showingReleaseNotesSheet: Bool = false
     @State private var copyTask: Task<Void, Never>? = nil
+
 
     private static let cachedAppIcon: NSImage? = {
         guard let iconURL = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
@@ -70,7 +72,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.22"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.23"
                 Button(action: { copyDiagnosticsToClipboard(version: version) }) {
                     HStack(spacing: 4) {
                         Text(LocalizationManager.shared.tr(.versionLabel(version)))
@@ -161,18 +163,27 @@ public struct AboutSettingsTab: View {
                     .controlSize(.small)
                     .pointingHandCursor()
 
-                    Button(action: {
-                        updateManager.checkForUpdates(userInitiated: true)
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "arrow.triangle.2.circlepath")
-                            Text(LocalizationManager.shared.tr(.menuCheckUpdates))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Button(action: {
+                            updateManager.checkForUpdates(userInitiated: true)
+                        }) {
+                            HStack(spacing: 4) {
+                                Image(systemName: "arrow.triangle.2.circlepath")
+                                Text(LocalizationManager.shared.tr(.menuCheckUpdates))
+                            }
+                        }
+                        .buttonStyle(.bordered)
+                        .controlSize(.small)
+                        .disabled(updateManager.isBusy)
+                        .pointingHandCursor()
+
+                        if let lastDate = appSettings.lastUpdateCheckDate {
+                            Text(LocalizationManager.shared.tr(.lastCheckedLabel(RelativeTimeFormatter.format(lastDate))))
+                                .font(.system(size: 10))
+                                .foregroundColor(.secondary.opacity(0.8))
                         }
                     }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .disabled(updateManager.isBusy)
-                    .pointingHandCursor()
+
 
                     Spacer()
                 }
@@ -217,7 +228,15 @@ public struct AboutSettingsTab: View {
         .padding(14)
         .frame(maxWidth: .infinity)
         .cardStyle()
+        .sheet(isPresented: $showingReleaseNotesSheet) {
+            if let release = updateManager.latestRelease {
+                ReleaseNotesSheetView(release: release) {
+                    showingReleaseNotesSheet = false
+                }
+            }
+        }
     }
+
 
     public static func diagnosticString(version: String) -> String {
         #if arch(arm64)
@@ -228,7 +247,7 @@ public struct AboutSettingsTab: View {
         let arch = "unknown"
         #endif
         let os = ProcessInfo.processInfo.operatingSystemVersionString
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "22"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "23"
         return "SuperShot v\(version) (\(arch)) • macOS \(os) • Build \(build)"
     }
 
@@ -326,6 +345,19 @@ public struct AboutSettingsTab: View {
                 .pointingHandCursor()
 
                 Button(action: {
+                    showingReleaseNotesSheet = true
+                }) {
+                    Image(systemName: "doc.text.magnifyingglass")
+                        .font(.system(size: 11))
+                        .frame(width: 16, height: 16)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .foregroundColor(.secondary)
+                .pointingHandCursor()
+                .help(LocalizationManager.shared.tr(.viewReleaseNotes))
+
+                Button(action: {
                     NSWorkspace.shared.open(release.htmlURL)
                 }) {
                     Image(systemName: "arrow.up.forward.square")
@@ -338,16 +370,23 @@ public struct AboutSettingsTab: View {
                 .pointingHandCursor()
             }
         case .downloading(let progress):
-            HStack(spacing: 4) {
-                ProgressView()
-                    .controlSize(.small)
-                    .scaleEffect(0.6)
-                Text(LocalizationManager.shared.tr(.downloadingUpdate))
-                    .font(.system(size: 11))
+            HStack(spacing: 6) {
+                ProgressView(value: max(0.0, min(1.0, progress)), total: 1.0)
+                    .progressViewStyle(.linear)
+                    .frame(width: 90)
+                Text(String(format: "%.0f%%", progress * 100))
+                    .font(.system(size: 11, design: .monospaced))
                     .foregroundColor(.secondary)
-                Text(String(format: "(%.0f%%)", progress * 100))
-                    .font(.system(size: 11))
-                    .foregroundColor(.secondary)
+                Button(action: {
+                    updateManager.cancelDownload()
+                }) {
+                    Image(systemName: "xmark.circle")
+                        .font(.system(size: 11))
+                        .foregroundColor(.secondary)
+                }
+                .buttonStyle(.plain)
+                .pointingHandCursor()
+                .help(LocalizationManager.shared.tr(.cancelDownload))
             }
         case .readyToRestart:
             HStack(spacing: 6) {
@@ -365,10 +404,33 @@ public struct AboutSettingsTab: View {
                 .pointingHandCursor()
             }
         case .error(let msg):
-            Text(msg)
-                .font(.system(size: 11))
-                .foregroundColor(.red)
-                .lineLimit(1)
+            HStack(spacing: 6) {
+                Image(systemName: "exclamationmark.triangle.fill")
+                    .foregroundColor(.orange)
+                    .font(.system(size: 11))
+                Text(msg)
+                    .font(.system(size: 11))
+                    .foregroundColor(.red)
+                    .lineLimit(1)
+                    .help(msg)
+                Button(action: {
+                    if let rel = updateManager.latestRelease {
+                        updateManager.startDownloadAndInstall(release: rel)
+                    } else {
+                        updateManager.checkForUpdates(userInitiated: true)
+                    }
+                }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 10))
+                        Text(LocalizationManager.shared.tr(.retryButton))
+                            .font(.system(size: 10, weight: .medium))
+                    }
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.mini)
+                .pointingHandCursor()
+            }
         }
     }
 }

@@ -185,7 +185,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     private var _customVersion: String? = nil
     public var currentVersion: String {
         get {
-            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.22")
+            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.23")
         }
         set {
             _customVersion = newValue
@@ -258,6 +258,9 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     public weak var appSettings: AppSettings?
     private var periodicTimer: Timer?
     private let lock = NSLock()
+    public private(set) var activeDownloadTask: URLSessionDownloadTask?
+    public private(set) var activeDownloadDir: URL?
+
 
     // MARK: - Computed Properties
 
@@ -690,11 +693,23 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
             switch result {
             case .failure(let err):
                 DispatchQueue.main.async {
+                    if (err as? URLError)?.code == .cancelled {
+                        self.activeDownloadTask = nil
+                        self.activeDownloadDir = nil
+                        completion?(.failure(err))
+                        return
+                    }
+                    self.activeDownloadTask = nil
+                    self.activeDownloadDir = nil
                     self.status = .error(message: err.localizedDescription)
                     completion?(.failure(err))
                 }
 
             case .success(let downloadedPath):
+                DispatchQueue.main.async {
+                    self.activeDownloadTask = nil
+                    self.activeDownloadDir = nil
+                }
                 DispatchQueue.global(qos: .userInitiated).async {
                     defer {
                         let downloadDir = downloadedPath.deletingLastPathComponent()
@@ -726,6 +741,30 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         }
     }
 
+    /// Cancels any in-progress update download and cleans up staging resources.
+    public func cancelDownload() {
+        let block = { [weak self] in
+            guard let self = self else { return }
+            self.activeDownloadTask?.cancel()
+            self.activeDownloadTask = nil
+            if let dir = self.activeDownloadDir {
+                try? FileManager.default.removeItem(at: dir)
+                self.activeDownloadDir = nil
+            }
+            self.downloadProgress = 0.0
+            if let release = self.latestRelease {
+                self.status = .updateAvailable(release)
+            } else {
+                self.status = .idle
+            }
+        }
+        if Thread.isMainThread {
+            block()
+        } else {
+            DispatchQueue.main.async(execute: block)
+        }
+    }
+
     @discardableResult
     public func downloadAndInstall(release: ReleaseInfo, targetURL: URL? = nil) async throws -> URL {
         try await withCheckedThrowingContinuation { continuation in
@@ -743,6 +782,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         if url.isFileURL {
             let tempDir = FileManager.default.temporaryDirectory.appendingPathComponent("SuperShot-Update-\(UUID().uuidString)")
             try? FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+            self.activeDownloadDir = tempDir
             let dest = tempDir.appendingPathComponent(url.lastPathComponent)
             do {
                 if FileManager.default.fileExists(atPath: dest.path) {
@@ -772,6 +812,8 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
 
         let session = URLSession(configuration: self.urlSession.configuration, delegate: delegate, delegateQueue: nil)
         let task = session.downloadTask(with: url)
+        self.activeDownloadDir = tempDir
+        self.activeDownloadTask = task
         task.resume()
     }
 

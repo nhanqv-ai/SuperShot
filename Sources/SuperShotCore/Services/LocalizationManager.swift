@@ -105,8 +105,11 @@ public final class LocalizationManager: ObservableObject, @unchecked Sendable {
     }
 }
 
+public typealias LocalizationKey = L10nKey
+
 /// Strongly-typed localization keys covering all user-facing strings across SuperShot.
 public enum L10nKey: Sendable {
+
     // General App & Controls
     case appTitle
     case searchPlaceholder
@@ -342,6 +345,20 @@ public enum L10nKey: Sendable {
     case hudDuplicate
     case hudDelete
     case quickSelectHintWithPinned
+
+    // Update Flow & Annotation Polish (v1.0.23 / Cycle 16)
+    case cancelDownload
+    case retryButton
+    case viewReleaseNotes
+    case releaseNotesSheetTitle(String)
+    case releaseNotesFallback
+    case lastCheckedLabel(String)
+    case copiedDimensions
+    case copyFilePath
+    case copyDimensions
+    case hudNudge(Int)
+    case hudResize(Int, Int)
+
 
     public func localized(for lang: AppLanguage) -> String {
         switch self {
@@ -2848,6 +2865,139 @@ public enum L10nKey: Sendable {
             case .korean: return "⌥1-9: 고정됨 · 1-9: 최근 항목"
             default: return "⌥1-9: Pinned · 1-9: Recent"
             }
+
+        case .cancelDownload:
+            switch lang {
+            case .vietnamese: return "Hủy tải về"
+            case .german: return "Download abbrechen"
+            case .french: return "Annuler le téléchargement"
+            case .spanish: return "Cancelar descarga"
+            case .japanese: return "ダウンロードをキャンセル"
+            case .simplifiedChinese: return "取消下载"
+            case .traditionalChinese: return "取消下載"
+            case .korean: return "다운로드 취소"
+            default: return "Cancel Download"
+            }
+
+        case .retryButton:
+            switch lang {
+            case .vietnamese: return "Thử lại"
+            case .german: return "Wiederholen"
+            case .french: return "Réessayer"
+            case .spanish: return "Reintentar"
+            case .japanese: return "再試行"
+            case .simplifiedChinese: return "重试"
+            case .traditionalChinese: return "重試"
+            case .korean: return "다시 시도"
+            default: return "Retry"
+            }
+
+        case .viewReleaseNotes:
+            switch lang {
+            case .vietnamese: return "Xem ghi chú phát hành"
+            case .german: return "Versionshinweise anzeigen"
+            case .french: return "Voir les notes de version"
+            case .spanish: return "Ver notas de la versión"
+            case .japanese: return "リリースノートを表示"
+            case .simplifiedChinese: return "查看发布说明"
+            case .traditionalChinese: return "查看版本資訊"
+            case .korean: return "릴리스 노트 보기"
+            default: return "View Release Notes"
+            }
+
+        case .releaseNotesSheetTitle(let tag):
+            switch lang {
+            case .vietnamese: return "Ghi chú phát hành SuperShot \(tag)"
+            case .german: return "SuperShot \(tag) Versionshinweise"
+            case .french: return "Notes de version SuperShot \(tag)"
+            case .spanish: return "Notas de la versión de SuperShot \(tag)"
+            case .japanese: return "SuperShot \(tag) リリースノート"
+            case .simplifiedChinese: return "SuperShot \(tag) 发布说明"
+            case .traditionalChinese: return "SuperShot \(tag) 版本資訊"
+            case .korean: return "SuperShot \(tag) 릴리스 노트"
+            default: return "SuperShot \(tag) Release Notes"
+            }
+
+        case .releaseNotesFallback:
+            switch lang {
+            case .vietnamese: return "Không có ghi chú phát hành cho bản cập nhật này."
+            case .german: return "Keine Versionshinweise für dieses Update verfügbar."
+            case .french: return "Aucune note de version disponible pour cette mise à jour."
+            case .spanish: return "No hay notas de la versión disponibles para esta actualización."
+            case .japanese: return "このアップデートのリリースノートはありません。"
+            case .simplifiedChinese: return "此更新没有可用的发布说明。"
+            case .traditionalChinese: return "此更新沒有可用的版本資訊。"
+            case .korean: return "이 업데이트에 대한 릴리스 노트가 없습니다."
+            default: return "No release notes available for this update."
+            }
+
+        case .lastCheckedLabel(let timeStr):
+            switch lang {
+            case .vietnamese: return "Đã kiểm tra: \(timeStr)"
+            case .german: return "Zuletzt geprüft: \(timeStr)"
+            case .french: return "Dernière vérification : \(timeStr)"
+            case .spanish: return "Última comprobación: \(timeStr)"
+            case .japanese: return "最終確認: \(timeStr)"
+            case .simplifiedChinese: return "上次检查：\(timeStr)"
+            case .traditionalChinese: return "上次檢查：\(timeStr)"
+            case .korean: return "마지막 확인: \(timeStr)"
+            default: return "Last checked: \(timeStr)"
+            }
+
+        case .copiedDimensions:
+            switch lang {
+            case .vietnamese: return "Đã sao chép kích thước"
+            case .german: return "Abmessungen kopiert"
+            case .french: return "Dimensions copiées"
+            case .spanish: return "Dimensiones copiadas"
+            case .japanese: return "寸法をコピーしました"
+            case .simplifiedChinese: return "已复制尺寸"
+            case .traditionalChinese: return "已複製尺寸"
+            case .korean: return "치수 복사됨"
+            default: return "Copied Dimensions"
+            }
+
+        case .copyFilePath:
+            switch lang {
+            case .vietnamese: return "Sao chép đường dẫn tệp"
+            case .german: return "Dateipfad kopieren"
+            case .french: return "Copier le chemin du fichier"
+            case .spanish: return "Copiar ruta del archivo"
+            case .japanese: return "ファイルパスをコピー"
+            case .simplifiedChinese: return "复制文件路径"
+            case .traditionalChinese: return "複製檔案路徑"
+            case .korean: return "파일 경로 복사"
+            default: return "Copy File Path"
+            }
+
+        case .copyDimensions:
+            switch lang {
+            case .vietnamese: return "Sao chép kích thước"
+            case .german: return "Abmessungen kopieren"
+            case .french: return "Copier les dimensions"
+            case .spanish: return "Copiar dimensiones"
+            case .japanese: return "寸法をコピー"
+            case .simplifiedChinese: return "复制尺寸"
+            case .traditionalChinese: return "複製尺寸"
+            case .korean: return "치수 복사"
+            default: return "Copy Dimensions"
+            }
+
+        case .hudNudge(let step):
+            switch lang {
+            case .vietnamese: return "Dịch chuyển (\(step)pt)"
+            case .german: return "Verschieben (\(step)pt)"
+            case .french: return "Déplacement (\(step)pt)"
+            case .spanish: return "Desplazar (\(step)pt)"
+            case .japanese: return "微調整 (\(step)pt)"
+            case .simplifiedChinese: return "微调 (\(step)pt)"
+            case .traditionalChinese: return "微調 (\(step)pt)"
+            case .korean: return "미세 조정 (\(step)pt)"
+            default: return "Nudge (\(step)pt)"
+            }
+
+        case .hudResize(let w, let h):
+            return "\(w) x \(h) px"
         }
     }
 }

@@ -279,6 +279,20 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 156 | Keyboard Selection Cycling | `Tab` / `Shift+Tab` cycling across vector annotations via `AnnotationEngine.selectNextObject` | M54 | Cycle 15 Backlog |
 | 157 | Popover Safe Download Fallback | Browser fallback when asset URL is nil in `MainShotView` | M54 | Cycle 15 Backlog |
 | 158 | Canonical Version Bump to v1.0.22 | Increment version to 1.0.22 (Build 22) across all 8 canonical project locations | M54 | Cycle 15 Backlog |
+| 159 | Update Download Cancellation & Abort Recovery | Retain activeDownloadTask, implement cancelDownload() in UpdateManager, add cancel button in About tab and MainShotView banner | M58 | Cycle 16 Backlog |
+| 160 | Determinate Linear Progress Bar in About Tab | Replace indeterminate spinner with ProgressView(value:total:).progressViewStyle(.linear) alongside percentage | M58 | Cycle 16 Backlog |
+| 161 | In-App Release Notes Viewer Sheet | Add in-app release notes viewer modal/sheet with formatted typography, fallback, and close action | M58 | Cycle 16 Backlog |
+| 162 | Update Error Reporting with Inline Retry Action | Display warning icon, full error tooltip, and direct "Retry" button on check/download failures | M58 | Cycle 16 Backlog |
+| 163 | Last Checked Timestamp Caption in About Tab | Display subtle "Last checked: ..." caption below Check for Updates button | M58 | Cycle 16 Backlog |
+| 164 | Double-Click Selection to Quick-Copy & Dismiss | Double-clicking inside selectionRect (not hitting text object) triggers triggerCopy() with HUD pill and dismisses | M58 | Cycle 16 Backlog |
+| 165 | Interactive Dimension Badge Click-to-Copy | Hit-test dimension badge frame on click; copy "W x H px" string to pasteboard with "Copied Dimensions" HUD pill | M58 | Cycle 16 Backlog |
+| 166 | Positional Index & Total Count in Object Cycling HUD | Format Tab / Shift+Tab HUD as "\(tool) \(index + 1)/\(total) (\(key))" in both in-place overlay & scrollable canvas | M58 | Cycle 16 Backlog |
+| 167 | History Context Menu: Copy File Path & Copy Dimensions | Add Copy File Path and Copy Dimensions to ShotRowView.contextMenu | M58 | Cycle 16 Backlog |
+| 168 | Keyboard Nudge & Resize HUD Pill Feedback | Show transient HUD indicator on arrow key nudging ("Nudge (1pt)" / "Nudge (10pt)") and Option+Arrow object resizing ("W x H px") | M58 | Cycle 16 Backlog |
+| 169 | Search Filter Empty State Quick Reset Button | Add prominent "Clear Search" button with xmark.circle icon in emptySearchView for 1-click query clearing | M58 | Cycle 16 Backlog |
+| 170 | LiveGUIDriverV1023 On-Screen GUI Driver Updates | Update Live GUI Driver to V1023, run on-screen audit, capture 47+ Retina snapshots into scratch/v1023_audit_screenshots/ | M59 | Cycle 16 Backlog |
+| 171 | Canonical Version Bump to v1.0.23 | Synchronize version 1.0.23 (Build 23) across all 8 canonical locations & downstream test assertions | M60 | Cycle 16 Backlog |
+| 172 | Automated Release Pipeline (PR #23, Merge, Universal 2, GitHub Release, Public Repo, App Relaunch) | Git feature branch, PR #23 creation, squash/merge to main, Universal 2 zip/dmg build, GitHub Release v1.0.23, public repo verification, and live app relaunch | M60 | Cycle 16 Backlog |
 
 ## Milestones
 
@@ -336,7 +350,11 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M53 | Survey & Live GUI Driver Audit (v1.0.22) | Run LiveGUIDriver, inspect on-screen GUI snapshots, investigate UpdateManager and UX opportunities (v1.0.22) | none | DONE |
 | M54 | UpdateManager & UX Implementation | Implement Features 147-158, 0 emojis, bump 8 locations to 1.0.22, make lint, make test, make adversarial | M53 | DONE |
 | M55 | Live GUI & Automated Verification | Execute LiveGUIDriverV1022 with 47 snapshots, pass all test suites | M54 | DONE |
-| M56 | Automated Release Pipeline v1.0.22 & Live App Relaunch | Git branch -> PR #22 -> merge -> Universal 2 build -> GitHub release v1.0.22 -> public repo check -> app relaunch | M55 | IN_PROGRESS |
+| M56 | Automated Release Pipeline v1.0.22 & Live App Relaunch | Git branch -> PR #22 -> merge -> Universal 2 build -> GitHub release v1.0.22 -> public repo check -> app relaunch | M55 | DONE |
+| M57 | Survey & Live GUI Driver Audit (v1.0.23) | Explorers 1, 2, 3 survey codebase, Live GUI driver, git/release baseline | none | DONE |
+| M58 | Proactive UX & Feature Polish | Implement F1–F11, 0 emojis, add Cycle16Tests.swift, unit test pass | M57 | DONE |
+| M59 | Live On-Screen GUI Execution & Verification | Implement & run LiveGUIDriverV1023.swift, verify 56 Retina snapshots, run make lint, make test, make adversarial | M58 | DONE |
+| M60 | Canonical Version Bump, PR #23, Release & App Relaunch | Synchronize 8 canonical files to 1.0.23 / Build 23, update downstream tests, create PR #23, merge into main, Universal 2 release, public repo check, relaunch SuperShot.app | M59 | IN_PROGRESS |
 
 ## Interface Contracts
 
