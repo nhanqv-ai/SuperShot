@@ -208,6 +208,18 @@ public struct ScrollingCoordinateMapper {
     /// Maps a Cocoa window/screen selection rectangle (bottom-left origin) into CoreGraphics global coordinates (top-left origin).
     public static func targetScrollCenter(
         selectionRect: CGRect,
+        display: CaptureDisplayInfo
+    ) -> CGPoint {
+        let localCenterX = selectionRect.midX
+        let localCenterY = selectionRect.midY
+        let globalX = display.cgBounds.minX + localCenterX
+        let globalY = display.cgBounds.minY + (display.cgBounds.height - localCenterY)
+        return CGPoint(x: globalX, y: globalY)
+    }
+
+    /// Backwards-compatible mapping using screenBounds.
+    public static func targetScrollCenter(
+        selectionRect: CGRect,
         screenBounds: CGRect
     ) -> CGPoint {
         let centerX = selectionRect.midX
@@ -493,7 +505,7 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
                 }
                 let pt = ScrollingCoordinateMapper.targetScrollCenter(
                     selectionRect: self.selectionRect,
-                    screenBounds: disp.cocoaFrame
+                    display: disp
                 )
                 return (pt, disp, self.selectionRect, self.configuration.scrollStepDelta)
             }

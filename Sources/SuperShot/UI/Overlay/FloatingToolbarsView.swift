@@ -161,12 +161,20 @@ public final class FloatingToolbarsViewModel: ObservableObject {
     @Published public var isStrokeWidthPresented: Bool = false
     @Published public var selectionRect: CGRect = .zero
     @Published public var verticalToolbarFrame: CGRect = .zero
+    @Published public var canvasBounds: CGRect = .zero
 
     public var popoverArrowEdge: Edge {
         let vFrame = verticalToolbarFrame
         guard vFrame != .zero else { return .leading }
-        let screenMidX = NSScreen.main?.visibleFrame.midX ?? 720.0
-        return (vFrame.minX < screenMidX ? .trailing : .leading)
+        let midX: CGFloat
+        if canvasBounds.width > 0 {
+            midX = canvasBounds.midX
+        } else if let windowMidX = defaultAnchorView?.window?.contentView?.bounds.midX, windowMidX > 0 {
+            midX = windowMidX
+        } else {
+            midX = 720.0
+        }
+        return (vFrame.minX < midX ? .trailing : .leading)
     }
 
     public let appSettings: AppSettings

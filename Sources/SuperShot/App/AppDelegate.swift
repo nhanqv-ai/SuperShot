@@ -6,9 +6,9 @@ import SuperShotCore
 
 public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayWindowDelegate, ScrollingCaptureDelegate {
     public static var shared: AppDelegate?
-    // Canonical Application Version: 1.0.24 (Build 24)
-    public static let canonicalVersion = "1.0.24"
-    public static let canonicalBuild = "24"
+    // Canonical Application Version: 1.0.25 (Build 25)
+    public static let canonicalVersion = "1.0.25"
+    public static let canonicalBuild = "25"
 
     // Core Managers & Services
     public var storageManager: StorageManager!
@@ -195,14 +195,18 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         activeScrollRegionBorderWindow?.close()
         activeScrollRegionBorderWindow = nil
 
-        let borderWin = ScrollingRegionBorderWindow(selectionRect: selectionRect)
+        let globalSelectionRect = selectionRect.offsetBy(
+            dx: display.cocoaFrame.minX,
+            dy: display.cocoaFrame.minY
+        )
+        let borderWin = ScrollingRegionBorderWindow(selectionRect: globalSelectionRect)
         borderWin.orderFront(nil)
         self.activeScrollRegionBorderWindow = borderWin
 
         let panel = LiveStitchedPreviewPanel(
             captureManager: ScrollingCaptureManager.shared,
             screenFrame: display.cocoaFrame,
-            selectionRect: selectionRect
+            selectionRect: globalSelectionRect
         )
         panel.onFinished = { [weak self] image, _, _ in
             guard let self = self else { return }

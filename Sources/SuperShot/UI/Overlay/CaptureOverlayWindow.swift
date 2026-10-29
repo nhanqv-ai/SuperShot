@@ -55,6 +55,7 @@ public class CaptureOverlayWindow: NSPanel {
     public override var canBecomeMain: Bool { true }
 
     public override func close() {
+        contentViewRef?.cleanup()
         NSCursor.arrow.set()
         super.close()
     }

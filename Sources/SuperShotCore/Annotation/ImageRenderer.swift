@@ -24,8 +24,8 @@ public struct ImageRenderer {
         let baseH = CGFloat(baseImage.height)
 
         let targetRect = cropRect ?? CGRect(x: 0, y: 0, width: baseW / scale, height: baseH / scale)
-        let pixelW = max(1, Int(targetRect.width * scale))
-        let pixelH = max(1, Int(targetRect.height * scale))
+        let pixelW = max(1, Int(round(targetRect.width * scale)))
+        let pixelH = max(1, Int(round(targetRect.height * scale)))
 
         let colorSpace = baseImage.colorSpace ?? CGColorSpaceCreateDeviceRGB()
         let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
@@ -47,22 +47,40 @@ public struct ImageRenderer {
         context.interpolationQuality = .high
 
         // Flip coordinates so (0,0) is top-left in point space
+        let effectiveHeightPt = CGFloat(pixelH) / scale
+        let baseWidthPt = baseW / scale
+        let baseHeightPt = baseH / scale
         context.translateBy(x: 0, y: CGFloat(pixelH))
         context.scaleBy(x: scale, y: -scale)
 
-        // Draw cropped base image
+        // Draw cropped base image aligned with top-left targetRect origin
         let drawOriginX = -targetRect.minX
         let drawOriginY = -targetRect.minY
 
         context.saveGState()
-        context.translateBy(x: 0, y: targetRect.height)
+        context.translateBy(x: 0, y: effectiveHeightPt)
         context.scaleBy(x: 1.0, y: -1.0)
-        context.draw(baseImage, in: CGRect(x: drawOriginX, y: -drawOriginY - targetRect.height, width: baseW / scale, height: baseH / scale))
+        context.draw(
+            baseImage,
+            in: CGRect(
+                x: drawOriginX,
+                y: effectiveHeightPt - drawOriginY - baseHeightPt,
+                width: baseWidthPt,
+                height: baseHeightPt
+            )
+        )
         context.restoreGState()
 
         // 1. First pass: Composite Region Blur / Pixelate overlays
         for obj in annotations where obj.tool == .blur {
-            drawBlurRegion(obj: obj, baseImage: baseImage, context: context, targetRect: targetRect, scale: scale)
+            drawBlurRegion(
+                obj: obj,
+                baseImage: baseImage,
+                context: context,
+                targetRect: targetRect,
+                effectiveHeightPt: effectiveHeightPt,
+                scale: scale
+            )
         }
 
         // 2. Second pass: Composite Vector Drawing Annotations (translated by targetRect origin)
@@ -243,6 +261,7 @@ public struct ImageRenderer {
         baseImage: CGImage,
         context: CGContext,
         targetRect: CGRect,
+        effectiveHeightPt: CGFloat,
         scale: CGFloat
     ) {
         let b = obj.bounds
@@ -254,9 +273,9 @@ public struct ImageRenderer {
 
         if let ciFiltered = renderCoreImagePixelate(baseImage: baseImage, rect: intersect, scale: scale) {
             context.saveGState()
-            context.translateBy(x: 0, y: targetRect.height)
+            context.translateBy(x: 0, y: effectiveHeightPt)
             context.scaleBy(x: 1.0, y: -1.0)
-            let drawY = -(localY + intersect.height) + targetRect.height
+            let drawY = -(localY + intersect.height) + effectiveHeightPt
             context.draw(ciFiltered, in: CGRect(x: localX, y: drawY, width: intersect.width, height: intersect.height))
             context.restoreGState()
             return
@@ -273,12 +292,15 @@ public struct ImageRenderer {
         guard let output = filter.outputImage else { return nil }
 
         let ciContext = CIContext(options: [.useSoftwareRenderer: false])
-        let crop = CGRect(
+        let rawCrop = CGRect(
             x: rect.minX * scale,
             y: (CGFloat(baseImage.height) - (rect.minY + rect.height) * scale),
             width: rect.width * scale,
             height: rect.height * scale
         )
+        let crop = rawCrop.intersection(ciImage.extent)
+        guard !crop.isNull, crop.width >= 1, crop.height >= 1 else { return nil }
+
         return ciContext.createCGImage(output, from: crop)
     }
 

@@ -412,6 +412,11 @@ public struct AnnotationEngineTests {
 
         // 13. M34: Vector Layer Z-Index Reordering & Undo/Redo
         testLayerZIndexReorderingAndUndoRedo()
+
+        // 14. M65: Pen & Highlighter Inversion Mirroring, Canvas Popover Edge, and Blur Clamping
+        testPenAndHighlighterMirrorInversionAcrossAnchors()
+        testFloatingToolbarPopoverArrowEdgeCanvasMidpoint()
+        testImageRendererBlurClampingAndSubpixelPrecision()
     }
 
     private static func makeTestCGImage(width: Int = 400, height: Int = 300) -> CGImage {
@@ -450,6 +455,43 @@ public struct AnnotationEngineTests {
         TestHarness.assertNotNil(croppedRendered, "ImageRenderer produced non-nil cropped & composited CGImage")
         TestHarness.assertEqual(croppedRendered?.width, 200, "Cropped Retina @2x width is 200px (100pt * 2)")
         TestHarness.assertEqual(croppedRendered?.height, 160, "Cropped Retina @2x height is 160px (80pt * 2)")
+
+        // Pixel-level vertical alignment verification across 4 distinct color bands (200x200px = 100x100pt @ 2x)
+        let colorSpace = CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        if let bandCtx = CGContext(data: nil, width: 200, height: 200, bitsPerComponent: 8, bytesPerRow: 800, space: colorSpace, bitmapInfo: bitmapInfo) {
+            // In CGContext bottom-left pixel space:
+            // y=150..200 (top quarter, y_top=0..25pt) = RED (255,0,0)
+            // y=100..150 (2nd quarter, y_top=25..50pt) = GREEN (0,255,0)
+            // y=50..100  (3rd quarter, y_top=50..75pt) = BLUE (0,0,255)
+            // y=0..50    (bottom quarter, y_top=75..100pt) = YELLOW (255,255,0)
+            bandCtx.setFillColor(CGColor(red: 1, green: 1, blue: 0, alpha: 1))
+            bandCtx.fill(CGRect(x: 0, y: 0, width: 200, height: 50))
+            bandCtx.setFillColor(CGColor(red: 0, green: 0, blue: 1, alpha: 1))
+            bandCtx.fill(CGRect(x: 0, y: 50, width: 200, height: 50))
+            bandCtx.setFillColor(CGColor(red: 0, green: 1, blue: 0, alpha: 1))
+            bandCtx.fill(CGRect(x: 0, y: 100, width: 200, height: 50))
+            bandCtx.setFillColor(CGColor(red: 1, green: 0, blue: 0, alpha: 1))
+            bandCtx.fill(CGRect(x: 0, y: 150, width: 200, height: 50))
+
+            if let bandedBase = bandCtx.makeImage() {
+                // Crop 2nd quarter (y_top = 25..50, GREEN) with a white rectangle annotation at (10, 30, 20, 10)
+                let rectAnnot = AnnotationObject(tool: .rectangle, bounds: CGRect(x: 10, y: 30, width: 20, height: 10), colorHex: "#FFFFFF", strokeWidth: 2.0)
+                if let greenCrop = ImageRenderer.render(
+                    baseImage: bandedBase,
+                    annotations: [rectAnnot],
+                    cropRect: CGRect(x: 0, y: 25, width: 100, height: 25),
+                    scale: 2.0
+                ), let provider = greenCrop.dataProvider, let data = provider.data, let ptr = CFDataGetBytePtr(data) {
+                    // Background pixel at (2, 2) should be GREEN (G > 200, R < 50, B < 50)
+                    let bgOffset = (2 * greenCrop.bytesPerRow) + (2 * 4)
+                    TestHarness.assertTrue(ptr[bgOffset + 1] > 200 && ptr[bgOffset] < 50, "Cropped 2nd quarter background aligns to GREEN band without vertical shift")
+                    // Annotation top border at pt (20, 5) -> px (40, 10) should be WHITE
+                    let strokeOffset = (10 * greenCrop.bytesPerRow) + (40 * 4)
+                    TestHarness.assertTrue(ptr[strokeOffset] > 200 && ptr[strokeOffset + 1] > 200 && ptr[strokeOffset + 2] > 200, "Annotation stroke aligns with cropped region at exact expected pixel offset")
+                }
+            }
+        }
     }
 
     private static func testAnnotationObjectDuplicationPropertiesAndOffset() {
@@ -963,5 +1005,77 @@ public struct AnnotationEngineTests {
         cyclingEngine.deselectAll()
         let reverseFromNone = cyclingEngine.selectNextObject(reverse: true)
         TestHarness.assertEqual(reverseFromNone, obj3.id, "selectNextObject(reverse: true) selects obj3 from unselected state")
+    }
+
+    private static func testPenAndHighlighterMirrorInversionAcrossAnchors() {
+        // Pen stroke with points from left to right: (10, 10), (30, 20), (50, 30)
+        var pen = AnnotationObject(
+            tool: .pen,
+            points: [CGPoint(x: 10, y: 10), CGPoint(x: 30, y: 20), CGPoint(x: 50, y: 30)],
+            bounds: CGRect(x: 10, y: 10, width: 40, height: 20)
+        )
+        // Bounding box: x: 10, y: 10, width: 40, height: 20 (minX: 10, maxX: 50, minY: 10, maxY: 30)
+        TestHarness.assertEqual(pen.bounds.minX, 10.0, "Initial pen minX is 10")
+        TestHarness.assertEqual(pen.bounds.maxX, 50.0, "Initial pen maxX is 50")
+
+        // Drag left handle (.middleLeft) across anchor past maxX to x = 70
+        pen.resize(handle: .middleLeft, to: CGPoint(x: 70, y: 20))
+        // New bounds: min(70, 50) = 50, newW = abs(50 - 70) = 20
+        TestHarness.assertEqual(pen.bounds.minX, 50.0, "Mirrored pen minX is 50")
+        TestHarness.assertEqual(pen.bounds.width, 20.0, "Mirrored pen width is 20")
+
+        // Inverted X: points should mirror horizontally
+        // Point originally at x=10 (left edge) should now be at right edge (x=70)
+        TestHarness.assertEqual(pen.points[0].x, 70.0, "Point originally at left edge mirrored to right edge (x=70)")
+        // Point originally at x=50 (right edge) should now be at left edge (x=50)
+        TestHarness.assertEqual(pen.points[2].x, 50.0, "Point originally at right edge mirrored to left edge (x=50)")
+        // Midpoint at x=30 (midway) should remain centered at x=60
+        TestHarness.assertEqual(pen.points[1].x, 60.0, "Midpoint remains centered at x=60")
+
+        // Highlighter stroke with vertical inversion: drag top handle (.topCenter) past bottom to y = 60
+        var highlighter = AnnotationObject(
+            tool: .highlighter,
+            points: [CGPoint(x: 100, y: 20), CGPoint(x: 200, y: 40)],
+            bounds: CGRect(x: 100, y: 20, width: 100, height: 20)
+        )
+        highlighter.resize(handle: .topCenter, to: CGPoint(x: 150, y: 60))
+        // Original bounds minY: 20, maxY: 40. Dragged minY past maxY to 60 -> newY = 40, newH = 20
+        TestHarness.assertEqual(highlighter.bounds.minY, 40.0, "Mirrored highlighter minY is 40")
+        TestHarness.assertEqual(highlighter.bounds.height, 20.0, "Mirrored highlighter height is 20")
+        // Original point at y=20 (top) mirrors to bottom (y=60)
+        TestHarness.assertEqual(highlighter.points[0].y, 60.0, "Highlighter top point mirrored to bottom (y=60)")
+        // Original point at y=40 (bottom) mirrors to top (y=40)
+        TestHarness.assertEqual(highlighter.points[1].y, 40.0, "Highlighter bottom point mirrored to top (y=40)")
+    }
+
+    private static func testFloatingToolbarPopoverArrowEdgeCanvasMidpoint() {
+        let vm = FloatingToolbarsViewModel()
+        vm.verticalToolbarFrame = CGRect(x: 200, y: 100, width: 44, height: 300)
+        vm.canvasBounds = CGRect(x: 0, y: 0, width: 1920, height: 1080)
+
+        // Left half of canvas (200 < 960) -> .trailing popover arrow
+        TestHarness.assertEqual(vm.popoverArrowEdge, .trailing, "Toolbar on left side of canvas uses .trailing arrow")
+
+        // Right half of canvas (1200 >= 960) -> .leading popover arrow
+        vm.verticalToolbarFrame = CGRect(x: 1200, y: 100, width: 44, height: 300)
+        TestHarness.assertEqual(vm.popoverArrowEdge, .leading, "Toolbar on right side of canvas uses .leading arrow")
+    }
+
+    private static func testImageRendererBlurClampingAndSubpixelPrecision() {
+        let base = makeTestCGImage(width: 200, height: 200)
+        // Annotation partially outside image extent (x: -50, y: -50, w: 100, h: 100)
+        let outOfBoundsBlur = AnnotationObject(
+            tool: .blur,
+            bounds: CGRect(x: -50, y: -50, width: 100, height: 100)
+        )
+        let rendered = ImageRenderer.render(
+            baseImage: base,
+            annotations: [outOfBoundsBlur],
+            cropRect: nil,
+            scale: 2.0
+        )
+        TestHarness.assertNotNil(rendered, "ImageRenderer handles out-of-bounds blur annotation with extent clamping")
+        TestHarness.assertEqual(rendered?.width, 200, "Rendered width is 200px (100pt @ 2x)")
+        TestHarness.assertEqual(rendered?.height, 200, "Rendered height is 200px (100pt @ 2x)")
     }
 }

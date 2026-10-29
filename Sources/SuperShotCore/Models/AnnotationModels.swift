@@ -487,6 +487,8 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
             break
         }
 
+        let isFlippedX = maxX < minX
+        let isFlippedY = maxY < minY
         let newX = min(minX, maxX)
         let newY = min(minY, maxY)
         let newW = max(1.0, abs(maxX - minX))
@@ -495,12 +497,16 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
         let oldBounds = bounds
         bounds = CGRect(x: newX, y: newY, width: newW, height: newH)
 
-        if !points.isEmpty && oldBounds.width > 0 && oldBounds.height > 0 {
-            let scaleX = newW / oldBounds.width
-            let scaleY = newH / oldBounds.height
+        if !points.isEmpty {
+            let origW = max(1.0, oldBounds.width)
+            let origH = max(1.0, oldBounds.height)
+            let scaleX = newW / origW
+            let scaleY = newH / origH
             points = points.map { pt in
-                let relX = (pt.x - oldBounds.minX) * scaleX
-                let relY = (pt.y - oldBounds.minY) * scaleY
+                let normalizedX = pt.x - oldBounds.minX
+                let normalizedY = pt.y - oldBounds.minY
+                let relX = (isFlippedX ? (oldBounds.width - normalizedX) : normalizedX) * scaleX
+                let relY = (isFlippedY ? (oldBounds.height - normalizedY) : normalizedY) * scaleY
                 return CGPoint(x: newX + relX, y: newY + relY)
             }
         }

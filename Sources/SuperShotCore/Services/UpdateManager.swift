@@ -185,7 +185,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     private var _customVersion: String? = nil
     public var currentVersion: String {
         get {
-            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.24")
+            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.25")
         }
         set {
             _customVersion = newValue
@@ -296,6 +296,10 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         config.timeoutIntervalForRequest = 15.0
         config.timeoutIntervalForResource = 60.0
         self.urlSession = session ?? URLSession(configuration: config)
+    }
+
+    deinit {
+        stopPeriodicCheck()
     }
 
     // MARK: - Semantic Version Comparison
