@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.24"><img src="https://img.shields.io/badge/version-v1.0.24-blue.svg?style=flat-square" alt="Version v1.0.24"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.25"><img src="https://img.shields.io/badge/version-v1.0.25-blue.svg?style=flat-square" alt="Version v1.0.25"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -118,6 +118,16 @@ SuperShot provides a fast, flexible color management system for all vector annot
    - Manage presets directly: right-click to delete a preset, or reset presets to factory defaults in **Preferences** -> **Capture & Save**.
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
+
+### What's New in v1.0.25
+
+- **Pixel-Exact Image Crop & Offset Alignment**: Fixed a latent vertical rendering bug in `ImageRenderer.render` where background imagery shifted relative to vector annotations when `cropRect != nil`, guaranteeing exact coordinate parity across scales.
+- **Multi-Display Coordinate Mapping**: Hardened `ScrollingCoordinateMapper` to resolve absolute screen coordinates across primary, secondary, and negative-origin display configurations (`cgBounds` vs `cocoaFrame`).
+- **Typography Baseline & Layout Parity**: Synchronized CoreText font rendering across `SelectionBoxView`, `ScrollableCanvasView`, and `ImageRenderer` with dynamic bounding box expansion and zero-bleed vertical alignment.
+- **Blur Region Clamping & Anti-Bleed Guarantees**: Enforced strict CIImage extent clamping in pixelation filters, preventing edge sample bleed and darkening at frame boundaries.
+- **Inverted Handle Resizing with Geometric Mirroring**: Enhanced pen and highlighter vector annotations to cleanly mirror control points across axes when dragged past opposite resize handles without collapsing or zero-width crashes.
+- **Concurrency & Lifecycle Leak Prevention**: Fortified timer invalidation in `UpdateManager` with deinit safety and guaranteed rapid task cancellation during auto-paste operations in `MainShotView`.
+- **Pixel-Accurate Synthetic Image Regression Test Suite**: Comprehensive automated test coverage (`Cycle18Tests.swift`) utilizing 4-quadrant, banded, and high-frequency checkerboard synthetic images to verify zero-pixel drift.
 
 ### What's New in v1.0.24
 
@@ -279,7 +289,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.24.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.25.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -422,6 +432,16 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
    - Quản lý nhanh: Nhấp chuột phải để xóa màu preset, hoặc khôi phục 8 màu ban đầu trong **Cài đặt** -> **Chụp & Lưu**.
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
+
+### Điểm mới trong v1.0.25
+
+- **Căn chỉnh cắt ảnh chính xác từng pixel (Zero Vertical Shift)**: Khắc phục triệt để lỗi lệch tọa độ trục dọc trong `ImageRenderer.render` khi cắt ảnh có vùng chọn (`cropRect != nil`), đảm bảo ảnh nền và chú thích khớp chính xác tuyệt đối trên mọi độ phân giải.
+- **Chuyển đổi tọa độ đa màn hình chuẩn xác**: Nâng cấp `ScrollingCoordinateMapper` giúp ánh xạ chính xác tọa độ cuộn trên các màn hình phụ có vị trí âm hoặc xếp chồng (`cgBounds` và `cocoaFrame`).
+- **Đồng bộ hiển thị văn bản & Đường cơ sở chữ**: Chuẩn hóa cách vẽ chữ qua CoreText trên cả ba bề mặt `SelectionBoxView`, `ScrollableCanvasView` và `ImageRenderer`, hỗ trợ tự động mở rộng khung viền chữ động khi gõ văn bản dài.
+- **Chống tràn viền và kẹp biên cho vùng làm mờ (Mosaic Blur)**: Áp dụng cơ chế kẹp biên vùng quét `CIImage`, loại bỏ hiện tượng đen viền hoặc lem màu ra ngoài phạm vi che mờ ở các cạnh ảnh.
+- **Co giãn đảo chiều thông minh cho nét vẽ tự do**: Cho phép kéo các điểm điều khiển của nét bút vẽ (`pen`) và bút dạ quang (`highlighter`) qua trục đối diện mà vẫn giữ nguyên hình dạng phản chiếu (mirroring), không bị xẹp nét hay lỗi chia cho 0.
+- **Tối ưu vòng đời tiến trình & Hủy tác vụ an toàn**: Đảm bảo giải phóng bộ đếm thời gian trong `UpdateManager` khi hủy đối tượng và hủy tác vụ dán tự động tức thì khi chọn nhanh các mục lịch sử trong `MainShotView`.
+- **Bộ kiểm thử hồi quy ảnh mẫu đa vùng màu (Cycle 18)**: Tích hợp bộ kiểm tra tự động `Cycle18Tests.swift` sử dụng ảnh 4 góc phần tư, dải màu ngang và bàn cờ tần số cao để đo đạc độ lệch từng pixel.
 
 ### Điểm mới trong v1.0.24
 
@@ -583,7 +603,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.24.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.25.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

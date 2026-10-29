@@ -303,6 +303,15 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 180 | Zero-Emoji Multilingual Localization (9 Languages) | Complete zero-emoji localized strings for quick copy, font size HUD, fit window tooltip, and copy notifications | M61 | Cycle 17 Backlog |
 | 181 | Live On-Screen GUI Driver Updates (v1.0.24) | Update Live GUIDriver to V1024, execute 5 interactive surfaces, and verify Retina snapshots | M62 | Cycle 17 Backlog |
 | 182 | Automated Release Pipeline (PR #24, Universal 2, GitHub Release v1.0.24) | Feature branch, PR #24, squash/merge, Universal 2 zip/dmg, GitHub Release v1.0.24, public verification, and app relaunch | M64 | Cycle 17 Backlog |
+| 183 | Pixel-Exact Crop & Alignment in ImageRenderer | Resolve latent vertical rendering shift when cropRect != nil, ensuring exact alignment between background imagery and annotations | M65 | Cycle 18 Backlog |
+| 184 | Multi-Display Coordinate Translation | Enhanced coordinate translation in ScrollingCoordinateMapper across non-standard, stacked, and negative-origin monitors | M65 | Cycle 18 Backlog |
+| 185 | Typography Baseline & Layout Parity | CoreText line drawing parity across SelectionBoxView, ScrollableCanvasView, and ImageRenderer with dynamic bounds expansion | M65 | Cycle 18 Backlog |
+| 186 | Blur Region Clamping & Anti-Bleed Guarantees | Strict CIImage extent clamping preventing transparent edge bleed and border sample artifacts during mosaic pixelation | M65 | Cycle 18 Backlog |
+| 187 | Inverted Handle Resizing with Point Mirroring | Drag-across-anchor reflection for pen and highlighter strokes preserving vector geometry without squishing | M65 | Cycle 18 Backlog |
+| 188 | Concurrency & Timer Lifecycle Hardening | Weak self capture and timer invalidation in UpdateManager deinit, rapid task cancellation in MainShotView | M65 | Cycle 18 Backlog |
+| 189 | Pixel-Accurate Synthetic Image Regression Test Suite | Comprehensive synthetic image generator (4-quadrant, banded, checkerboard) verifying 0-pixel shift in Cycle18Tests.swift | M66 | Cycle 18 Backlog |
+| 190 | Live On-Screen GUI Driver Updates (v1.0.25) | Implement and run LiveGUIDriverV1025.swift, verifying all interactive surfaces on screen | M67 | Cycle 18 Backlog |
+| 191 | Canonical Version Bump & Automated Release Pipeline | Synchronize 8 canonical files to 1.0.25 / Build 25, update downstream tests, PR #25, Universal 2 build, and GitHub release v1.0.25 | M67/M68 | Cycle 18 Backlog |
 
 ## Milestones
 
@@ -368,6 +377,10 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M62 | Live On-Screen GUI Execution & Verification | Implement & run LiveGUIDriverV1024.swift, verify 56+ Retina snapshots, run make lint, make test, make adversarial | M61 | DONE |
 | M63 | Multi-Angle Review, Adversarial Challenge & Forensic Audit | 2 Reviewers, 2 Challengers, 1 Forensic Auditor (binary veto) | M62 | DONE |
 | M64 | Canonical Version Bump, PR #24, Release & App Relaunch | Synchronize 8 canonical files to 1.0.24 / Build 24, update downstream tests, create PR #24, merge into main, Universal 2 release, public repo check, relaunch SuperShot.app | M63 | DONE |
+| M65 | Latent Bug Hunt & Coordinate Alignment Fixes | Fix ImageRenderer crop vertical shift, multi-display mapper, typography parity, blur clamping, and inverted handle resizing | M64 | DONE |
+| M66 | Pixel-Accurate Regression Test Suite | Implement Cycle18Tests.swift with synthetic image tests (4-quadrant, banded, checkerboard) and lifecycle checks | M65 | DONE |
+| M67 | Canonical Version Bump & Live GUI Verification | Synchronize 8 canonical files to 1.0.25 / Build 25, run LiveGUIDriverV1025, verify 0 emojis, make lint, make test | M66 | DONE |
+| M68 | Multi-Angle Review, PR #25 & Release Pipeline | Independent review, adversarial challenge, PR #25 merge, Universal 2 package, GitHub release v1.0.25, live app relaunch | M67 | IN_PROGRESS |
 
 ## Interface Contracts
 

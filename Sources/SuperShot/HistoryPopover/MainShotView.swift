@@ -32,6 +32,7 @@ public struct MainShotView: View {
     @State private var showClearedToast: Bool = false
     @State private var clearFeedbackTask: Task<Void, Never>? = nil
     @State private var showingReleaseNotesSheet: Bool = false
+    @State private var autoPasteTask: Task<Void, Never>? = nil
 
 
     public init(
@@ -784,10 +785,9 @@ public struct MainShotView: View {
         let targetApp = previousAppTracker.previousApp
         let autoPasteEnabled = appSettings?.autoPasteOnSelection ?? true
         if autoPasteEnabled {
-            Task {
-                if let image = storageManager.loadCGImage(for: item) {
-                    _ = await autoPasteService.pasteImageDirectly(image, targetApp: targetApp)
-                }
+            autoPasteTask?.cancel()
+            autoPasteTask = Task { @MainActor in
+                _ = autoPasteService.pasteToActiveApp(targetApp: targetApp, delay: 0.035)
             }
         }
     }

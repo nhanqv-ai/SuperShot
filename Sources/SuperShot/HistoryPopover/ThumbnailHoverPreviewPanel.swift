@@ -189,6 +189,13 @@ public final class ThumbnailHoverPreviewPanel: NSPanel {
         self.contentView = hostingView
     }
 
+    deinit {
+        showTimer?.invalidate()
+        showTimer = nil
+        hideTimer?.invalidate()
+        hideTimer = nil
+    }
+
     public func show(for item: ShotItem) {
         hideTimer?.invalidate()
         hideTimer = nil

@@ -96,6 +96,41 @@ public struct ScrollingCaptureTests {
             screenBounds: screen
         )
         TestHarness.assertEqual(bottomTarget.y, 800.0, "Bottom selection converts to CG Y = 800")
+
+        // Multi-Display coordinate mapping overload tests
+        let mainDisplay = CaptureDisplayInfo(
+            displayID: 1,
+            name: "Main",
+            cocoaFrame: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            cgBounds: CGRect(x: 0, y: 0, width: 1440, height: 900),
+            scaleFactor: 2.0,
+            isMain: true,
+            pixelSize: CGSize(width: 2880, height: 1800)
+        )
+        let mainTarget = ScrollingCoordinateMapper.targetScrollCenter(
+            selectionRect: selection,
+            display: mainDisplay
+        )
+        TestHarness.assertEqual(mainTarget.x, 500.0, "Main display center X is 500")
+        TestHarness.assertEqual(mainTarget.y, 400.0, "Main display center Y is 400")
+
+        // Secondary display at x: 1440, y: 100 with resolution 1920x1080
+        let secondaryDisplay = CaptureDisplayInfo(
+            displayID: 2,
+            name: "External Right",
+            cocoaFrame: CGRect(x: 1440, y: -180, width: 1920, height: 1080),
+            cgBounds: CGRect(x: 1440, y: 100, width: 1920, height: 1080),
+            scaleFactor: 2.0,
+            isMain: false,
+            pixelSize: CGSize(width: 3840, height: 2160)
+        )
+        let secSelection = CGRect(x: 200, y: 300, width: 600, height: 400)
+        let secTarget = ScrollingCoordinateMapper.targetScrollCenter(
+            selectionRect: secSelection,
+            display: secondaryDisplay
+        )
+        TestHarness.assertEqual(secTarget.x, 1940.0, "Secondary display center X mapped with global offset (1440 + 500 = 1940)")
+        TestHarness.assertEqual(secTarget.y, 680.0, "Secondary display center Y mapped with global offset (100 + (1080 - 500) = 680)")
     }
 
     // MARK: - Test 3: State Machine Transitions

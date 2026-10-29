@@ -355,6 +355,14 @@ public final class AnnotationEngine: ObservableObject {
         let oldText = objects[idx].text
         let oldBounds = objects[idx].bounds
         objects[idx].text = newText
+        let font = NSFont.systemFont(ofSize: objects[idx].fontSize, weight: .semibold)
+        let textSize = (newText as NSString).size(withAttributes: [.font: font])
+        objects[idx].bounds = CGRect(
+            x: oldBounds.minX,
+            y: oldBounds.minY,
+            width: max(textSize.width + 12.0, oldBounds.width),
+            height: max(textSize.height + 8.0, oldBounds.height)
+        )
         let action = AnnotationAction.editText(id: id, oldText: oldText, newText: newText, oldBounds: oldBounds, newBounds: objects[idx].bounds)
         pushUndo(action)
     }

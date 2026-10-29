@@ -53,6 +53,11 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         fatalError("init(coder:) has not been implemented")
     }
 
+    deinit {
+        toolHUDTimer?.invalidate()
+        toolHUDTimer = nil
+    }
+
     public override var acceptsFirstResponder: Bool { true }
 
     public override func updateTrackingAreas() {
@@ -1062,7 +1067,9 @@ public final class ScrollableCanvasView: NSView {
             scale: documentView.scale
         ) else { return }
 
-        let image = NSImage(cgImage: rendered, size: NSSize(width: rendered.width, height: rendered.height))
+        let ptWidth = CGFloat(rendered.width) / max(1.0, documentView.scale)
+        let ptHeight = CGFloat(rendered.height) / max(1.0, documentView.scale)
+        let image = NSImage(cgImage: rendered, size: NSSize(width: ptWidth, height: ptHeight))
         let picker = NSSharingServicePicker(items: [image])
         picker.show(relativeTo: view.bounds, of: view, preferredEdge: .minY)
     }

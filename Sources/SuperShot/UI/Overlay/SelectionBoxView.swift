@@ -75,6 +75,15 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         fatalError("init(coder:) has not been implemented")
     }
 
+    public func cleanup() {
+        toolHUDTimer?.invalidate()
+        toolHUDTimer = nil
+    }
+
+    deinit {
+        cleanup()
+    }
+
     public override var acceptsFirstResponder: Bool { true }
 
     public override func updateTrackingAreas() {
@@ -300,6 +309,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         verticalToolbarHost?.frame = resolved.vertical
         horizontalToolbarHost?.frame = resolved.horizontal
         toolbarsViewModel.verticalToolbarFrame = resolved.vertical
+        toolbarsViewModel.canvasBounds = bounds
         updateToolbarVisibility()
     }
 
@@ -566,14 +576,23 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             guard !obj.text.isEmpty, editingObjectID != obj.id else { break }
             let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
             let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: nsColor]
-            let attrStr = NSAttributedString(string: obj.text, attributes: attrs)
-            let textSize = attrStr.size()
-            attrStr.draw(in: CGRect(
-                x: obj.bounds.minX,
-                y: obj.bounds.minY,
-                width: max(textSize.width + 12, obj.bounds.width),
-                height: max(textSize.height + 8, obj.bounds.height)
-            ))
+            let lines = obj.text.components(separatedBy: .newlines)
+            let lineHeight = obj.fontSize * 1.25
+
+            for (index, rawLine) in lines.enumerated() {
+                guard !rawLine.isEmpty else { continue }
+                let attrStr = NSAttributedString(string: rawLine, attributes: attrs)
+                let line = CTLineCreateWithAttributedString(attrStr)
+
+                context.saveGState()
+                context.translateBy(
+                    x: obj.bounds.minX,
+                    y: obj.bounds.maxY - obj.fontSize - CGFloat(index) * lineHeight
+                )
+                context.textPosition = .zero
+                CTLineDraw(line, context)
+                context.restoreGState()
+            }
         case .blur, .select:
             break
         }
