@@ -164,6 +164,19 @@ public final class AnnotationEngine: ObservableObject {
 
         // 1. If activeTool is .select, check if user clicked on a resize handle of selected object
         if effectiveTool == .select, let sel = selectedObject {
+            // For small annotations, prioritize moving when clicking inside the object body
+            let minDim = min(sel.bounds.width, sel.bounds.height)
+            let isSmallShape = (sel.tool != .line && sel.tool != .arrow) && (minDim > 0 && minDim <= 24.0)
+
+            if isSmallShape && sel.contains(point: point) {
+                let center = CGPoint(x: sel.bounds.midX, y: sel.bounds.midY)
+                if hypot(point.x - center.x, point.y - center.y) <= max(4.0, minDim / 2.0) {
+                    isDraggingExistingObject = true
+                    preDragObjectSnapshot = sel
+                    return
+                }
+            }
+
             if let handle = sel.handle(at: point) {
                 activeResizeHandle = handle
                 preDragObjectSnapshot = sel
@@ -268,6 +281,24 @@ public final class AnnotationEngine: ObservableObject {
         activeDragObject = draft
     }
 
+    /// Indicates whether any interactive drag gesture is actively underway.
+    public var isDragging: Bool {
+        dragStartPoint != nil || activeDragObject != nil || isDraggingExistingObject || activeResizeHandle != nil
+    }
+
+    /// Aborts interactive drag in progress, rolling back any in-place mutations to objects.
+    public func cancelDrag() {
+        if let snapshot = preDragObjectSnapshot,
+           let index = objects.firstIndex(where: { $0.id == snapshot.id }) {
+            objects[index] = snapshot
+        }
+        dragStartPoint = nil
+        isDraggingExistingObject = false
+        activeResizeHandle = nil
+        preDragObjectSnapshot = nil
+        activeDragObject = nil
+    }
+
     /// Commits interactive drag upon mouse up.
     @discardableResult
     public func endDrag(at endPoint: CGPoint) -> AnnotationObject? {
@@ -307,8 +338,18 @@ public final class AnnotationEngine: ObservableObject {
         // Case C: Finished drawing new object
         guard let draft = activeDragObject else { return nil }
 
-        if draft.tool != .text && draft.bounds.width < 2.0 && draft.bounds.height < 2.0 && draft.points.count < 2 {
-            return nil
+        // Filter out degenerate ghost annotations (< 1.0pt length / micro-drags)
+        if draft.tool != .text {
+            if draft.tool == .line || draft.tool == .arrow {
+                if draft.points.count >= 2 {
+                    let len = hypot(draft.points[1].x - draft.points[0].x, draft.points[1].y - draft.points[0].y)
+                    if len < 1.0 { return nil }
+                } else {
+                    return nil
+                }
+            } else if draft.bounds.width <= 1.0 && draft.bounds.height <= 1.0 {
+                return nil
+            }
         }
 
         addObject(draft)

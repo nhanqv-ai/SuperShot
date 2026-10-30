@@ -312,6 +312,8 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 189 | Pixel-Accurate Synthetic Image Regression Test Suite | Comprehensive synthetic image generator (4-quadrant, banded, checkerboard) verifying 0-pixel shift in Cycle18Tests.swift | M66 | Cycle 18 Backlog |
 | 190 | Live On-Screen GUI Driver Updates (v1.0.25) | Implement and run LiveGUIDriverV1025.swift, verifying all interactive surfaces on screen | M67 | Cycle 18 Backlog |
 | 191 | Canonical Version Bump & Automated Release Pipeline | Synchronize 8 canonical files to 1.0.25 / Build 25, update downstream tests, PR #25, Universal 2 build, and GitHub release v1.0.25 | M67/M68 | Cycle 18 Backlog |
+| 192 | Latent Bug Fixes across Stitching, Canvas & Annotations | Low-entropy flat-MAD guard, sticky dedup resilience, frame tolerance, overlay Esc/Space tiering, edge crop clamping, handle minBy selection, metadata backup | M69 | Cycle 19 Backlog |
+| 193 | Cycle 19 Regression Test Suite & Canonical Version Bump | Comprehensive Cycle19Tests.swift with non-uniform synthetic images, version bump to 1.0.26 / Build 26 across 8 files | M69/M70 | Cycle 19 Backlog |
 
 ## Milestones
 
@@ -380,7 +382,9 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M65 | Latent Bug Hunt & Coordinate Alignment Fixes | Fix ImageRenderer crop vertical shift, multi-display mapper, typography parity, blur clamping, and inverted handle resizing | M64 | DONE |
 | M66 | Pixel-Accurate Regression Test Suite | Implement Cycle18Tests.swift with synthetic image tests (4-quadrant, banded, checkerboard) and lifecycle checks | M65 | DONE |
 | M67 | Canonical Version Bump & Live GUI Verification | Synchronize 8 canonical files to 1.0.25 / Build 25, run LiveGUIDriverV1025, verify 0 emojis, make lint, make test | M66 | DONE |
-| M68 | Multi-Angle Review, PR #25 & Release Pipeline | Independent review, adversarial challenge, PR #25 merge, Universal 2 package, GitHub release v1.0.25, live app relaunch | M67 | IN_PROGRESS |
+| M68 | Multi-Angle Review, PR #25 & Release Pipeline | Independent review, adversarial challenge, PR #25 merge, Universal 2 package, GitHub release v1.0.25, live app relaunch | M67 | DONE |
+| M69 | Latent Bug Fixes & Cycle 19 Regression Tests | Low-entropy flat-MAD guard, sticky dedup resilience, frame tolerance, overlay Esc/Space tiering, edge crop clamping, handle minBy selection, metadata backup, add Cycle19Tests.swift | M68 | DONE |
+| M70 | Canonical Version Bump to 1.0.26 / Build 26 | Synchronize 8 canonical files to 1.0.26 / Build 26, update downstream tests, 0 emojis, make lint, make test | M69 | DONE |
 
 ## Interface Contracts
 

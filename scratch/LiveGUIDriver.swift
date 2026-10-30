@@ -7,9 +7,9 @@ import SwiftUI
 @MainActor
 struct LiveGUIDriver {
     static let outputDirs = [
-        "/Users/nhanquach/my-screenshot-app/scratch/v1025_audit_screenshots",
-        "/Users/nhanquach/.gemini/antigravity-cli/brain/f4f9f44a-e27d-464d-b681-6bd7bf390195/scratch/v1025_audit_screenshots",
-        "/Users/nhanquach/.gemini/antigravity-cli/brain/ab5f35fc-54c1-448d-885d-4133b74bae30/scratch/v1025_audit_screenshots"
+        "/Users/nhanquach/my-screenshot-app/scratch/v1026_audit_screenshots",
+        "/Users/nhanquach/.gemini/antigravity-cli/brain/f4f9f44a-e27d-464d-b681-6bd7bf390195/scratch/v1026_audit_screenshots",
+        "/Users/nhanquach/.gemini/antigravity-cli/brain/ab5f35fc-54c1-448d-885d-4133b74bae30/scratch/v1026_audit_screenshots"
     ]
 
     static func snapshotWindow(_ window: NSWindow, to filename: String) {
@@ -78,7 +78,7 @@ struct LiveGUIDriver {
 
     static func main() {
         print("====================================================================")
-        print("  SUPERSHOT v1.0.25 LIVE ON-SCREEN GUI & INTERACTIVE UX AUDIT DRIVER")
+        print("  SUPERSHOT v1.0.26 LIVE ON-SCREEN GUI & INTERACTIVE UX AUDIT DRIVER")
         print("====================================================================")
 
         for dir in outputDirs {
@@ -854,7 +854,7 @@ struct LiveGUIDriver {
             colorHex: "#007AFF",
             strokeWidth: 3,
             fontSize: 22,
-            text: "SuperShot v1.0.25 Live GUI Verification"
+            text: "SuperShot v1.0.26 Live GUI Verification"
         )
         engine.addObject(txtObj)
         engine.selectedObjectID = txtObj.id
@@ -1284,7 +1284,7 @@ struct LiveGUIDriver {
                 image: finalRendered,
                 sourceApp: "Safari",
                 captureType: .region,
-                tags: ["v1.0.25", "annotated", "shift-constrained"]
+                tags: ["v1.0.26", "annotated", "shift-constrained"]
             )
         }
         overlay.close()
@@ -1652,7 +1652,7 @@ struct LiveGUIDriver {
                 image: secondImg,
                 sourceApp: "Xcode",
                 captureType: .scrolling,
-                tags: ["pinned", "v1.0.25"]
+                tags: ["pinned", "v1.0.26"]
             ) {
                 delegate.storageManager.togglePin(id: pinnedItem.id)
                 createdPinnedItem = delegate.storageManager.items.first(where: { $0.id == pinnedItem.id })
@@ -1670,7 +1670,7 @@ struct LiveGUIDriver {
                 image: thirdImg,
                 sourceApp: "Terminal",
                 captureType: .region,
-                tags: ["recent", "v1.0.25"]
+                tags: ["recent", "v1.0.26"]
             )
         }
 
@@ -1738,14 +1738,14 @@ struct LiveGUIDriver {
         assert(viTooltip.contains("Chụp") || viTooltip.contains("SuperShot"), "Tooltip in Vietnamese must update dynamically")
         LocalizationManager.shared.setLanguage(code: "en")
 
-        // 2. Popover WITH update banner (Cycle 18 Target: v1.0.25 / Build 25)
+        // 2. Popover WITH update banner (Cycle 19 Target: v1.0.26 / Build 26)
         let sampleRelease = ReleaseInfo(
-            tagName: "v1.0.25",
-            name: "SuperShot v1.0.25",
-            releaseNotes: "## Improvements\n- Pixel-Exact Image Crop & Offset Alignment\n- Multi-Display Coordinate Mapping\n- Typography Baseline & Layout Parity\n- Blur Region Clamping & Anti-Bleed Guarantees\n- Inverted Handle Resizing with Geometric Mirroring\n- Concurrency & Lifecycle Leak Prevention",
-            htmlURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.25")!,
-            zipAssetURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.25/SuperShot-v1.0.25.zip"),
-            dmgAssetURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.25/SuperShot-v1.0.25.dmg")
+            tagName: "v1.0.26",
+            name: "SuperShot v1.0.26",
+            releaseNotes: "## Improvements\n- Stitching Zero-Delta Low-Entropy Alignment\n- Moving Frame Header and Footer Deduplication\n- Spacebar and Escape Gesture Protection\n- Deterministic Scaled Handle Hit-Testing\n- Metadata Backup Resilience",
+            htmlURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.26")!,
+            zipAssetURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.26/SuperShot-v1.0.26.zip"),
+            dmgAssetURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.26/SuperShot-v1.0.26.dmg")
         )
         UpdateManager.shared.status = .updateAvailable(sampleRelease)
         assert(UpdateManager.shared.shouldShowBanner, "Update banner should be visible when update is available")
@@ -1877,7 +1877,7 @@ struct LiveGUIDriver {
             snapshotWindow(settingsWin, to: "16_surface5_settings_about_en.png")
 
             // Tab 4: About - State 2: .upToDate
-            UpdateManager.shared.status = .upToDate(currentVersion: "1.0.25")
+            UpdateManager.shared.status = .upToDate(currentVersion: "1.0.26")
             RunLoop.current.run(until: Date().addingTimeInterval(0.15))
             snapshotWindow(settingsWin, to: "16a_surface5_settings_about_uptodate_en.png")
 
@@ -1913,10 +1913,10 @@ struct LiveGUIDriver {
             snapshotWindow(sheetWin, to: "16d_surface5_release_notes_sheet.png")
 
             let fallbackRelease = ReleaseInfo(
-                tagName: "v1.0.25",
-                name: "SuperShot v1.0.25",
+                tagName: "v1.0.26",
+                name: "SuperShot v1.0.26",
                 releaseNotes: "",
-                htmlURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.25")!
+                htmlURL: URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.26")!
             )
             let fallbackNotesView = ReleaseNotesSheetView(release: fallbackRelease) {}
             sheetWin.contentView = NSHostingView(rootView: fallbackNotesView)
@@ -1948,7 +1948,7 @@ struct LiveGUIDriver {
             delegate.openSettings(tab: .about)
             snapshotWindow(settingsWin, to: "20_surface5_settings_about_vi.png")
 
-            UpdateManager.shared.status = .upToDate(currentVersion: "1.0.25")
+            UpdateManager.shared.status = .upToDate(currentVersion: "1.0.26")
             RunLoop.current.run(until: Date().addingTimeInterval(0.15))
             snapshotWindow(settingsWin, to: "20a_surface5_settings_about_uptodate_vi.png")
 
@@ -2000,11 +2000,11 @@ struct LiveGUIDriver {
             RunLoop.current.run(until: Date().addingTimeInterval(0.15))
 
             // 7c. About Tab Diagnostic String Verification
-            let currentVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.25"
-            let currentBld = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "25"
+            let currentVer = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.26"
+            let currentBld = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "26"
             let diag = AboutSettingsTab.diagnosticString(version: currentVer)
-            assert(diag.contains("SuperShot v\(currentVer)") || diag.contains("SuperShot v1.0.24") || diag.contains("SuperShot v1.0.25"), "Diagnostic string must contain SuperShot version")
-            assert(diag.contains("Build \(currentBld)") || diag.contains("Build 24") || diag.contains("Build 25"), "Diagnostic string must contain Build number")
+            assert(diag.contains("SuperShot v\(currentVer)") || diag.contains("SuperShot v1.0.26"), "Diagnostic string must contain SuperShot version")
+            assert(diag.contains("Build \(currentBld)") || diag.contains("Build 26"), "Diagnostic string must contain Build number")
 
             // 8. Test Escape key dismissal
             let escEvent = NSEvent.keyEvent(

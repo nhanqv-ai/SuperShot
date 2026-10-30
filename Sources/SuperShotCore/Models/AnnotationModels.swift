@@ -292,7 +292,7 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
         return hypot(p.x - projection.x, p.y - projection.y)
     }
 
-    /// Tests proximity to arrowhead wings.
+    /// Tests proximity to arrowhead wings, base segment, and interior filled triangle.
     private func isNearArrowHead(point: CGPoint, p1: CGPoint, p2: CGPoint, threshold: CGFloat) -> Bool {
         let dx = p2.x - p1.x
         let dy = p2.y - p1.y
@@ -311,9 +311,22 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
             y: p2.y - headLen * sin(theta + wingAngle)
         )
 
+        // 1. Proximity to barbed wings or rear base segment
         let d1 = AnnotationObject.distanceToSegment(p: point, v: p2, w: w1)
         let d2 = AnnotationObject.distanceToSegment(p: point, v: p2, w: w2)
-        return min(d1, d2) <= threshold
+        let d3 = AnnotationObject.distanceToSegment(p: point, v: w1, w: w2)
+        if min(d1, min(d2, d3)) <= threshold { return true }
+
+        // 2. Point inside filled triangle (p2, w1, w2) via cross-product test
+        func sign(pt: CGPoint, v1: CGPoint, v2: CGPoint) -> CGFloat {
+            (pt.x - v2.x) * (v1.y - v2.y) - (v1.x - v2.x) * (pt.y - v2.y)
+        }
+        let s1 = sign(pt: point, v1: p2, v2: w1)
+        let s2 = sign(pt: point, v1: w1, v2: w2)
+        let s3 = sign(pt: point, v1: w2, v2: p2)
+        let hasNeg = (s1 < 0) || (s2 < 0) || (s3 < 0)
+        let hasPos = (s1 > 0) || (s2 > 0) || (s3 > 0)
+        return !(hasNeg && hasPos)
     }
 
     // MARK: - Handle Detection & Positions
@@ -341,14 +354,36 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
         ]
     }
 
-    /// Hit-tests grab handles for this object.
+    /// Hit-tests grab handles for this object, returning the closest handle within hitRadius.
     public func handle(at point: CGPoint, hitRadius: CGFloat = 8.0) -> AnnotationHandle? {
-        for (handle, handlePt) in handlePositions() {
-            if hypot(point.x - handlePt.x, point.y - handlePt.y) <= hitRadius {
-                return handle
+        let positions = handlePositions()
+
+        // Scale down hit radius for small objects so handles don't consume the interior
+        let minDimension = min(bounds.width, bounds.height)
+        let effectiveRadius: CGFloat
+        if tool == .line || tool == .arrow {
+            if points.count >= 2 {
+                let len = hypot(points[1].x - points[0].x, points[1].y - points[0].y)
+                effectiveRadius = min(hitRadius, max(3.0, len / 2.0))
+            } else {
+                effectiveRadius = hitRadius
+            }
+        } else {
+            effectiveRadius = minDimension > 0 ? min(hitRadius, max(3.0, minDimension / 2.5)) : hitRadius
+        }
+
+        var closestHandle: AnnotationHandle?
+        var minDistance: CGFloat = .infinity
+
+        // Deterministic nearest grab handle (minBy Euclidean distance)
+        for (handle, handlePt) in positions {
+            let dist = hypot(point.x - handlePt.x, point.y - handlePt.y)
+            if dist <= effectiveRadius && dist < minDistance {
+                minDistance = dist
+                closestHandle = handle
             }
         }
-        return nil
+        return closestHandle
     }
 
     // MARK: - Transformations
