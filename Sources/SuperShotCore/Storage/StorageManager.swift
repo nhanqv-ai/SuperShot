@@ -74,6 +74,9 @@ public final class StorageManager: ObservableObject, StorageManaging {
     public let imagesDirectory: URL
     public let thumbnailsDirectory: URL
     public let metadataURL: URL
+    public var backupMetadataURL: URL {
+        metadataURL.appendingPathExtension("bak")
+    }
     public let settingsURL: URL
 
     private let fileQueue = DispatchQueue(label: "com.supershot.storage.fileio", qos: .utility)
@@ -370,26 +373,32 @@ public final class StorageManager: ObservableObject, StorageManaging {
     private func saveMetadata() {
         let snapshot = self._items
         let url = self.metadataURL
+        let backupURL = self.backupMetadataURL
         let enc = self.encoder
         fileQueue.async {
             if let data = try? enc.encode(snapshot) {
+                // If previous valid metadata file exists on disk, create/update backup
+                if FileManager.default.fileExists(atPath: url.path) {
+                    try? FileManager.default.removeItem(at: backupURL)
+                    try? FileManager.default.copyItem(at: url, to: backupURL)
+                }
                 try? data.write(to: url, options: .atomic)
             }
         }
     }
 
     private func loadFromDisk() {
-        guard FileManager.default.fileExists(atPath: metadataURL.path),
-              let data = try? Data(contentsOf: metadataURL) else {
-            self._items = []
-            return
+        let urlsToTry = [metadataURL, backupMetadataURL]
+        for url in urlsToTry {
+            if FileManager.default.fileExists(atPath: url.path),
+               let data = try? Data(contentsOf: url),
+               let loaded = try? decoder.decode([ShotItem].self, from: data) {
+                self._items = loaded
+                return
+            }
         }
-        if let loaded = try? decoder.decode([ShotItem].self, from: data) {
-            self._items = loaded
-        } else {
-            // Graceful corrupt recovery
-            self._items = []
-        }
+        // Graceful corrupt recovery
+        self._items = []
     }
 
     // MARK: - Image Utilities

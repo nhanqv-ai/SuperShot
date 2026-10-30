@@ -903,6 +903,48 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     // MARK: - Mouse & Keyboard Interaction
 
     public func handleOverlayKeyDown(with event: NSEvent) -> Bool {
+        // Tier 0: Handle active drag gestures (Esc cancel, Space pan)
+        if dragMode != .none {
+            if event.keyCode == 53 { // Esc cancels active drag gesture without closing overlay window
+                switch dragMode {
+                case .creating:
+                    selectionRect = .zero
+                    dragMode = .none
+                case .resizing:
+                    selectionRect = initialResizingRect
+                    initialResizingRect = .zero
+                    dragMode = .none
+                case .moving(_, let originalRect):
+                    let dx = originalRect.minX - selectionRect.minX
+                    let dy = originalRect.minY - selectionRect.minY
+                    for i in 0..<annotationEngine.objects.count {
+                        annotationEngine.objects[i].translate(by: CGPoint(x: dx, y: dy))
+                    }
+                    selectionRect = originalRect
+                    dragMode = .none
+                case .annotating:
+                    annotationEngine.cancelDrag()
+                    dragMode = .none
+                case .none:
+                    break
+                }
+                spaceKeyDragging = false
+                isSpaceKeyPressed = false
+                needsDisplay = true
+                return true
+            }
+            if event.keyCode == 49 { // Spacebar during active drag
+                if case .creating = dragMode {
+                    isSpaceKeyPressed = true
+                    spaceKeyDragging = true
+                }
+                // Always absorb Space during active drag; NEVER trigger scrolling capture!
+                return true
+            }
+            // Absorb any other keyboard shortcuts during active drag
+            return true
+        }
+
         // Tier 1: Commit active inline text editing on Esc
         if activeTextField != nil {
             if event.keyCode == 53 || event.keyCode == 36 || event.keyCode == 76 {
@@ -1565,17 +1607,21 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     private func startInlineTextEditing(for obj: AnnotationObject) {
         commitActiveTextEditing()
 
+        let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
+        let fieldH = max(26.0, ceil(font.ascender - font.descender) + 6.0)
+        let baselineFromBottom = round((fieldH - (font.ascender - font.descender)) / 2.0) - font.descender
+        let fieldY = obj.bounds.maxY - obj.fontSize - baselineFromBottom
         let fieldFrame = CGRect(
             x: obj.bounds.minX,
-            y: obj.bounds.minY,
+            y: fieldY,
             width: max(140, obj.bounds.width),
-            height: max(obj.fontSize + 12, obj.bounds.height)
+            height: fieldH
         )
         let field = NSTextField(frame: fieldFrame)
         let defaultPlaceholder = LocalizationManager.shared.tr(.toolText)
         field.stringValue = (obj.text == "Text" || obj.text == defaultPlaceholder) ? "" : obj.text
         field.placeholderString = defaultPlaceholder
-        field.font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
+        field.font = font
         field.textColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
         field.isBordered = true
         field.drawsBackground = true

@@ -225,6 +225,9 @@ struct AdversarialChallenge {
         // M53: Milestone M53 Cycle 16 Features F1-F5 UpdateManager Abort, Concurrency & Release Notes Adversarial Challenge
         testCycle16M1EmpiricalStressAndAdversarialChallenge()
 
+        // M69: Milestone M69 Cycle 19 Latent Bug Stress & Adversarial Challenge
+        testMilestoneCycle19LatentBugStressAndAdversarialChallenge()
+
         let elapsed = Date().timeIntervalSince(startTime)
 
         print("\n\u{001B}[1;35m============================================================\u{001B}[0m")
@@ -5268,6 +5271,352 @@ struct AdversarialChallenge {
         let postMem = getResidentMemoryBytes()
         let memDeltaMB = Double(postMem > preMem ? postMem - preMem : 0) / (1024.0 * 1024.0)
         ChallengerHarness.assertTrue(memDeltaMB < 64.0, "27G: Resident memory growth (\(String(format: "%.2f", memDeltaMB)) MB) strictly bounded (< 64 MB, zero leaks)")
+    }
+
+    // MARK: - 28. Milestone M69 Cycle 19 Latent Bug Adversarial Challenge
+    static func testMilestoneCycle19LatentBugStressAndAdversarialChallenge() {
+        ChallengerHarness.startSuite("28. Milestone M69 Cycle 19 Latent Bug Stress & Adversarial Challenge")
+
+        func makeSolid(w: Int, h: Int, color: CGColor) -> CGImage? {
+            let cs = CGColorSpaceCreateDeviceRGB()
+            let bi = CGImageAlphaInfo.premultipliedLast.rawValue
+            guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: cs, bitmapInfo: bi) else { return nil }
+            ctx.setFillColor(color)
+            ctx.fill(CGRect(x: 0, y: 0, width: w, height: h))
+            return ctx.makeImage()
+        }
+
+        func makePeriodic(w: Int, h: Int, stripeH: Int) -> CGImage? {
+            let cs = CGColorSpaceCreateDeviceRGB()
+            let bi = CGImageAlphaInfo.premultipliedLast.rawValue
+            guard let ctx = CGContext(data: nil, width: w, height: h, bitsPerComponent: 8, bytesPerRow: w * 4, space: cs, bitmapInfo: bi) else { return nil }
+            for y in stride(from: 0, to: h, by: stripeH) {
+                let isEven = (y / stripeH) % 2 == 0
+                ctx.setFillColor(isEven ? CGColor(gray: 0.15, alpha: 1.0) : CGColor(gray: 0.85, alpha: 1.0))
+                ctx.fill(CGRect(x: 0, y: y, width: w, height: stripeH))
+            }
+            return ctx.makeImage()
+        }
+
+        // =====================================================================
+        // Sub-scenario 28A: Low-Entropy Flat Images, Repeating Patterns & Sticky Headers/Footers
+        // =====================================================================
+        let whiteCol = CGColor(gray: 1.0, alpha: 1.0)
+        let blackCol = CGColor(gray: 0.0, alpha: 1.0)
+        guard let whiteFrameA = makeSolid(w: 200, h: 200, color: whiteCol),
+              let whiteFrameB = makeSolid(w: 200, h: 200, color: whiteCol),
+              let blackFrameA = makeSolid(w: 200, h: 200, color: blackCol),
+              let blackFrameB = makeSolid(w: 200, h: 200, color: blackCol) else {
+            ChallengerHarness.recordFail("28A: Generator", reason: "Failed to allocate solid test frames")
+            return
+        }
+
+        // 28A.1: Low-entropy solid white
+        let estWhite = ImageStitcher.estimateVerticalOffset(f1: whiteFrameA, f2: whiteFrameB, effectiveWidth: 200, headerH: 0, footerH: 0)
+        ChallengerHarness.assertTrue(estWhite.isZeroDelta, "28A.1: Low-entropy white frame resolves to isZeroDelta")
+        ChallengerHarness.assertEqual(estWhite.offset, 0, "28A.1: Low-entropy white frame offset is 0")
+
+        // 28A.2: Low-entropy solid black
+        let estBlack = ImageStitcher.estimateVerticalOffset(f1: blackFrameA, f2: blackFrameB, effectiveWidth: 200, headerH: 0, footerH: 0)
+        ChallengerHarness.assertTrue(estBlack.isZeroDelta, "28A.2: Low-entropy black frame resolves to isZeroDelta")
+        ChallengerHarness.assertEqual(estBlack.offset, 0, "28A.2: Low-entropy black frame offset is 0")
+
+        // 28A.3: Stitching 3 identical flat frames
+        do {
+            let resTriple = try ImageStitcher.stitch(frames: [whiteFrameA, whiteFrameB, whiteFrameA])
+            ChallengerHarness.assertEqual(resTriple.totalHeight, 200.0, "28A.3: 3 identical flat frames stitched totalHeight equals single frame height")
+            ChallengerHarness.assertEqual(resTriple.deduplicatedHeaderHeight, 0.0, "28A.3: Stationary header deduplication safely 0 on identical frames")
+            ChallengerHarness.assertEqual(resTriple.deduplicatedFooterHeight, 0.0, "28A.3: Stationary footer deduplication safely 0 on identical frames")
+        } catch {
+            ChallengerHarness.recordFail("28A.3: Identical flat frames", reason: "Unexpected throw: \(error)")
+        }
+
+        // 28A.4: Repeating stripe pattern offset deduction
+        if let periodic1 = makePeriodic(w: 200, h: 300, stripeH: 20),
+           let periodic2 = makePeriodic(w: 200, h: 300, stripeH: 20) {
+            let pEst = ImageStitcher.estimateVerticalOffset(f1: periodic1, f2: periodic2, effectiveWidth: 200)
+            ChallengerHarness.assertTrue(pEst.confidence > 0, "28A.4: Periodic stripes return non-zero confidence")
+        }
+
+        // 28A.5: Sticky Header & Footer Detection on Scrolled Frame Sequence
+        if let master = AdversarialFrameGenerator.createMasterCanvas(width: 200, totalHeight: 600),
+           let f0 = AdversarialFrameGenerator.extractFrame(from: master, viewportY: 0, viewportHeight: 200, headerHeight: 40, footerHeight: 30),
+           let f1 = AdversarialFrameGenerator.extractFrame(from: master, viewportY: 25, viewportHeight: 200, headerHeight: 40, footerHeight: 30),
+           let f2 = AdversarialFrameGenerator.extractFrame(from: master, viewportY: 50, viewportHeight: 200, headerHeight: 40, footerHeight: 30) {
+            do {
+                let resSticky = try ImageStitcher.stitch(frames: [f0, f1, f2])
+                ChallengerHarness.assertTrue(resSticky.deduplicatedHeaderHeight >= 30, "28A.5: Stationary sticky header detected (>= 30px)")
+                ChallengerHarness.assertTrue(resSticky.deduplicatedFooterHeight >= 20, "28A.5: Stationary sticky footer detected (>= 20px)")
+                ChallengerHarness.assertNotNil(resSticky.image, "28A.5: Sticky frames composite to valid CGImage")
+            } catch {
+                ChallengerHarness.recordFail("28A.5: Sticky header/footer", reason: "Error: \(error)")
+            }
+        }
+
+        // 28A.6: Degenerate frame errors
+        var emptyThrew = false
+        do {
+            _ = try ImageStitcher.stitch(frames: [])
+        } catch ImageStitcherError.emptyFrames {
+            emptyThrew = true
+        } catch {
+            emptyThrew = false
+        }
+        ChallengerHarness.assertTrue(emptyThrew, "28A.6: Empty frames array throws emptyFrames error")
+
+        // =====================================================================
+        // Sub-scenario 28B: 1-2px Rounding Variances & Slice Underflow Guards
+        // =====================================================================
+        guard let baseFrame = makeSolid(w: 200, h: 200, color: whiteCol),
+              let plus1W = makeSolid(w: 201, h: 200, color: whiteCol),
+              let minus1W = makeSolid(w: 199, h: 200, color: whiteCol),
+              let plus2H = makeSolid(w: 200, h: 202, color: whiteCol),
+              let minus2H = makeSolid(w: 200, h: 198, color: whiteCol),
+              let plus2Both = makeSolid(w: 202, h: 202, color: whiteCol),
+              let minus2Both = makeSolid(w: 198, h: 198, color: whiteCol),
+              let plus3W = makeSolid(w: 203, h: 200, color: whiteCol) else {
+            ChallengerHarness.recordFail("28B: Frame allocation", reason: "Failed to allocate variance frames")
+            return
+        }
+
+        // 28B.1: Rounding tolerance across +/- 1px and +/- 2px
+        let varianceFrames = [
+            ("plus1W", plus1W),
+            ("minus1W", minus1W),
+            ("plus2H", plus2H),
+            ("minus2H", minus2H),
+            ("plus2Both", plus2Both),
+            ("minus2Both", minus2Both)
+        ]
+        for (label, frameVar) in varianceFrames {
+            do {
+                let resVar = try ImageStitcher.stitch(frames: [baseFrame, frameVar])
+                ChallengerHarness.assertEqual(resVar.image.width, 200, "28B.1: Dimension variance \(label) normalized to target width 200")
+            } catch {
+                ChallengerHarness.recordFail("28B.1: Dimension variance \(label)", reason: "Unexpected throw: \(error)")
+            }
+        }
+
+        // 28B.2: Greater than 2px variance throws invalidDimensions
+        var threwExcess = false
+        do {
+            _ = try ImageStitcher.stitch(frames: [baseFrame, plus3W])
+        } catch ImageStitcherError.invalidDimensions {
+            threwExcess = true
+        } catch {
+            threwExcess = false
+        }
+        ChallengerHarness.assertTrue(threwExcess, "28B.2: Frame width difference of 3px throws invalidDimensions")
+
+        // 28B.3: Underflow guard in slice loop
+        let optionsUnderflow = StitchOptions(headerDedupHeight: 90.0, footerDedupHeight: 90.0, scaleFactor: 2.0)
+        do {
+            let resUnderflow = try ImageStitcher.stitch(frames: [baseFrame, plus1W], options: optionsUnderflow)
+            ChallengerHarness.assertNotNil(resUnderflow.image, "28B.3: Slice loop executed safely without underflow exception")
+        } catch {
+            ChallengerHarness.recordFail("28B.3: Slice loop underflow guard", reason: "Unexpected throw: \(error)")
+        }
+
+        // =====================================================================
+        // Sub-scenario 28C: Space and Escape Key Handling in Complex Drag States
+        // =====================================================================
+        let displayInfo = CaptureDisplayInfo(
+            displayID: 101,
+            name: "Virtual Display",
+            cocoaFrame: CGRect(x: 0, y: 0, width: 800, height: 600),
+            cgBounds: CGRect(x: 0, y: 0, width: 800, height: 600),
+            scaleFactor: 2.0,
+            isMain: true,
+            pixelSize: CGSize(width: 1600, height: 1200)
+        )
+        let capturedScreen = CapturedScreen(displayInfo: displayInfo, fullImage: baseFrame, timestamp: Date())
+        let overlay = CaptureOverlayContentView(frame: NSRect(x: 0, y: 0, width: 800, height: 600), capturedScreen: capturedScreen)
+
+        func makeKeyEvent(keyCode: UInt16, char: String, isDown: Bool = true) -> NSEvent {
+            return NSEvent.keyEvent(
+                with: isDown ? .keyDown : .keyUp,
+                location: .zero,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                characters: char,
+                charactersIgnoringModifiers: char,
+                isARepeat: false,
+                keyCode: keyCode
+            )!
+        }
+
+        func makeMouseEvent(type: NSEvent.EventType, pt: NSPoint) -> NSEvent {
+            return NSEvent.mouseEvent(
+                with: type,
+                location: pt,
+                modifierFlags: [],
+                timestamp: 0,
+                windowNumber: 0,
+                context: nil,
+                eventNumber: 0,
+                clickCount: 1,
+                pressure: 1.0
+            )!
+        }
+
+        // 28C.1: .creating mode: Spacebar panning and Esc cancel
+        overlay.mouseDown(with: makeMouseEvent(type: .leftMouseDown, pt: NSPoint(x: 100, y: 100)))
+        let spaceDown = makeKeyEvent(keyCode: 49, char: " ", isDown: true)
+        let spaceConsumed = overlay.handleOverlayKeyDown(with: spaceDown)
+        ChallengerHarness.assertTrue(spaceConsumed, "28C.1: Spacebar absorbed during .creating drag mode")
+
+        let escDown = makeKeyEvent(keyCode: 53, char: "\u{1B}", isDown: true)
+        let escConsumed = overlay.handleOverlayKeyDown(with: escDown)
+        ChallengerHarness.assertTrue(escConsumed, "28C.1: Esc key absorbed during active drag")
+        ChallengerHarness.assertEqual(overlay.selectionRect, CGRect.zero, "28C.1: Selection rect rolled back to zero on Esc")
+        let postEscEvent = makeKeyEvent(keyCode: 12, char: "q", isDown: true)
+        ChallengerHarness.assertFalse(overlay.handleOverlayKeyDown(with: postEscEvent), "28C.1: dragMode reset to .none (keys no longer absorbed)")
+
+        // 28C.2: .moving mode: Esc rollback of selection and annotations
+        overlay.selectionRect = CGRect(x: 100, y: 100, width: 200, height: 200)
+        let annObj = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 120, y: 120, width: 40, height: 40),
+            colorHex: "#FF0000"
+        )
+        overlay.annotationEngine.addObject(annObj)
+
+        overlay.mouseDown(with: makeMouseEvent(type: .leftMouseDown, pt: NSPoint(x: 250, y: 250)))
+        overlay.mouseDragged(with: makeMouseEvent(type: .leftMouseDragged, pt: NSPoint(x: 280, y: 280)))
+        ChallengerHarness.assertEqual(overlay.selectionRect.minX, 130.0, "28C.2: Selection rect moved during drag")
+
+        let spaceMove = overlay.handleOverlayKeyDown(with: spaceDown)
+        ChallengerHarness.assertTrue(spaceMove, "28C.2: Spacebar absorbed during .moving drag")
+
+        let escMove = overlay.handleOverlayKeyDown(with: escDown)
+        ChallengerHarness.assertTrue(escMove, "28C.2: Esc absorbed during .moving drag")
+        ChallengerHarness.assertEqual(overlay.selectionRect.origin.x, 100.0, "28C.2: Selection rect origin X restored on Esc")
+        ChallengerHarness.assertEqual(overlay.selectionRect.origin.y, 100.0, "28C.2: Selection rect origin Y restored on Esc")
+        ChallengerHarness.assertEqual(overlay.annotationEngine.objects[0].bounds.minX, 120.0, "28C.2: Annotation object position rolled back on Esc")
+
+        // 28C.3: .annotating mode: Esc cancels vector drag
+        overlay.toolbarsViewModel.selectTool(.rectangle)
+        overlay.mouseDown(with: makeMouseEvent(type: .leftMouseDown, pt: NSPoint(x: 130, y: 130)))
+        overlay.mouseDragged(with: makeMouseEvent(type: .leftMouseDragged, pt: NSPoint(x: 170, y: 170)))
+        ChallengerHarness.assertTrue(overlay.annotationEngine.isDragging, "28C.3: Annotation drag in progress")
+
+        let escAnn = overlay.handleOverlayKeyDown(with: escDown)
+        ChallengerHarness.assertTrue(escAnn, "28C.3: Esc absorbed during .annotating drag")
+        ChallengerHarness.assertFalse(overlay.annotationEngine.isDragging, "28C.3: Annotation drag cancelled cleanly on Esc")
+        ChallengerHarness.assertEqual(overlay.annotationEngine.objects.count, 1, "28C.3: Cancelled draft annotation left zero ghost objects")
+
+        // =====================================================================
+        // Sub-scenario 28D: Degenerate Crops in ScreenCaptureManager & ImageRenderer
+        // =====================================================================
+        guard let testFullImage = makeSolid(w: 400, h: 300, color: whiteCol) else {
+            ChallengerHarness.recordFail("28D: Image allocation", reason: "Failed to allocate 400x300 image")
+            return
+        }
+        let winSize = CGSize(width: 400, height: 300)
+
+        // 28D.1: 0x0 selection crop returns nil
+        let crop0x0 = ScreenCaptureManager.cropImage(testFullImage, selectionInWindow: CGRect(x: 50, y: 50, width: 0, height: 0), windowSize: winSize, scaleFactor: 1.0)
+        ChallengerHarness.assertNil(crop0x0, "28D.1: 0x0 selection returns nil crop")
+
+        // 28D.2: 0 width crop returns nil
+        let crop0W = ScreenCaptureManager.cropImage(testFullImage, selectionInWindow: CGRect(x: 50, y: 50, width: 0, height: 50), windowSize: winSize, scaleFactor: 1.0)
+        ChallengerHarness.assertNil(crop0W, "28D.2: 0-width selection returns nil crop")
+
+        // 28D.3: 0 height crop returns nil
+        let crop0H = ScreenCaptureManager.cropImage(testFullImage, selectionInWindow: CGRect(x: 50, y: 50, width: 50, height: 0), windowSize: winSize, scaleFactor: 1.0)
+        ChallengerHarness.assertNil(crop0H, "28D.3: 0-height selection returns nil crop")
+
+        // 28D.4: 1x1 crop at (0, 0)
+        let crop1x1 = ScreenCaptureManager.cropImage(testFullImage, selectionInWindow: CGRect(x: 0, y: 0, width: 1, height: 1), windowSize: winSize, scaleFactor: 1.0)
+        ChallengerHarness.assertNotNil(crop1x1, "28D.4: 1x1 selection produces valid cropped image")
+
+        // 28D.5: 1x1 crop at bottom-right display border
+        let cropBorder = ScreenCaptureManager.cropImage(testFullImage, selectionInWindow: CGRect(x: 399, y: 299, width: 1, height: 1), windowSize: winSize, scaleFactor: 1.0)
+        ChallengerHarness.assertNotNil(cropBorder, "28D.5: Border 1x1 selection produces valid cropped image")
+
+        // 28D.6: Selection exceeding display bounds clamped cleanly
+        let cropOutOfBounds = ScreenCaptureManager.cropImage(testFullImage, selectionInWindow: CGRect(x: 380, y: 280, width: 50, height: 50), windowSize: winSize, scaleFactor: 1.0)
+        ChallengerHarness.assertNotNil(cropOutOfBounds, "28D.6: Selection exceeding display bounds is safely clamped and cropped")
+
+        // 28D.7: Degenerate crop rejection in ImageRenderer.render
+        let render0x0 = ImageRenderer.render(baseImage: testFullImage, annotations: [], cropRect: CGRect(x: 0, y: 0, width: 0, height: 0))
+        ChallengerHarness.assertNil(render0x0, "28D.7: ImageRenderer rejects 0x0 cropRect")
+
+        let render0W = ImageRenderer.render(baseImage: testFullImage, annotations: [], cropRect: CGRect(x: 10, y: 10, width: 0, height: 50))
+        ChallengerHarness.assertNil(render0W, "28D.7: ImageRenderer rejects 0-width cropRect")
+
+        let render1x1 = ImageRenderer.render(baseImage: testFullImage, annotations: [], cropRect: CGRect(x: 10, y: 10, width: 1, height: 1))
+        ChallengerHarness.assertNotNil(render1x1, "28D.7: ImageRenderer renders 1x1 cropRect successfully")
+
+        // =====================================================================
+        // Sub-scenario 28E: Nearest Grab Handle Determinism & Barycentric Arrowhead Hit Testing
+        // =====================================================================
+        let testBox = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 100, y: 100, width: 100, height: 100),
+            colorHex: "#0000FF"
+        )
+
+        // 28E.1: 8-point nearest grab handle selection
+        let handleQueries: [(CGPoint, AnnotationHandle)] = [
+            (CGPoint(x: 101, y: 101), .topLeft),
+            (CGPoint(x: 150, y: 101), .topCenter),
+            (CGPoint(x: 199, y: 101), .topRight),
+            (CGPoint(x: 101, y: 150), .middleLeft),
+            (CGPoint(x: 199, y: 150), .middleRight),
+            (CGPoint(x: 101, y: 199), .bottomLeft),
+            (CGPoint(x: 150, y: 199), .bottomCenter),
+            (CGPoint(x: 199, y: 199), .bottomRight)
+        ]
+        for (queryPt, expectedHandle) in handleQueries {
+            let foundHandle = testBox.handle(at: queryPt, hitRadius: 10.0)
+            ChallengerHarness.assertEqual(foundHandle, expectedHandle, "28E.1: Query at \(queryPt) resolves to \(expectedHandle)")
+        }
+
+        // Center of 100x100 box has no handle
+        ChallengerHarness.assertNil(testBox.handle(at: CGPoint(x: 150, y: 150), hitRadius: 10.0), "28E.1: Center of box returns nil handle")
+
+        // 28E.2: Small annotation handle scaled hit radius
+        let microEngine = AnnotationEngine()
+        let microBox = AnnotationObject(
+            tool: .rectangle,
+            bounds: CGRect(x: 50, y: 50, width: 16, height: 16),
+            colorHex: "#FF00FF"
+        )
+        microEngine.addObject(microBox)
+        microEngine.selectedObjectID = microBox.id
+        // Center is (58, 58)
+        ChallengerHarness.assertNil(microBox.handle(at: CGPoint(x: 58, y: 58)), "28E.2: Center of 16x16 box returns nil handle")
+        microEngine.startDrag(at: CGPoint(x: 58, y: 58))
+        ChallengerHarness.assertNil(microEngine.activeResizeHandle, "28E.2: Clicking center of small annotation moves rather than resizes")
+        microEngine.cancelDrag()
+
+        // 28E.3: Barycentric Arrowhead Hit Testing across all 4 Quadrants
+        // Quad 1: Rightward arrow (0 deg)
+        var arrowRight = AnnotationObject(tool: .arrow, bounds: .zero, colorHex: "#FF0000")
+        arrowRight.points = [CGPoint(x: 50, y: 50), CGPoint(x: 200, y: 50)]
+        ChallengerHarness.assertTrue(arrowRight.contains(point: CGPoint(x: 185, y: 50)), "28E.3: Rightward arrow interior point tests positive")
+        ChallengerHarness.assertFalse(arrowRight.contains(point: CGPoint(x: 185, y: 80)), "28E.3: Rightward arrow distant point tests false")
+
+        // Quad 2: Diagonal arrow (45 deg)
+        var arrowDiag = AnnotationObject(tool: .arrow, bounds: .zero, colorHex: "#FF0000")
+        arrowDiag.points = [CGPoint(x: 50, y: 50), CGPoint(x: 200, y: 200)]
+        ChallengerHarness.assertTrue(arrowDiag.contains(point: CGPoint(x: 190, y: 190)), "28E.3: Diagonal arrow interior point tests positive")
+        ChallengerHarness.assertFalse(arrowDiag.contains(point: CGPoint(x: 200, y: 170)), "28E.3: Diagonal arrow outside point tests false")
+
+        // Quad 3: Leftward arrow (180 deg)
+        var arrowLeft = AnnotationObject(tool: .arrow, bounds: .zero, colorHex: "#FF0000")
+        arrowLeft.points = [CGPoint(x: 200, y: 50), CGPoint(x: 50, y: 50)]
+        ChallengerHarness.assertTrue(arrowLeft.contains(point: CGPoint(x: 65, y: 50)), "28E.3: Leftward arrow interior point tests positive")
+        ChallengerHarness.assertFalse(arrowLeft.contains(point: CGPoint(x: 65, y: 80)), "28E.3: Leftward arrow outside point tests false")
+
+        // Quad 4: Downward arrow (270 deg)
+        var arrowDown = AnnotationObject(tool: .arrow, bounds: .zero, colorHex: "#FF0000")
+        arrowDown.points = [CGPoint(x: 100, y: 50), CGPoint(x: 100, y: 200)]
+        ChallengerHarness.assertTrue(arrowDown.contains(point: CGPoint(x: 100, y: 185)), "28E.3: Downward arrow interior point tests positive")
+        ChallengerHarness.assertFalse(arrowDown.contains(point: CGPoint(x: 130, y: 185)), "28E.3: Downward arrow outside point tests false")
     }
 }
 

@@ -119,12 +119,24 @@ public final class ImageStitcher: Sendable {
             )
         }
 
-        // Validate dimension consistency
+        // Validate dimension consistency with minor 1-2px rounding tolerance
+        var normalizedFrames: [CGImage] = []
+        normalizedFrames.reserveCapacity(frames.count)
+
         for frame in frames {
-            guard frame.width == width && frame.height == height else {
+            if frame.width == width && frame.height == height {
+                normalizedFrames.append(frame)
+            } else if abs(frame.width - width) <= 2 && abs(frame.height - height) <= 2 {
+                if let normalized = normalizeFrameDimensions(frame, targetWidth: width, targetHeight: height) {
+                    normalizedFrames.append(normalized)
+                } else {
+                    throw ImageStitcherError.invalidDimensions
+                }
+            } else {
                 throw ImageStitcherError.invalidDimensions
             }
         }
+        let frames = normalizedFrames
 
         let scale = options.scaleFactor
         let scrollbarPx = Int(round(options.scrollbarStripWidth * scale))
@@ -132,19 +144,38 @@ public final class ImageStitcher: Sendable {
         let maxHeaderPx = min(height / 3, Int(round(options.headerDedupHeight * scale)))
         let maxFooterPx = min(height / 3, Int(round(options.footerDedupHeight * scale)))
 
-        // 1. Detect Stationary Sticky Header & Footer between Frame 0 and Frame 1
-        let detectedHeaderPx = detectStationaryHeader(
-            f1: firstFrame,
-            f2: frames[1],
-            effectiveWidth: effectiveWidth,
-            maxHeaderH: maxHeaderPx
-        )
-        let detectedFooterPx = detectStationaryFooter(
-            f1: firstFrame,
-            f2: frames[1],
-            effectiveWidth: effectiveWidth,
-            maxFooterH: maxFooterPx
-        )
+        // 1. Detect Stationary Sticky Header & Footer on the first moving frame pair
+        var movingPair: (CGImage, CGImage)? = nil
+        for i in 0..<(frames.count - 1) {
+            let est = estimateVerticalOffset(
+                f1: frames[i],
+                f2: frames[i + 1],
+                effectiveWidth: effectiveWidth,
+                headerH: 0,
+                footerH: 0
+            )
+            if !est.isZeroDelta && est.offset > 0 {
+                movingPair = (frames[i], frames[i + 1])
+                break
+            }
+        }
+
+        var detectedHeaderPx = 0
+        var detectedFooterPx = 0
+        if let (fA, fB) = movingPair {
+            detectedHeaderPx = detectStationaryHeader(
+                f1: fA,
+                f2: fB,
+                effectiveWidth: effectiveWidth,
+                maxHeaderH: maxHeaderPx
+            )
+            detectedFooterPx = detectStationaryFooter(
+                f1: fA,
+                f2: fB,
+                effectiveWidth: effectiveWidth,
+                maxFooterH: maxFooterPx
+            )
+        }
 
         // 2. Calculate vertical offsets across all consecutive pairs
         var offsets: [Int] = []
@@ -216,7 +247,7 @@ public final class ImageStitcher: Sendable {
             let frame = frames[idx + 1]
             let srcY = height - detectedFooterPx - offset
             let hSlice = min(offset, finalHeight - yDestTopDown)
-            guard srcY >= 0, srcY + hSlice <= height else { continue }
+            guard srcY >= detectedHeaderPx, srcY + hSlice <= height else { continue }
 
             if let slice = frame.cropping(to: CGRect(x: 0, y: srcY, width: width, height: hSlice)) {
                 let destRect = CGRect(x: 0, y: finalHeight - (yDestTopDown + hSlice), width: width, height: hSlice)
@@ -249,6 +280,31 @@ public final class ImageStitcher: Sendable {
             deduplicatedFooterHeight: CGFloat(detectedFooterPx),
             isClampedToMaxHeight: isClamped
         )
+    }
+
+    /// Normalizes minor 1-2px frame rounding variances to match target canvas dimensions.
+    private static func normalizeFrameDimensions(_ frame: CGImage, targetWidth: Int, targetHeight: Int) -> CGImage? {
+        if frame.width == targetWidth && frame.height == targetHeight {
+            return frame
+        }
+        if frame.width >= targetWidth && frame.height >= targetHeight {
+            return frame.cropping(to: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+        }
+        let colorSpace = frame.colorSpace ?? CGColorSpaceCreateDeviceRGB()
+        let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        guard let ctx = CGContext(
+            data: nil,
+            width: targetWidth,
+            height: targetHeight,
+            bitsPerComponent: 8,
+            bytesPerRow: targetWidth * 4,
+            space: colorSpace,
+            bitmapInfo: bitmapInfo
+        ) else {
+            return nil
+        }
+        ctx.draw(frame, in: CGRect(x: 0, y: targetHeight - frame.height, width: frame.width, height: frame.height))
+        return ctx.makeImage()
     }
 
     // MARK: - Stationary Row Boundary Detection
@@ -354,6 +410,7 @@ public final class ImageStitcher: Sendable {
 
         var bestOffset = 0
         var bestScore = Double.greatestFiniteMagnitude
+        var scores: [Double] = []
 
         for offset in minOffset...maxOff {
             let rowsToCompare = height - offset - footerH
@@ -372,10 +429,21 @@ public final class ImageStitcher: Sendable {
             }
             if count > 0 {
                 let avg = Double(diffSum) / Double(count)
+                scores.append(avg)
                 if avg < bestScore {
                     bestScore = avg
                     bestOffset = offset
                 }
+            }
+        }
+
+        // Low-entropy flat-MAD offset bias guard:
+        // If candidate offset scores have near-zero dynamic range / spread across the range
+        // (e.g. solid white / uniform background with no features), offset estimation is degenerate.
+        if scores.count > 1, let minS = scores.min(), let maxS = scores.max() {
+            let scoreSpread = maxS - minS
+            if scoreSpread < 0.5 && avgZeroDiff < 1.0 {
+                return OffsetEstimation(offset: 0, isZeroDelta: true, confidence: 1.0)
             }
         }
 

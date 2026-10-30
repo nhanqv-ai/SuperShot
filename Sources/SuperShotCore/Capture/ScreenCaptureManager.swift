@@ -260,14 +260,15 @@ public final class ScreenCaptureManager: @unchecked Sendable {
         windowSize: CGSize,
         scaleFactor: CGFloat
     ) -> CGImage? {
-        guard !selectionInWindow.isEmpty else { return nil }
+        guard !selectionInWindow.isEmpty, windowSize.width > 0, windowSize.height > 0 else { return nil }
 
-        let normalizedSelection = CGRect(
-            x: max(0, min(selectionInWindow.origin.x, windowSize.width)),
-            y: max(0, min(selectionInWindow.origin.y, windowSize.height)),
-            width: max(1, min(selectionInWindow.width, windowSize.width - selectionInWindow.origin.x)),
-            height: max(1, min(selectionInWindow.height, windowSize.height - selectionInWindow.origin.y))
-        )
+        let safeW = max(1, min(selectionInWindow.width, windowSize.width))
+        let safeH = max(1, min(selectionInWindow.height, windowSize.height))
+
+        let safeX = max(0, min(selectionInWindow.origin.x, max(0, windowSize.width - safeW)))
+        let safeY = max(0, min(selectionInWindow.origin.y, max(0, windowSize.height - safeH)))
+
+        let normalizedSelection = CGRect(x: safeX, y: safeY, width: safeW, height: safeH)
 
         let pixelX = round(normalizedSelection.origin.x * scaleFactor)
         let pixelY = round((windowSize.height - (normalizedSelection.origin.y + normalizedSelection.height)) * scaleFactor)

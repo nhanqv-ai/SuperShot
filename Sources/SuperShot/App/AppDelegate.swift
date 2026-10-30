@@ -6,9 +6,9 @@ import SuperShotCore
 
 public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayWindowDelegate, ScrollingCaptureDelegate {
     public static var shared: AppDelegate?
-    // Canonical Application Version: 1.0.25 (Build 25)
-    public static let canonicalVersion = "1.0.25"
-    public static let canonicalBuild = "25"
+    // Canonical Application Version: 1.0.26 (Build 26)
+    public static let canonicalVersion = "1.0.26"
+    public static let canonicalBuild = "26"
 
     // Core Managers & Services
     public var storageManager: StorageManager!
@@ -247,6 +247,17 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         activeScrollCanvasWindow?.close()
 
         let win = ScrollableAnnotationWindow(baseImage: image, scale: scale, appSettings: appSettings)
+        win.onWindowClosed = { [weak self, weak win] in
+            if self?.activeScrollCanvasWindow === win {
+                self?.activeScrollCanvasWindow = nil
+            }
+        }
+        win.canvasView.onCloseRequested = { [weak self, weak win] in
+            win?.close()
+            if self?.activeScrollCanvasWindow === win {
+                self?.activeScrollCanvasWindow = nil
+            }
+        }
         win.canvasView.onCopyRequested = { [weak self, weak win] in
             guard let self = self, let win = win else { return }
             if let rendered = ImageRenderer.render(
@@ -261,6 +272,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
                 )
             }
             win.close()
+            if self.activeScrollCanvasWindow === win {
+                self.activeScrollCanvasWindow = nil
+            }
         }
         self.activeScrollCanvasWindow = win
         win.makeKeyAndOrderFront(nil)
@@ -279,6 +293,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
     public func overlayDidCancel() {
         activeOverlayWindow?.close()
         activeOverlayWindow = nil
+        previousAppTracker.previousApp?.activate(options: [])
     }
 
     public func overlayDidConfirmSelection(rect: CGRect, display: CaptureDisplayInfo) {

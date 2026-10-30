@@ -794,12 +794,12 @@ public struct Cycle18Tests {
         TestHarness.assertNotNil(pb.data(forType: .png), "S7.3: Pasteboard has non-empty PNG bytes")
 
         // =====================================================================
-        // SECTION 8: Canonical Version & Build 25 Diagnostics Regression
+        // SECTION 8: Canonical Version & Build 26 Diagnostics Regression
         // =====================================================================
-        print("  --- Section 8: Canonical Version & Build 25 Regression ---")
-        let diag18 = AboutSettingsTab.diagnosticString(version: "1.0.25")
-        TestHarness.assertTrue(diag18.contains("• Build 25"), "S8.1: Diagnostic string contains application • Build 25")
-        TestHarness.assertFalse(diag18.contains("Build 24"), "S8.1: Diagnostic string does NOT contain Build 24")
+        print("  --- Section 8: Canonical Version & Build 26 Regression ---")
+        let diag18 = AboutSettingsTab.diagnosticString(version: "1.0.26")
+        TestHarness.assertTrue(diag18.contains("• Build 26"), "S8.1: Diagnostic string contains application • Build 26")
+        TestHarness.assertFalse(diag18.contains("• Build 25"), "S8.1: Diagnostic string does NOT contain Build 25")
 
         print("  --- Cycle 18 All Test Sections Completed Successfully ---")
     }

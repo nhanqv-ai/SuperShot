@@ -438,6 +438,10 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
         }
 
         stateLock.lock()
+        guard _state != .cancelled else {
+            stateLock.unlock()
+            return
+        }
         _state = .finished(finalImage)
         stateLock.unlock()
 
@@ -518,6 +522,19 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
                 // Accessibility permission unavailable -> fallback to manual mode
                 stateLock.withLock {
                     self._state = .capturing(mode: .manual)
+                    self._progress = ScrollingProgress(
+                        frameCount: self.capturedFrames.count,
+                        currentWidthPx: self.progress.currentWidthPx,
+                        currentHeightPx: self.progress.currentHeightPx,
+                        totalScrollDeltaPx: self.progress.totalScrollDeltaPx,
+                        mode: .manual,
+                        isAtBottom: self.progress.isAtBottom,
+                        isMaxHeightReached: self.progress.isMaxHeightReached
+                    )
+                }
+                let updatedProg = self.progress
+                DispatchQueue.main.async { [weak self] in
+                    self?.delegate?.scrollingCaptureDidUpdate(progress: updatedProg, previewImage: nil)
                 }
                 await executeManualScrollLoop()
                 break
@@ -529,13 +546,16 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
             if Task.isCancelled { break }
 
             // Step 3: Capture display image & crop selection
-            guard let fullImage = captureProvider.captureDisplayImage(displayID: disp.displayID),
-                  let cropped = ScreenCaptureManager.cropImage(
+            let croppedImage: CGImage? = autoreleasepool {
+                guard let fullImage = captureProvider.captureDisplayImage(displayID: disp.displayID) else { return nil }
+                return ScreenCaptureManager.cropImage(
                     fullImage,
                     selectionInWindow: rect,
                     windowSize: disp.cocoaFrame.size,
                     scaleFactor: disp.scaleFactor
-                  ) else {
+                )
+            }
+            guard let cropped = croppedImage else {
                 continue
             }
 
@@ -618,13 +638,16 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
             try? await Task.sleep(nanoseconds: pollNanos)
             if Task.isCancelled { break }
 
-            guard let fullImage = captureProvider.captureDisplayImage(displayID: disp.displayID),
-                  let cropped = ScreenCaptureManager.cropImage(
+            let croppedImage: CGImage? = autoreleasepool {
+                guard let fullImage = captureProvider.captureDisplayImage(displayID: disp.displayID) else { return nil }
+                return ScreenCaptureManager.cropImage(
                     fullImage,
                     selectionInWindow: rect,
                     windowSize: disp.cocoaFrame.size,
                     scaleFactor: disp.scaleFactor
-                  ) else {
+                )
+            }
+            guard let cropped = croppedImage else {
                 continue
             }
 

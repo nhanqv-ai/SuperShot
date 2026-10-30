@@ -15,7 +15,7 @@
 
 <p align="center">
   <a href="https://github.com/nhanqv-ai/SuperShot/releases"><img src="https://img.shields.io/github/v/release/nhanqv-ai/SuperShot?style=flat-square&color=blue" alt="Release"></a>
-  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.25"><img src="https://img.shields.io/badge/version-v1.0.25-blue.svg?style=flat-square" alt="Version v1.0.25"></a>
+  <a href="https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.26"><img src="https://img.shields.io/badge/version-v1.0.26-blue.svg?style=flat-square" alt="Version v1.0.26"></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-green.svg?style=flat-square" alt="License"></a>
   <img src="https://img.shields.io/badge/platform-macOS%2013%2B%20%7C%20Sonoma%2014.6%2B-lightgrey.svg?style=flat-square" alt="Platform">
   <img src="https://img.shields.io/badge/architecture-Universal%202%20(arm64%20%2B%20x86__64)-blue.svg?style=flat-square" alt="Architecture">
@@ -118,6 +118,17 @@ SuperShot provides a fast, flexible color management system for all vector annot
    - Manage presets directly: right-click to delete a preset, or reset presets to factory defaults in **Preferences** -> **Capture & Save**.
 5. **Session State Persistence**:
    - SuperShot automatically persists your selected color, stroke width, and font size across captures, so your preferred styling is ready every time you press `Option + S`.
+
+### What's New in v1.0.26
+
+- **Low-Entropy Flat-MAD Bias Guard**: Hardened vertical offset deduction in `ImageStitcher` to reject zero-difference flat basins on solid or low-entropy regions, guaranteeing accurate zero-delta detection.
+- **Sticky Header & Footer False-Positive Resilience**: Eliminated erroneous full-frame header/footer stripping on stationary or identical frames and added slice blitting underflow guards.
+- **Frame Dimension Rounding Tolerance**: Automatically normalizes 1-2px dimension rounding variances across Retina frame sequences without failing capture sessions.
+- **Overlay Spacebar & Esc Gesture Tiering**: Spacebar key presses during active drag gestures are absorbed to prevent unintended scrolling capture triggers, while Esc key cancels active drag gestures with state rollback without closing the capture window.
+- **Screen-Edge Selection Clamping**: Clamped coordinate calculations in `ScreenCaptureManager.cropImage` to prevent out-of-bounds crops at display borders.
+- **Typography Baseline & Handle Precision**: Aligned inline text field frames with CoreText baseline rendering and implemented deterministic nearest grab handle selection and arrowhead interior hit testing.
+- **Metadata Backup & Recovery**: Safeguarded screenshot history with automatic `metadata.json.bak` generation and corrupted metadata recovery.
+- **Comprehensive Cycle 19 Regression Suite**: Added `Cycle19Tests.swift` validating all latent bug fixes with non-uniform synthetic image generators.
 
 ### What's New in v1.0.25
 
@@ -289,7 +300,7 @@ SuperShot provides a fast, flexible color management system for all vector annot
 ### Installation
 
 #### Pre-built Release
-1. Download the latest `SuperShot-v1.0.25.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Download the latest `SuperShot-v1.0.26.dmg` (or `.zip`) from [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Open the DMG and drag `SuperShot.app` into your `/Applications` folder.
 3. Open `SuperShot.app`. A viewfinder icon will appear on your macOS menu bar.
 
@@ -432,6 +443,17 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
    - Quản lý nhanh: Nhấp chuột phải để xóa màu preset, hoặc khôi phục 8 màu ban đầu trong **Cài đặt** -> **Chụp & Lưu**.
 5. **Ghi nhớ thông số giữa các phiên chụp**:
    - SuperShot tự động lưu lại mã màu, độ dày nét vẽ và cỡ chữ đã dùng gần nhất, sẵn sàng cho các lần chụp tiếp theo mà không cần chỉnh lại.
+
+### Điểm mới trong v1.0.26
+
+- **Cơ chế chống lệch bù trừ ảnh ít chi tiết (Flat-MAD Guard)**: Cải tiến thuật toán ghép ảnh trong `ImageStitcher` để nhận diện chính xác các vùng đồng màu hoặc khoảng trắng, ngăn chặn nhảy tọa độ sai.
+- **Khắc phục lỗi nhận diện sai tiêu đề và chân trang cố định**: Ngăn chặn hiện tượng cắt nhầm toàn bộ khung hình trên các khung hình tĩnh hoặc giống nhau, bổ sung cơ chế chống tràn số âm khi ghép ảnh.
+- **Tự động chuẩn hóa sai số làm tròn kích thước khung hình**: Tự động cân bằng chênh lệch 1-2px do làm tròn tọa độ trên màn hình Retina, tránh ngắt quãng phiên chụp cuộn.
+- **Phân tầng phím Space và Esc khi kéo vùng chọn**: Phím Space khi đang kéo vẽ được chặn để không kích hoạt nhầm tính năng chụp cuộn; phím Esc hủy thao tác kéo đang thực hiện và hoàn tác trạng thái mà không tắt cửa sổ chụp.
+- **Kẹp biên vùng chọn sát mép màn hình**: Chuẩn hóa tọa độ cắt ảnh trong `ScreenCaptureManager.cropImage`, ngăn chặn lỗi trả về ảnh rỗng khi chụp sát viền màn hình.
+- **Đồng bộ đường cơ sở văn bản & Độ chuẩn xác điểm điều khiển**: Căn chỉnh khung nhập chữ thẳng hàng tuyệt đối với văn bản CoreText, xác định chính xác điểm neo gần nhất và hỗ trợ bấm chọn bên trong mũi tên.
+- **Tự động sao lưu và phục hồi dữ liệu lịch sử**: Tự động tạo tệp dự phòng `metadata.json.bak` và khôi phục an toàn khi tệp chính bị lỗi.
+- **Bộ kiểm thử hồi quy toàn diện Cycle 19**: Bổ sung `Cycle19Tests.swift` kiểm thử tự động toàn diện các sửa lỗi ngầm với các bộ sinh ảnh mẫu bất đối xứng.
 
 ### Điểm mới trong v1.0.25
 
@@ -603,7 +625,7 @@ SuperShot mang đến khả năng chọn và lưu màu sắc trực quan, linh h
 ### Hướng dẫn cài đặt
 
 #### Tải bản đóng gói sẵn
-1. Tải bản phát hành mới nhất `SuperShot-v1.0.25.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
+1. Tải bản phát hành mới nhất `SuperShot-v1.0.26.dmg` (hoặc `.zip`) tại mục [Releases](https://github.com/nhanqv-ai/SuperShot/releases).
 2. Mở file DMG và kéo `SuperShot.app` vào thư mục `/Applications` (Ứng dụng).
 3. Mở `SuperShot.app`. Biểu tượng khung chụp sẽ xuất hiện trên thanh menu macOS.
 

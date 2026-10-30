@@ -204,15 +204,9 @@ public final class HotKeyManager: HotKeyManaging, @unchecked Sendable {
     @discardableResult
     public func register(action: HotKeyAction, keyCode: UInt32, modifiers: UInt32) -> Bool {
         lock.lock()
+        defer { lock.unlock() }
 
-        // Unregister existing ref if present
-        if let existingRef = hotKeyRefs[action] {
-            UnregisterEventHotKey(existingRef)
-            hotKeyRefs.removeValue(forKey: action)
-            registeredShortcuts.removeValue(forKey: action)
-        }
-
-        var hotKeyRef: EventHotKeyRef?
+        var newRef: EventHotKeyRef?
         let hotKeyID = EventHotKeyID(signature: signature, id: action.rawValue)
 
         let status = RegisterEventHotKey(
@@ -221,17 +215,18 @@ public final class HotKeyManager: HotKeyManaging, @unchecked Sendable {
             hotKeyID,
             GetApplicationEventTarget(),
             0,
-            &hotKeyRef
+            &newRef
         )
 
-        if status == noErr, let ref = hotKeyRef {
+        if status == noErr, let ref = newRef {
+            if let existingRef = hotKeyRefs[action] {
+                UnregisterEventHotKey(existingRef)
+            }
             hotKeyRefs[action] = ref
             registeredShortcuts[action] = HotKeyShortcut(keyCode: keyCode, carbonModifiers: modifiers)
-            lock.unlock()
             NotificationCenter.default.post(name: HotKeyManager.hotKeyDidChangeNotification, object: self)
             return true
         } else {
-            lock.unlock()
             print("Error registering Carbon hotkey for \(action): \(status)")
             return false
         }

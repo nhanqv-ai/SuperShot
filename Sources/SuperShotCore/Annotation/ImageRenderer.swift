@@ -23,7 +23,11 @@ public struct ImageRenderer {
         let baseW = CGFloat(baseImage.width)
         let baseH = CGFloat(baseImage.height)
 
-        let targetRect = cropRect ?? CGRect(x: 0, y: 0, width: baseW / scale, height: baseH / scale)
+        let rawTarget = cropRect ?? CGRect(x: 0, y: 0, width: baseW / scale, height: baseH / scale)
+        let targetRect = rawTarget.standardized
+        guard targetRect.width > 0 && targetRect.height > 0 && !targetRect.isNull else {
+            return nil
+        }
         let pixelW = max(1, Int(round(targetRect.width * scale)))
         let pixelH = max(1, Int(round(targetRect.height * scale)))
 

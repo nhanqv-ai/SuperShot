@@ -24,7 +24,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     private var activeTextField: NSTextField?
     private var editingObjectID: UUID?
     private var trackingAreaRef: NSTrackingArea?
-    private var isDraggingOnCanvas: Bool = false
+    public private(set) var isDraggingOnCanvas: Bool = false
     public var isPointOverFloatingToolbar: ((CGPoint) -> Bool)?
     public var onQuickCopyRequested: (() -> Void)?
     private var cancellables = Set<AnyCancellable>()
@@ -482,22 +482,43 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         needsDisplay = true
     }
 
+    public func cancelDrag() {
+        isDraggingOnCanvas = false
+        engine.cancelDrag()
+        needsDisplay = true
+    }
+
+    public override func flagsChanged(with event: NSEvent) {
+        super.flagsChanged(with: event)
+        if isDraggingOnCanvas {
+            let winPt = window?.mouseLocationOutsideOfEventStream ?? .zero
+            let docPt = convert(winPt, from: nil)
+            let shift = event.modifierFlags.contains(.shift)
+            engine.updateDrag(to: docPt, shiftKeyPressed: shift)
+            needsDisplay = true
+        }
+    }
+
     // MARK: - Inline Text Editing
 
     private func startInlineTextEditing(for obj: AnnotationObject) {
         commitActiveTextEditing()
 
+        let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
+        let fieldH = max(26.0, ceil(font.ascender - font.descender) + 6.0)
+        let baselineFromTop = round((fieldH - (font.ascender - font.descender)) / 2.0) + font.ascender
+        let fieldY = obj.bounds.minY + obj.fontSize - baselineFromTop
         let fieldFrame = CGRect(
             x: obj.bounds.minX,
-            y: obj.bounds.minY,
+            y: fieldY,
             width: max(140, obj.bounds.width),
-            height: max(obj.fontSize + 12, obj.bounds.height)
+            height: fieldH
         )
         let field = NSTextField(frame: fieldFrame)
         let defaultPlaceholder = LocalizationManager.shared.tr(.toolText)
         field.stringValue = (obj.text == "Text" || obj.text == defaultPlaceholder) ? "" : obj.text
         field.placeholderString = defaultPlaceholder
-        field.font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
+        field.font = font
         field.textColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
         field.isBordered = true
         field.drawsBackground = true
@@ -1079,6 +1100,7 @@ public final class ScrollableCanvasView: NSView {
 
 public final class ScrollableAnnotationWindow: NSWindow {
     public let canvasView: ScrollableCanvasView
+    public var onWindowClosed: (() -> Void)?
 
     public init(baseImage: CGImage, scale: CGFloat = 2.0, appSettings: AppSettings = AppSettings()) {
         let canvas = ScrollableCanvasView(baseImage: baseImage, scale: scale, appSettings: appSettings)
@@ -1114,6 +1136,7 @@ public final class ScrollableAnnotationWindow: NSWindow {
     public override func close() {
         NSCursor.arrow.set()
         super.close()
+        onWindowClosed?()
     }
 
     public override func keyDown(with event: NSEvent) {
@@ -1150,6 +1173,11 @@ public final class ScrollableAnnotationWindow: NSWindow {
 
         // Esc: Hierarchical 4-Tier Escape Key
         if keyCode == 53 {
+            // Tier 0: Cancel active drag gesture if in progress
+            if canvasView.documentView.isDraggingOnCanvas || canvasView.engine.isDragging {
+                canvasView.documentView.cancelDrag()
+                return
+            }
             // Tier 1: Commit active inline text editing on Esc
             if canvasView.documentView.hasActiveTextEditing {
                 canvasView.documentView.commitActiveTextEditing()
