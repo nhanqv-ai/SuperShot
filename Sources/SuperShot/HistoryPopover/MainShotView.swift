@@ -99,10 +99,6 @@ public struct MainShotView: View {
                     }
                     Divider().opacity(0.6)
                     contentSection(scrollProxy: proxy)
-                    if !visibleItems.isEmpty {
-                        Divider().opacity(0.4)
-                        footerHintBar
-                    }
                 }
 
                 if showCopiedToast {
@@ -521,8 +517,8 @@ public struct MainShotView: View {
                             ShotRowView(
                                 item: item,
                                 storageManager: storageManager,
-                                shortcutIndex: ShortcutNavigator.shortcutIndex(for: item, in: visibleItems),
-                                shortcutBadge: ShortcutNavigator.badgeString(for: item, pinnedItems: pinnedItems, recentItems: recentItems),
+                                shortcutIndex: nil,
+                                shortcutBadge: nil,
                                 isSelected: item.id == selectedItemId,
                                 isRecentlyCopied: item.id == copiedItemId,
                                 onSelect: { selectItem($0) },
@@ -554,8 +550,8 @@ public struct MainShotView: View {
                             ShotRowView(
                                 item: item,
                                 storageManager: storageManager,
-                                shortcutIndex: ShortcutNavigator.shortcutIndex(for: item, in: visibleItems),
-                                shortcutBadge: ShortcutNavigator.badgeString(for: item, pinnedItems: pinnedItems, recentItems: recentItems),
+                                shortcutIndex: nil,
+                                shortcutBadge: nil,
                                 isSelected: item.id == selectedItemId,
                                 isRecentlyCopied: item.id == copiedItemId,
                                 onSelect: { selectItem($0) },
@@ -759,21 +755,6 @@ public struct MainShotView: View {
             .padding(.top, 6)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var footerHintBar: some View {
-        HStack(spacing: 6) {
-            Image(systemName: !pinnedItems.isEmpty ? "keyboard" : "command")
-                .font(.system(size: 9, weight: .medium))
-                .foregroundColor(.secondary.opacity(0.8))
-            Text(localizationManager.tr(!pinnedItems.isEmpty ? .quickSelectHintWithPinned : .quickSelectHint))
-                .font(.system(size: 10, weight: .medium))
-                .foregroundColor(.secondary)
-            Spacer()
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 6)
-        .background(Color(nsColor: .windowBackgroundColor).opacity(0.5))
     }
 
     // MARK: - Selection & Actions
@@ -1184,19 +1165,6 @@ public struct MainShotView: View {
             if flags == .command && (event.keyCode == 8 || event.charactersIgnoringModifiers?.lowercased() == "c") {
                 if let idx = selectedIndex, idx >= 0 && idx < visibleItems.count {
                     copyItem(visibleItems[idx])
-                    return nil
-                }
-            }
-
-            // 10. Differentiated Section Shortcuts (⌥1..⌥9 Pinned, 1..9 / ⌘1..⌘9 Recent)
-            if let resolved = ShortcutNavigator.parseSectionShortcut(from: event, searchFieldHasFocus: isSearchFocused) {
-                if let target = ShortcutNavigator.targetItem(forSectionShortcut: resolved, pinnedItems: pinnedItems, recentItems: recentItems) {
-                    selectItem(target)
-                    return nil
-                }
-            } else if let digit = ShortcutNavigator.parseShortcut(from: event, searchFieldHasFocus: isSearchFocused) {
-                if let target = ShortcutNavigator.targetItem(forShortcut: digit, in: visibleItems) {
-                    selectItem(target)
                     return nil
                 }
             }

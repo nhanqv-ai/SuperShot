@@ -323,21 +323,10 @@ public struct ShotRowView: View {
                         .padding(.horizontal, 4)
                         .padding(.vertical, 1)
                         .background(RoundedRectangle(cornerRadius: 3).fill(Color.green.opacity(0.14)))
-                } else {
-                    if item.isPinned {
-                        Image(systemName: "pin.fill")
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.accentColor)
-                    }
-
-                    if let badge = shortcutBadge ?? shortcutIndex.map({ "\($0)" }) {
-                        Text(badge)
-                            .font(.system(size: 10, weight: .semibold))
-                            .foregroundColor(.secondary)
-                            .padding(.horizontal, 4)
-                            .padding(.vertical, 1)
-                            .background(RoundedRectangle(cornerRadius: 3).fill(Color.secondary.opacity(0.12)))
-                    }
+                } else if item.isPinned {
+                    Image(systemName: "pin.fill")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundColor(.accentColor)
                 }
             }
         }
