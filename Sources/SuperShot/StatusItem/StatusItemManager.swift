@@ -89,17 +89,7 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
         clearItem.image = NSImage(systemSymbolName: "trash", accessibilityDescription: nil)
         menu.addItem(clearItem)
 
-        // 6. Welcome & Quick Guide
-        let welcomeItem = NSMenuItem(
-            title: LocalizationManager.shared.tr(.welcomeGuideButton),
-            action: #selector(welcomeGuideMenuItemClicked(_:)),
-            keyEquivalent: ""
-        )
-        welcomeItem.target = self
-        welcomeItem.image = NSImage(systemSymbolName: "book.pages", accessibilityDescription: nil)
-        menu.addItem(welcomeItem)
-
-        // 7. Check for Updates...
+        // 6. Check for Updates...
         let updateItem = NSMenuItem(
             title: LocalizationManager.shared.tr(.menuCheckUpdates),
             action: #selector(checkUpdatesMenuItemClicked(_:)),
@@ -284,8 +274,6 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
                 item.title = LocalizationManager.shared.tr(.menuPreferences)
             case #selector(clearHistoryMenuItemClicked(_:)):
                 item.title = LocalizationManager.shared.tr(.menuClearHistory)
-            case #selector(welcomeGuideMenuItemClicked(_:)):
-                item.title = LocalizationManager.shared.tr(.welcomeGuideButton)
             case #selector(checkUpdatesMenuItemClicked(_:)):
                 item.title = LocalizationManager.shared.tr(.menuCheckUpdates)
             case #selector(quitMenuItemClicked(_:)):
@@ -326,11 +314,6 @@ public final class StatusItemManager: NSObject, NSPopoverDelegate, NSMenuDelegat
     @objc public func clearHistoryMenuItemClicked(_ sender: Any?) {
         storageManager?.clearUnpinnedHistory()
         onClearHistoryRequested?()
-    }
-
-    @objc public func welcomeGuideMenuItemClicked(_ sender: Any?) {
-        dismissPopover()
-        WelcomeWindowController.shared.showWelcomeWindow()
     }
 
     @objc public func checkUpdatesMenuItemClicked(_ sender: Any?) {
