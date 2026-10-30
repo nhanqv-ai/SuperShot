@@ -37,7 +37,7 @@ public struct AppSettingsSnapshot: Codable, Equatable, Sendable {
     public static let `default` = AppSettingsSnapshot(
         activeColorHex: "#FF3B30",
         activeStrokeWidth: 3.0,
-        activeFontSize: 18.0,
+        activeFontSize: 28.0,
         presets: ColorPreset.defaults,
         autoSaveEnabled: false,
         autoSaveDirectoryPath: ("~/Pictures/SuperShot" as NSString).expandingTildeInPath,
@@ -220,9 +220,18 @@ public final class AppSettings: ObservableObject {
     private var saveDebounceTimer: DispatchWorkItem?
 
     public init(settingsURL: URL? = nil, initialSnapshot: AppSettingsSnapshot? = nil) {
-        let defaultURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-            .appendingPathComponent("SuperShot", isDirectory: true)
-            .appendingPathComponent("settings.json")
+        let procName = ProcessInfo.processInfo.processName.lowercased()
+        let isTestProcess = procName.contains("verifier") || procName.contains("runner") || procName.contains("test")
+        let defaultURL: URL
+        if isTestProcess {
+            defaultURL = FileManager.default.temporaryDirectory
+                .appendingPathComponent("SuperShotTests_Isolated", isDirectory: true)
+                .appendingPathComponent("settings_\(UUID().uuidString).json")
+        } else {
+            defaultURL = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+                .appendingPathComponent("SuperShot", isDirectory: true)
+                .appendingPathComponent("settings.json")
+        }
         let targetURL = settingsURL ?? defaultURL
         self.settingsURL = targetURL
 

@@ -179,7 +179,7 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
         bounds: CGRect = .zero,
         colorHex: String = "#FF3B30",
         strokeWidth: CGFloat = 3.0,
-        fontSize: CGFloat = 18.0,
+        fontSize: CGFloat = 28.0,
         text: String = "",
         blurRadius: CGFloat = 10.0,
         isSelected: Bool = false,

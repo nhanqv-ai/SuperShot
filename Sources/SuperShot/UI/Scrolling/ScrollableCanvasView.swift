@@ -18,7 +18,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
 
     public var currentColorHex: String = "#FF3B30"
     public var currentStrokeWidth: CGFloat = 3.0
-    public var currentFontSize: CGFloat = 18.0
+    public var currentFontSize: CGFloat = 28.0
 
     public var hasActiveTextEditing: Bool { activeTextField != nil }
     public private(set) var activeTextField: NSTextField?

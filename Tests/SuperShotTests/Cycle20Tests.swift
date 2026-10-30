@@ -338,9 +338,14 @@ public struct Cycle20Tests {
             TestHarness.assertEqual(textUXEngine.objects[0].bounds.minX, oldMinX + 50, "S3.8: Dragging existing text in .text mode translates its position")
         }
 
-        // Verify InlineCanvasTextField auto-expansion and border drag zone
+        // Verify InlineCanvasTextField auto-expansion, border drag zone, and default 28pt Red (#FF3B30) style
         let inlineField = InlineCanvasTextField(frame: NSRect(x: 50, y: 50, width: 80, height: 32))
         TestHarness.assertFalse(inlineField.drawsBackground, "S3.8: InlineCanvasTextField has transparent WYSIWYG background")
+        TestHarness.assertEqual(inlineField.font?.pointSize, 28.0, "S3.8: InlineCanvasTextField defaults to 28pt font size")
+        TestHarness.assertEqual(AppSettingsSnapshot.default.activeFontSize, 28.0, "S3.8: AppSettingsSnapshot default activeFontSize is 28.0")
+        TestHarness.assertEqual(AppSettingsSnapshot.default.activeColorHex, "#FF3B30", "S3.8: AppSettingsSnapshot default activeColorHex is Red (#FF3B30)")
+        let isolatedSettings = AppSettings()
+        TestHarness.assertTrue(isolatedSettings.settingsURL.path.contains("SuperShotTests_Isolated"), "S3.8: Default AppSettings in test runner uses isolated temporary settingsURL")
         TestHarness.assertTrue(inlineField.isPointInBorderDragZone(CGPoint(x: 2, y: 2)), "S3.8: Outer border ring is recognized as draggable zone")
         TestHarness.assertFalse(inlineField.isPointInBorderDragZone(CGPoint(x: 40, y: 16)), "S3.8: Interior text area is reserved for text cursor editing")
 
