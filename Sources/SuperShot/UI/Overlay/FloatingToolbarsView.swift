@@ -436,7 +436,7 @@ public struct StrokeWidthPopoverView: View {
     @ObservedObject public var appSettings: AppSettings
     @ObservedObject private var localizationManager = LocalizationManager.shared
     public let strokeWidthOptions: [Double] = [1.0, 2.0, 3.0, 5.0, 8.0, 12.0]
-    public let fontSizeOptions: [Double] = [12.0, 14.0, 18.0, 24.0, 36.0, 48.0]
+    public let fontSizeOptions: [Double] = [14.0, 18.0, 24.0, 28.0, 36.0, 48.0]
     public var onStrokeWidthChanged: ((Double) -> Void)?
     public var onFontSizeChanged: ((Double) -> Void)?
 

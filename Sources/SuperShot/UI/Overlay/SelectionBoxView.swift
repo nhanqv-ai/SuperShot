@@ -49,6 +49,24 @@ public final class InlineCanvasTextFieldCell: NSTextFieldCell {
         let insetRect = rect.insetBy(dx: Self.horizontalPadding, dy: Self.verticalPadding)
         super.select(withFrame: insetRect, in: controlView, editor: textObj, delegate: delegate, start: selStart, length: selLength)
     }
+
+    public override func setUpFieldEditorAttributes(_ textObj: NSText) -> NSText {
+        let editor = super.setUpFieldEditorAttributes(textObj)
+        let resolvedFont = self.font ?? NSFont.systemFont(ofSize: 28.0, weight: .semibold)
+        let resolvedColor = self.textColor ?? ColorPreset(name: "Red", hex: "#FF3B30").toNSColor()
+        editor.font = resolvedFont
+        editor.textColor = resolvedColor
+        editor.drawsBackground = false
+        editor.backgroundColor = .clear
+        if let textView = editor as? NSTextView {
+            textView.insertionPointColor = resolvedColor
+            textView.typingAttributes = [
+                .font: resolvedFont,
+                .foregroundColor: resolvedColor
+            ]
+        }
+        return editor
+    }
 }
 
 public final class InlineCanvasTextField: NSTextField {
@@ -83,7 +101,8 @@ public final class InlineCanvasTextField: NSTextField {
         self.focusRingType = .none
         self.wantsLayer = true
         self.layer?.masksToBounds = false
-        updateTypographyColor(.white)
+        self.font = NSFont.systemFont(ofSize: 28.0, weight: .semibold)
+        updateTypographyColor(ColorPreset(name: "Red", hex: "#FF3B30").toNSColor())
     }
 
     required init?(coder: NSCoder) {
@@ -97,18 +116,47 @@ public final class InlineCanvasTextField: NSTextField {
         shadow.shadowOffset = NSSize(width: 0, height: -1)
         shadow.shadowBlurRadius = 2.0
         self.shadow = shadow
+        updatePlaceholderStyle()
         if let editor = currentEditor() as? NSTextView {
+            let resolvedFont = self.font ?? NSFont.systemFont(ofSize: 28.0, weight: .semibold)
+            editor.font = resolvedFont
             editor.textColor = color
             editor.insertionPointColor = color
+            editor.typingAttributes = [
+                .font: resolvedFont,
+                .foregroundColor: color
+            ]
         }
         needsDisplay = true
     }
 
+    public func updatePlaceholderStyle() {
+        let placeholder = self.placeholderString ?? "Text"
+        let resolvedFont = self.font ?? NSFont.systemFont(ofSize: 28.0, weight: .semibold)
+        let resolvedColor = (self.textColor ?? ColorPreset(name: "Red", hex: "#FF3B30").toNSColor()).withAlphaComponent(0.45)
+        self.placeholderAttributedString = NSAttributedString(
+            string: placeholder,
+            attributes: [
+                .font: resolvedFont,
+                .foregroundColor: resolvedColor
+            ]
+        )
+    }
+
     public func configureFieldEditor() {
+        updatePlaceholderStyle()
         guard let editor = currentEditor() as? NSTextView else { return }
+        let resolvedFont = self.font ?? NSFont.systemFont(ofSize: 28.0, weight: .semibold)
+        let resolvedColor = self.textColor ?? ColorPreset(name: "Red", hex: "#FF3B30").toNSColor()
         editor.drawsBackground = false
         editor.backgroundColor = .clear
-        editor.insertionPointColor = textColor ?? .white
+        editor.font = resolvedFont
+        editor.textColor = resolvedColor
+        editor.insertionPointColor = resolvedColor
+        editor.typingAttributes = [
+            .font: resolvedFont,
+            .foregroundColor: resolvedColor
+        ]
         editor.isHorizontallyResizable = false
         editor.isVerticallyResizable = true
         editor.textContainer?.widthTracksTextView = true

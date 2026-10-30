@@ -12,7 +12,7 @@ public struct AppSettingsTests {
         // 1. Initial default state
         TestHarness.assertEqual(settings.activeColorHex, "#FF3B30", "Default activeColorHex is #FF3B30")
         TestHarness.assertEqual(settings.activeStrokeWidth, 3.0, "Default stroke width is 3.0")
-        TestHarness.assertEqual(settings.activeFontSize, 18.0, "Default font size is 18.0")
+        TestHarness.assertEqual(settings.activeFontSize, 28.0, "Default font size is 28.0")
         TestHarness.assertEqual(settings.presets.count, 8, "Initial presets count is 8")
         TestHarness.assertEqual(settings.maxScrollHeightPx, 15000, "Default maxScrollHeightPx is 15000")
         TestHarness.assertEqual(settings.saveFormat, .png, "Default saveFormat is PNG")

@@ -157,7 +157,7 @@ public final class AnnotationEngine: ObservableObject {
         tool: AnnotationTool? = nil,
         colorHex: String = "#FF3B30",
         strokeWidth: CGFloat = 3.0,
-        fontSize: CGFloat = 18.0
+        fontSize: CGFloat = 28.0
     ) {
         let effectiveTool = tool ?? activeTool
         dragStartPoint = point
