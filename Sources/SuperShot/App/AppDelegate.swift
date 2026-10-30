@@ -6,9 +6,9 @@ import SuperShotCore
 
 public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayWindowDelegate, ScrollingCaptureDelegate {
     public static var shared: AppDelegate?
-    // Canonical Application Version: 1.0.26 (Build 26)
-    public static let canonicalVersion = "1.0.26"
-    public static let canonicalBuild = "26"
+    // Canonical Application Version: 1.0.27 (Build 27)
+    public static let canonicalVersion = "1.0.27"
+    public static let canonicalBuild = "27"
 
     // Core Managers & Services
     public var storageManager: StorageManager!
@@ -434,14 +434,16 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         playCaptureSound()
     }
 
-    public func copyImageToPasteboard(_ image: CGImage) {
+    public func copyImageToPasteboard(_ image: CGImage, scale: CGFloat? = nil) {
         let pb = NSPasteboard.general
         pb.clearContents()
         let rep = NSBitmapImageRep(cgImage: image)
+        let effectiveScale = max(1.0, scale ?? NSScreen.main?.backingScaleFactor ?? 2.0)
+        rep.size = NSSize(width: CGFloat(image.width) / effectiveScale, height: CGFloat(image.height) / effectiveScale)
         if let pngData = rep.representation(using: .png, properties: [:]) {
             pb.declareTypes([.png, .tiff], owner: nil)
             pb.setData(pngData, forType: .png)
-            if let nsImg = NSImage(data: pngData), let tiff = nsImg.tiffRepresentation {
+            if let tiff = rep.tiffRepresentation {
                 pb.setData(tiff, forType: .tiff)
             }
         }

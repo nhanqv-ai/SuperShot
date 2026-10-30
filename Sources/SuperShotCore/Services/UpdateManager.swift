@@ -185,7 +185,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     private var _customVersion: String? = nil
     public var currentVersion: String {
         get {
-            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.26")
+            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.27")
         }
         set {
             _customVersion = newValue
@@ -257,9 +257,35 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     public var urlSession: URLSession
     public weak var appSettings: AppSettings?
     private var periodicTimer: Timer?
-    private let lock = NSLock()
-    public private(set) var activeDownloadTask: URLSessionDownloadTask?
-    public private(set) var activeDownloadDir: URL?
+    private let lock = NSRecursiveLock()
+    private var _activeDownloadTask: URLSessionDownloadTask?
+    private var _activeDownloadDir: URL?
+
+    public var activeDownloadTask: URLSessionDownloadTask? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return _activeDownloadTask
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            _activeDownloadTask = newValue
+        }
+    }
+
+    public var activeDownloadDir: URL? {
+        get {
+            lock.lock()
+            defer { lock.unlock() }
+            return _activeDownloadDir
+        }
+        set {
+            lock.lock()
+            defer { lock.unlock() }
+            _activeDownloadDir = newValue
+        }
+    }
 
 
     // MARK: - Computed Properties
@@ -677,42 +703,61 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         targetURL: URL? = nil,
         completion: ((Result<URL, Error>) -> Void)? = nil
     ) {
+        lock.lock()
         guard let assetURL = release.preferredAssetURL else {
-            let err = UpdateError.noAssetFound
-            self.status = .error(message: err.localizedDescription)
-            completion?(.failure(err))
+            self.status = .error(message: UpdateError.noAssetFound.localizedDescription)
+            lock.unlock()
+            completion?(.failure(UpdateError.noAssetFound))
             return
+        }
+
+        if let prevTask = _activeDownloadTask {
+            prevTask.cancel()
+            _activeDownloadTask = nil
+        }
+        if let prevDir = _activeDownloadDir {
+            try? FileManager.default.removeItem(at: prevDir)
+            _activeDownloadDir = nil
         }
 
         self.status = .downloading(progress: 0.0)
         self.downloadProgress = 0.0
+        defer { lock.unlock() }
 
         downloadAsset(from: assetURL) { [weak self] progress in
             DispatchQueue.main.async {
-                self?.downloadProgress = progress
-                self?.status = .downloading(progress: progress)
+                guard let self = self else { return }
+                self.lock.lock()
+                self.downloadProgress = progress
+                self.status = .downloading(progress: progress)
+                self.lock.unlock()
             }
         } completion: { [weak self] result in
             guard let self = self else { return }
             switch result {
             case .failure(let err):
                 DispatchQueue.main.async {
+                    self.lock.lock()
                     if (err as? URLError)?.code == .cancelled {
-                        self.activeDownloadTask = nil
-                        self.activeDownloadDir = nil
+                        self._activeDownloadTask = nil
+                        self._activeDownloadDir = nil
+                        self.lock.unlock()
                         completion?(.failure(err))
                         return
                     }
-                    self.activeDownloadTask = nil
-                    self.activeDownloadDir = nil
+                    self._activeDownloadTask = nil
+                    self._activeDownloadDir = nil
                     self.status = .error(message: err.localizedDescription)
+                    self.lock.unlock()
                     completion?(.failure(err))
                 }
 
             case .success(let downloadedPath):
                 DispatchQueue.main.async {
-                    self.activeDownloadTask = nil
-                    self.activeDownloadDir = nil
+                    self.lock.lock()
+                    self._activeDownloadTask = nil
+                    self._activeDownloadDir = nil
+                    self.lock.unlock()
                 }
                 DispatchQueue.global(qos: .userInitiated).async {
                     defer {
@@ -729,14 +774,18 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
                             destinationURL: targetURL ?? self.stagingTargetURL
                         )
                         DispatchQueue.main.async {
+                            self.lock.lock()
                             self.stagedAppURL = stagedURL
                             self.status = .readyToRestart(release)
                             self.isBannerDismissedForSession = false
+                            self.lock.unlock()
                             completion?(.success(stagedURL))
                         }
                     } catch {
                         DispatchQueue.main.async {
+                            self.lock.lock()
                             self.status = .error(message: error.localizedDescription)
+                            self.lock.unlock()
                             completion?(.failure(error))
                         }
                     }
@@ -745,27 +794,57 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         }
     }
 
-    /// Cancels any in-progress update download and cleans up staging resources.
-    public func cancelDownload() {
-        let block = { [weak self] in
-            guard let self = self else { return }
-            self.activeDownloadTask?.cancel()
-            self.activeDownloadTask = nil
-            if let dir = self.activeDownloadDir {
-                try? FileManager.default.removeItem(at: dir)
-                self.activeDownloadDir = nil
+    private static var activeMountPoints: Set<URL> = []
+    private static let mountLock = NSLock()
+
+    /// Forcefully detaches a mounted disk image with retry and unlinks mount directory.
+    public static func forceDetachDMG(mountPoint: URL, maxAttempts: Int = 3) {
+        for attempt in 1...maxAttempts {
+            let detach = Process()
+            detach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
+            detach.arguments = ["detach", mountPoint.path, "-force"]
+            let detachPipe = Pipe()
+            detach.standardOutput = detachPipe
+            detach.standardError = detachPipe
+            try? detach.run()
+            detach.waitUntilExit()
+            if detach.terminationStatus == 0 {
+                try? FileManager.default.removeItem(at: mountPoint)
+                return
             }
-            self.downloadProgress = 0.0
-            if let release = self.latestRelease {
-                self.status = .updateAvailable(release)
-            } else {
-                self.status = .idle
+            if attempt < maxAttempts {
+                Thread.sleep(forTimeInterval: 0.1 * Double(attempt))
             }
         }
-        if Thread.isMainThread {
-            block()
+        try? FileManager.default.removeItem(at: mountPoint)
+    }
+
+    /// Cancels any in-progress update download and cleans up staging resources.
+    public func cancelDownload() {
+        lock.lock()
+        let taskToCancel = _activeDownloadTask
+        _activeDownloadTask = nil
+        let dirToRemove = _activeDownloadDir
+        _activeDownloadDir = nil
+        self.downloadProgress = 0.0
+        if let release = self.latestRelease {
+            self.status = .updateAvailable(release)
         } else {
-            DispatchQueue.main.async(execute: block)
+            self.status = .idle
+        }
+        lock.unlock()
+
+        taskToCancel?.cancel()
+        if let dir = dirToRemove {
+            try? FileManager.default.removeItem(at: dir)
+        }
+
+        Self.mountLock.lock()
+        let mounts = Array(Self.activeMountPoints)
+        Self.activeMountPoints.removeAll()
+        Self.mountLock.unlock()
+        for mountDir in mounts {
+            Self.forceDetachDMG(mountPoint: mountDir)
         }
     }
 
@@ -816,8 +895,10 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
 
         let session = URLSession(configuration: self.urlSession.configuration, delegate: delegate, delegateQueue: nil)
         let task = session.downloadTask(with: url)
-        self.activeDownloadDir = tempDir
-        self.activeDownloadTask = task
+        lock.lock()
+        _activeDownloadDir = tempDir
+        _activeDownloadTask = task
+        lock.unlock()
         task.resume()
     }
 
@@ -843,16 +924,15 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
             let mountDir = fm.temporaryDirectory.appendingPathComponent("SuperShot-DMG-\(UUID().uuidString)")
             try fm.createDirectory(at: mountDir, withIntermediateDirectories: true)
 
+            Self.mountLock.lock()
+            Self.activeMountPoints.insert(mountDir)
+            Self.mountLock.unlock()
+
             defer {
-                let detach = Process()
-                detach.executableURL = URL(fileURLWithPath: "/usr/bin/hdiutil")
-                detach.arguments = ["detach", mountDir.path, "-force"]
-                let detachPipe = Pipe()
-                detach.standardOutput = detachPipe
-                detach.standardError = detachPipe
-                try? detach.run()
-                detach.waitUntilExit()
-                try? fm.removeItem(at: mountDir)
+                Self.forceDetachDMG(mountPoint: mountDir)
+                Self.mountLock.lock()
+                Self.activeMountPoints.remove(mountDir)
+                Self.mountLock.unlock()
             }
 
             let attach = Process()

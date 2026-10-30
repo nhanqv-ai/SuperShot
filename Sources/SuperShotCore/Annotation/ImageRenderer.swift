@@ -165,16 +165,30 @@ public struct ImageRenderer {
         let dx = p2.x - p1.x
         let dy = p2.y - p1.y
         let len = hypot(dx, dy)
-        guard len > 1.0 else { return }
+        guard len > 1.0 else {
+            context.setFillColor(color.cgColor)
+            let anchorRadius = max(2.0, strokeWidth / 2.0)
+            context.fillEllipse(in: CGRect(x: p1.x - anchorRadius, y: p1.y - anchorRadius, width: anchorRadius * 2, height: anchorRadius * 2))
+            return
+        }
 
         let theta = atan2(dy, dx)
-        let headLen = max(12.0, min(len * 0.5, strokeWidth * 4.0))
+        let desiredHeadLen = max(8.0, strokeWidth * 3.5)
+        let headLen = min(desiredHeadLen, max(3.0, len * 0.6))
         let wingAngle: CGFloat = 0.488 // ~28 degrees
 
+        let shaftSetback = min(headLen * 0.7, len)
         let shaftEnd = CGPoint(
-            x: p2.x - (headLen * 0.7) * cos(theta),
-            y: p2.y - (headLen * 0.7) * sin(theta)
+            x: p2.x - shaftSetback * cos(theta),
+            y: p2.y - shaftSetback * sin(theta)
         )
+
+        if len > shaftSetback + 0.5 {
+            context.setStrokeColor(color.cgColor)
+            context.setLineWidth(strokeWidth)
+            context.setLineCap(.round)
+            context.strokeLineSegments(between: [p1, shaftEnd])
+        }
 
         let w1 = CGPoint(
             x: p2.x - headLen * cos(theta - wingAngle),
@@ -184,11 +198,6 @@ public struct ImageRenderer {
             x: p2.x - headLen * cos(theta + wingAngle),
             y: p2.y - headLen * sin(theta + wingAngle)
         )
-
-        context.setStrokeColor(color.cgColor)
-        context.setLineWidth(strokeWidth)
-        context.setLineCap(.round)
-        context.strokeLineSegments(between: [p1, shaftEnd])
 
         let arrowPath = CGMutablePath()
         arrowPath.move(to: p2)

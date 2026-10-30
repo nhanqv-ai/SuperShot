@@ -224,9 +224,9 @@ public struct ScrollingCoordinateMapper {
     ) -> CGPoint {
         let centerX = selectionRect.midX
         let cocoaCenterY = selectionRect.midY
-        // CoreGraphics global Y has origin at top edge of the primary display
-        let cgY = screenBounds.height - cocoaCenterY
-        return CGPoint(x: centerX, y: cgY)
+        let globalX = screenBounds.minX + centerX
+        let globalY = screenBounds.minY + (screenBounds.height - cocoaCenterY)
+        return CGPoint(x: globalX, y: globalY)
     }
 }
 
@@ -290,6 +290,32 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
         }
 
         self.configuration = configuration
+        setupWorkspaceObservers()
+    }
+
+    private var workspaceObservers: [Any] = []
+
+    private func setupWorkspaceObservers() {
+        guard ProcessInfo.processInfo.environment["SUPER_SHOT_HEADLESS"] == nil else { return }
+        let wsCenter = NSWorkspace.shared.notificationCenter
+        let o1 = wsCenter.addObserver(forName: NSWorkspace.sessionDidResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.cancelSession()
+        }
+        let o2 = wsCenter.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.cancelSession()
+        }
+        let o3 = DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
+            self?.cancelSession()
+        }
+        workspaceObservers = [o1, o2, o3]
+    }
+
+    deinit {
+        for obs in workspaceObservers {
+            NSWorkspace.shared.notificationCenter.removeObserver(obs)
+            DistributedNotificationCenter.default().removeObserver(obs)
+        }
+        workspaceObservers.removeAll()
     }
 
     // MARK: - Session Control

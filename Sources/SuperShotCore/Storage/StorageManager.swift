@@ -60,12 +60,17 @@ public final class StorageManager: ObservableObject, StorageManaging {
             return _capacity
         }
         set {
+            let evicted: [ShotItem]
             lock.lock()
             let clamped = max(10, min(newValue, 500))
             _capacity = clamped
-            enforceCapacity()
+            evicted = enforceCapacity()
             saveMetadata()
             lock.unlock()
+
+            for item in evicted {
+                cleanupFiles(for: item)
+            }
             notifyChange()
         }
     }
@@ -187,8 +192,8 @@ public final class StorageManager: ObservableObject, StorageManaging {
 
     /// Stores pre-encoded image and thumbnail data into cache and asynchronously persists to disk.
     public func save(imageData: Data, thumbnailData: Data, item: ShotItem) {
+        let evicted: [ShotItem]
         lock.lock()
-        defer { lock.unlock() }
 
         // 1. Populate RAM cache immediately to guarantee synchronous read-after-write
         imageCache.setObject(imageData as NSData, forKey: item.filePath as NSString)
@@ -206,10 +211,15 @@ public final class StorageManager: ObservableObject, StorageManaging {
         _items.insert(item, at: 0)
 
         // 4. Enforce capacity trimming (protecting pinned items permanently)
-        enforceCapacity()
+        evicted = enforceCapacity()
 
         // 5. Asynchronously persist metadata snapshot
         saveMetadata()
+        lock.unlock()
+
+        for evictedItem in evicted {
+            cleanupFiles(for: evictedItem)
+        }
         notifyChange()
     }
 
@@ -266,34 +276,55 @@ public final class StorageManager: ObservableObject, StorageManaging {
     // MARK: - Item Management & Pinning
 
     public func togglePin(id: UUID) {
+        let evicted: [ShotItem]
         lock.lock()
-        defer { lock.unlock() }
-        guard let index = _items.firstIndex(where: { $0.id == id }) else { return }
+        guard let index = _items.firstIndex(where: { $0.id == id }) else {
+            lock.unlock()
+            return
+        }
         _items[index].isPinned.toggle()
-        enforceCapacity()
+        evicted = enforceCapacity()
         saveMetadata()
+        lock.unlock()
+
+        for item in evicted {
+            cleanupFiles(for: item)
+        }
         notifyChange()
     }
 
     public func deleteItem(id: UUID) {
+        let itemToDelete: ShotItem?
         lock.lock()
-        defer { lock.unlock() }
-        guard let index = _items.firstIndex(where: { $0.id == id }) else { return }
-        let item = _items.remove(at: index)
-        cleanupFiles(for: item)
-        saveMetadata()
-        notifyChange()
+        if let index = _items.firstIndex(where: { $0.id == id }) {
+            itemToDelete = _items.remove(at: index)
+            saveMetadata()
+        } else {
+            itemToDelete = nil
+        }
+        lock.unlock()
+
+        if let item = itemToDelete {
+            cleanupFiles(for: item)
+            notifyChange()
+        }
     }
 
     public func clearUnpinnedHistory() {
+        let unpinned: [ShotItem]
         lock.lock()
-        defer { lock.unlock() }
-        let unpinned = _items.filter { !$0.isPinned }
+        unpinned = _items.filter { !$0.isPinned }
+        _items.removeAll { !$0.isPinned }
+        saveMetadata()
+        lock.unlock()
+
         for item in unpinned {
             cleanupFiles(for: item)
         }
-        _items.removeAll { !$0.isPinned }
-        saveMetadata()
+        NotificationCenter.default.post(
+            name: Notification.Name("SuperShotHistoryDidClear"),
+            object: nil
+        )
         notifyChange()
     }
 
@@ -328,7 +359,9 @@ public final class StorageManager: ObservableObject, StorageManaging {
 
     /// Enforces capacity limit on unpinned items.
     /// Pinned items are permanently protected and NEVER evicted.
-    private func enforceCapacity() {
+    /// Returns evicted items so cleanup and notifications occur outside the lock scope.
+    @discardableResult
+    private func enforceCapacity() -> [ShotItem] {
         let unpinned = _items.filter { !$0.isPinned }
         if unpinned.count > _capacity {
             let excess = unpinned.count - _capacity
@@ -336,11 +369,10 @@ public final class StorageManager: ObservableObject, StorageManaging {
             // Oldest unpinned items are at the tail end
             let toEvict = Array(unpinned.suffix(excess))
             let toEvictIDs = Set(toEvict.map { $0.id })
-            for item in toEvict {
-                cleanupFiles(for: item)
-            }
             _items.removeAll { toEvictIDs.contains($0.id) }
+            return toEvict
         }
+        return []
     }
 
     private func cleanupFiles(for item: ShotItem) {
@@ -348,6 +380,11 @@ public final class StorageManager: ObservableObject, StorageManaging {
         imageCache.removeObject(forKey: item.thumbnailPath as NSString)
         let imgURL = imagesDirectory.appendingPathComponent(item.filePath)
         let thURL = thumbnailsDirectory.appendingPathComponent(item.thumbnailPath)
+        NotificationCenter.default.post(
+            name: Notification.Name("SuperShotItemDidDelete"),
+            object: nil,
+            userInfo: ["imageURL": imgURL, "thumbnailURL": thURL, "itemID": item.id]
+        )
         fileQueue.async {
             try? FileManager.default.removeItem(at: imgURL)
             try? FileManager.default.removeItem(at: thURL)

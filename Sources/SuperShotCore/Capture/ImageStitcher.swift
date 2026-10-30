@@ -194,6 +194,17 @@ public final class ImageStitcher: Sendable {
 
         // 3. Compute Total Target Height & Clamping
         let sumOffsets = offsets.reduce(0, +)
+        if sumOffsets == 0 {
+            return StitchResult(
+                image: firstFrame,
+                totalHeight: CGFloat(height),
+                frameOffsets: [],
+                deduplicatedHeaderHeight: 0,
+                deduplicatedFooterHeight: 0,
+                isClampedToMaxHeight: false
+            )
+        }
+
         let unconstrainedHeight = height + sumOffsets
         let maxAllowedPx = Int(round(options.maxScrollHeightPx))
         let isClamped = unconstrainedHeight > maxAllowedPx
@@ -221,7 +232,7 @@ public final class ImageStitcher: Sendable {
         // 5a. Top Sticky Header from Frame 0
         if detectedHeaderPx > 0 && yDestTopDown < finalHeight {
             let hSlice = min(detectedHeaderPx, finalHeight - yDestTopDown)
-            if let slice = firstFrame.cropping(to: CGRect(x: 0, y: 0, width: width, height: hSlice)) {
+            if let slice = safeCrop(firstFrame, x: 0, y: 0, width: width, height: hSlice) {
                 let destRect = CGRect(x: 0, y: finalHeight - (yDestTopDown + hSlice), width: width, height: hSlice)
                 context.draw(slice, in: destRect)
                 yDestTopDown += hSlice
@@ -232,7 +243,7 @@ public final class ImageStitcher: Sendable {
         let initialContentH = height - detectedHeaderPx - detectedFooterPx
         if initialContentH > 0 && yDestTopDown < finalHeight {
             let hSlice = min(initialContentH, finalHeight - yDestTopDown)
-            if let slice = firstFrame.cropping(to: CGRect(x: 0, y: detectedHeaderPx, width: width, height: hSlice)) {
+            if let slice = safeCrop(firstFrame, x: 0, y: detectedHeaderPx, width: width, height: hSlice) {
                 let destRect = CGRect(x: 0, y: finalHeight - (yDestTopDown + hSlice), width: width, height: hSlice)
                 context.draw(slice, in: destRect)
                 yDestTopDown += hSlice
@@ -249,7 +260,7 @@ public final class ImageStitcher: Sendable {
             let hSlice = min(offset, finalHeight - yDestTopDown)
             guard srcY >= detectedHeaderPx, srcY + hSlice <= height else { continue }
 
-            if let slice = frame.cropping(to: CGRect(x: 0, y: srcY, width: width, height: hSlice)) {
+            if let slice = safeCrop(frame, x: 0, y: srcY, width: width, height: hSlice) {
                 let destRect = CGRect(x: 0, y: finalHeight - (yDestTopDown + hSlice), width: width, height: hSlice)
                 context.draw(slice, in: destRect)
                 yDestTopDown += hSlice
@@ -261,7 +272,7 @@ public final class ImageStitcher: Sendable {
             let lastFrame = frames.last ?? firstFrame
             let hSlice = min(detectedFooterPx, finalHeight - yDestTopDown)
             let srcY = height - detectedFooterPx
-            if let slice = lastFrame.cropping(to: CGRect(x: 0, y: srcY, width: width, height: hSlice)) {
+            if let slice = safeCrop(lastFrame, x: 0, y: srcY, width: width, height: hSlice) {
                 let destRect = CGRect(x: 0, y: finalHeight - (yDestTopDown + hSlice), width: width, height: hSlice)
                 context.draw(slice, in: destRect)
                 yDestTopDown += hSlice
@@ -282,13 +293,30 @@ public final class ImageStitcher: Sendable {
         )
     }
 
+    public static func safeCrop(
+        _ image: CGImage,
+        x: Int,
+        y: Int,
+        width: Int,
+        height: Int
+    ) -> CGImage? {
+        guard width > 0, height > 0 else { return nil }
+        let imgW = image.width
+        let imgH = image.height
+        guard x >= 0, y >= 0, x < imgW, y < imgH else { return nil }
+        let safeW = min(width, imgW - x)
+        let safeH = min(height, imgH - y)
+        guard safeW > 0, safeH > 0 else { return nil }
+        return image.cropping(to: CGRect(x: x, y: y, width: safeW, height: safeH))
+    }
+
     /// Normalizes minor 1-2px frame rounding variances to match target canvas dimensions.
     private static func normalizeFrameDimensions(_ frame: CGImage, targetWidth: Int, targetHeight: Int) -> CGImage? {
         if frame.width == targetWidth && frame.height == targetHeight {
             return frame
         }
         if frame.width >= targetWidth && frame.height >= targetHeight {
-            return frame.cropping(to: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
+            return safeCrop(frame, x: 0, y: 0, width: targetWidth, height: targetHeight)
         }
         let colorSpace = frame.colorSpace ?? CGColorSpaceCreateDeviceRGB()
         let bitmapInfo = CGImageAlphaInfo.premultipliedLast.rawValue
@@ -303,7 +331,7 @@ public final class ImageStitcher: Sendable {
         ) else {
             return nil
         }
-        ctx.draw(frame, in: CGRect(x: 0, y: targetHeight - frame.height, width: frame.width, height: frame.height))
+        ctx.draw(frame, in: CGRect(x: 0, y: 0, width: targetWidth, height: targetHeight))
         return ctx.makeImage()
     }
 
@@ -337,7 +365,46 @@ public final class ImageStitcher: Sendable {
                 break
             }
         }
-        return headerH
+
+        guard headerH > 0 else { return 0 }
+
+        // Variance & boundary edge check: ensure flat/solid regions are not treated as false-positive sticky headers
+        var pixelSum: Double = 0
+        let totalSamples = headerH * sampleCols
+        for r in 0..<headerH {
+            let rowOffset = r * sampleCols
+            for c in 0..<sampleCols {
+                pixelSum += Double(g1[rowOffset + c])
+            }
+        }
+        let mean = pixelSum / Double(totalSamples)
+        var varSum: Double = 0
+        for r in 0..<headerH {
+            let rowOffset = r * sampleCols
+            for c in 0..<sampleCols {
+                let diff = Double(g1[rowOffset + c]) - mean
+                varSum += diff * diff
+            }
+        }
+        let regionVariance = varSum / Double(totalSamples)
+        if regionVariance >= 2.0 {
+            return headerH
+        }
+
+        // If the candidate header is uniform, verify that f1 has a distinct contrast edge where the header ends
+        if headerH < f1.height {
+            let nextRowPixels = extractGrayscaleMatrix(image: f1, effectiveWidth: effectiveWidth, height: 1, startY: headerH, sampleCols: sampleCols)
+            var nextRowSum: Double = 0
+            for c in 0..<sampleCols {
+                nextRowSum += Double(nextRowPixels[c])
+            }
+            let nextRowMean = nextRowSum / Double(sampleCols)
+            if abs(nextRowMean - mean) >= 3.0 {
+                return headerH
+            }
+        }
+
+        return 0
     }
 
     public static func detectStationaryFooter(
@@ -370,7 +437,49 @@ public final class ImageStitcher: Sendable {
                 break
             }
         }
-        return footerH
+
+        guard footerH > 0 else { return 0 }
+
+        // Variance & boundary edge check: ensure flat/solid regions are not treated as false-positive sticky footers
+        var pixelSum: Double = 0
+        let totalSamples = footerH * sampleCols
+        for i in 0..<footerH {
+            let r = h - 1 - i
+            let rowOffset = r * sampleCols
+            for c in 0..<sampleCols {
+                pixelSum += Double(g1[rowOffset + c])
+            }
+        }
+        let mean = pixelSum / Double(totalSamples)
+        var varSum: Double = 0
+        for i in 0..<footerH {
+            let r = h - 1 - i
+            let rowOffset = r * sampleCols
+            for c in 0..<sampleCols {
+                let diff = Double(g1[rowOffset + c]) - mean
+                varSum += diff * diff
+            }
+        }
+        let regionVariance = varSum / Double(totalSamples)
+        if regionVariance >= 2.0 {
+            return footerH
+        }
+
+        // If candidate footer is uniform, verify that f1 has a distinct contrast edge immediately above the footer
+        let boundaryRow = f1.height - footerH - 1
+        if boundaryRow >= 0 {
+            let prevRowPixels = extractGrayscaleMatrix(image: f1, effectiveWidth: effectiveWidth, height: 1, startY: boundaryRow, sampleCols: sampleCols)
+            var prevRowSum: Double = 0
+            for c in 0..<sampleCols {
+                prevRowSum += Double(prevRowPixels[c])
+            }
+            let prevRowMean = prevRowSum / Double(sampleCols)
+            if abs(prevRowMean - mean) >= 3.0 {
+                return footerH
+            }
+        }
+
+        return 0
     }
 
     // MARK: - Vertical Offset Estimation

@@ -171,10 +171,49 @@ public final class LiveStitchedPreviewPanel: NSPanel, ScrollingCaptureDelegate {
         self.contentView = NSHostingView(rootView: rootView)
 
         captureManager.delegate = self
+        setupWorkspaceObservers()
+    }
+
+    private var workspaceObservers: [Any] = []
+
+    private func setupWorkspaceObservers() {
+        guard ProcessInfo.processInfo.environment["SUPER_SHOT_HEADLESS"] == nil else { return }
+        let wsCenter = NSWorkspace.shared.notificationCenter
+        let o1 = wsCenter.addObserver(forName: NSWorkspace.sessionDidResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.handleSessionInterruption()
+        }
+        let o2 = wsCenter.addObserver(forName: NSWorkspace.screensDidSleepNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.handleSessionInterruption()
+        }
+        let o3 = DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name("com.apple.screenIsLocked"), object: nil, queue: .main) { [weak self] _ in
+            self?.handleSessionInterruption()
+        }
+        let o4 = NotificationCenter.default.addObserver(forName: NSApplication.didResignActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            self?.removeKeyboardMonitors()
+        }
+        let o5 = NotificationCenter.default.addObserver(forName: NSApplication.didBecomeActiveNotification, object: nil, queue: .main) { [weak self] _ in
+            if self?.isVisible == true {
+                self?.installKeyboardMonitors()
+            }
+        }
+        workspaceObservers = [o1, o2, o3, o4, o5]
+    }
+
+    private func handleSessionInterruption() {
+        removeKeyboardMonitors()
+        captureManager.cancelSession()
+        orderOut(nil)
+        onCancelled?()
     }
 
     deinit {
         removeKeyboardMonitors()
+        for obs in workspaceObservers {
+            NotificationCenter.default.removeObserver(obs)
+            NSWorkspace.shared.notificationCenter.removeObserver(obs)
+            DistributedNotificationCenter.default().removeObserver(obs)
+        }
+        workspaceObservers.removeAll()
     }
 
     public override var canBecomeKey: Bool { true }

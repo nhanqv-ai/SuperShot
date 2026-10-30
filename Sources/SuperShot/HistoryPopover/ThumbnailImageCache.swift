@@ -8,6 +8,25 @@ public final class ThumbnailImageCache: @unchecked Sendable {
 
     public init() {
         cache.countLimit = 150
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("SuperShotItemDidDelete"),
+            object: nil,
+            queue: nil
+        ) { [weak self] note in
+            if let imgURL = note.userInfo?["imageURL"] as? URL {
+                self?.removeImage(for: imgURL)
+            }
+            if let thURL = note.userInfo?["thumbnailURL"] as? URL {
+                self?.removeImage(for: thURL)
+            }
+        }
+        NotificationCenter.default.addObserver(
+            forName: Notification.Name("SuperShotHistoryDidClear"),
+            object: nil,
+            queue: nil
+        ) { [weak self] _ in
+            self?.removeAll()
+        }
     }
 
     public func image(for url: URL) -> NSImage? {

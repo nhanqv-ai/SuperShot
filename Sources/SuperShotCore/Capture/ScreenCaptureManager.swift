@@ -105,10 +105,10 @@ public final class NativeScreenCaptureProvider: ScreenCaptureProviding, @uncheck
 
     public func display(containing point: CGPoint) -> CaptureDisplayInfo? {
         let displays = availableDisplays()
-        if let match = displays.first(where: { $0.cocoaFrame.contains(point) }) {
+        if let match = displays.first(where: { $0.cocoaFrame.insetBy(dx: -1, dy: -1).contains(point) }) {
             return match
         }
-        if let match = displays.first(where: { $0.cgBounds.contains(point) }) {
+        if let match = displays.first(where: { $0.cgBounds.insetBy(dx: -1, dy: -1).contains(point) }) {
             return match
         }
         return displays.first(where: { $0.isMain }) ?? displays.first
@@ -166,7 +166,10 @@ public final class MockScreenCaptureProvider: ScreenCaptureProviding, @unchecked
     }
 
     public func display(containing point: CGPoint) -> CaptureDisplayInfo? {
-        if let match = mockDisplays.first(where: { $0.cocoaFrame.contains(point) }) {
+        if let match = mockDisplays.first(where: { $0.cocoaFrame.insetBy(dx: -1, dy: -1).contains(point) }) {
+            return match
+        }
+        if let match = mockDisplays.first(where: { $0.cgBounds.insetBy(dx: -1, dy: -1).contains(point) }) {
             return match
         }
         return mockDisplays.first(where: { $0.isMain }) ?? mockDisplays.first
@@ -270,10 +273,18 @@ public final class ScreenCaptureManager: @unchecked Sendable {
 
         let normalizedSelection = CGRect(x: safeX, y: safeY, width: safeW, height: safeH)
 
-        let pixelX = round(normalizedSelection.origin.x * scaleFactor)
-        let pixelY = round((windowSize.height - (normalizedSelection.origin.y + normalizedSelection.height)) * scaleFactor)
-        let pixelW = round(normalizedSelection.width * scaleFactor)
-        let pixelH = round(normalizedSelection.height * scaleFactor)
+        let imgW = CGFloat(fullImage.width)
+        let imgH = CGFloat(fullImage.height)
+
+        let px1 = max(0, min(imgW - 1, round(normalizedSelection.minX * scaleFactor)))
+        let px2 = max(1, min(imgW, round(normalizedSelection.maxX * scaleFactor)))
+        let py1 = max(0, min(imgH - 1, round((windowSize.height - normalizedSelection.maxY) * scaleFactor)))
+        let py2 = max(1, min(imgH, round((windowSize.height - normalizedSelection.minY) * scaleFactor)))
+
+        let pixelX = px1
+        let pixelY = py1
+        let pixelW = max(1, min(px2 - px1, imgW - pixelX))
+        let pixelH = max(1, min(py2 - py1, imgH - pixelY))
 
         let cropRect = CGRect(x: pixelX, y: pixelY, width: pixelW, height: pixelH)
         return fullImage.cropping(to: cropRect)
@@ -356,8 +367,26 @@ public struct SelectionBoxGeometry {
             y2 = max(b.minY, min(y2, b.maxY))
         }
 
-        let width = max(1.0, x2 - x1)
-        let height = max(1.0, y2 - y1)
+        var width = max(1.0, x2 - x1)
+        var height = max(1.0, y2 - y1)
+
+        if let b = bounds {
+            if b.width >= 1.0 {
+                if x1 + width > b.maxX {
+                    x1 = max(b.minX, b.maxX - width)
+                    width = min(width, b.width)
+                }
+            }
+            if b.height >= 1.0 {
+                if y1 + height > b.maxY {
+                    y1 = max(b.minY, b.maxY - height)
+                    height = min(height, b.height)
+                }
+            }
+        }
+        width = max(1.0, width)
+        height = max(1.0, height)
+
         return CGRect(x: x1, y: y1, width: width, height: height)
     }
 
