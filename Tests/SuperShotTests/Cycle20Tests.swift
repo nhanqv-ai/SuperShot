@@ -299,6 +299,51 @@ public struct Cycle20Tests {
         }
         TestHarness.assertEqual(bgProgress, 1.0, "S3.7: UpdateDownloadDelegate reported 100% progress before completion")
 
+        // S3.8: Text UX Enhancements (WYSIWYG auto-expanding editor, 4-corner fontSize scaling, smart click-outside & move)
+        let textUXEngine = AnnotationEngine()
+        textUXEngine.activeTool = .text
+        textUXEngine.startDrag(at: CGPoint(x: 100, y: 100), tool: .text, colorHex: "#FFFFFF", fontSize: 18.0)
+        let createdText = textUXEngine.endDrag(at: CGPoint(x: 100, y: 100))
+        TestHarness.assertNotNil(createdText, "S3.8: Clicking in .text mode creates a text annotation")
+
+        if let txt = createdText {
+            let handles = txt.handlePositions()
+            TestHarness.assertEqual(handles.count, 4, "S3.8: Text object exposes strictly 4 corner resize handles")
+            TestHarness.assertNotNil(handles[.topLeft], "S3.8: Text object has topLeft handle")
+            TestHarness.assertNotNil(handles[.topRight], "S3.8: Text object has topRight handle")
+            TestHarness.assertNotNil(handles[.bottomRight], "S3.8: Text object has bottomRight handle")
+            TestHarness.assertNotNil(handles[.bottomLeft], "S3.8: Text object has bottomLeft handle")
+            TestHarness.assertNil(handles[.topCenter], "S3.8: Text object omits cluttered edge-center handles")
+            TestHarness.assertTrue(txt.selectionBounds.width > txt.bounds.width, "S3.8: Text selectionBounds includes breathing padding")
+
+            // Dragging bottomRight corner handle scales fontSize proportionally
+            let initialFontSize = txt.fontSize
+            let brPos = handles[.bottomRight]!
+            textUXEngine.startDrag(at: brPos, tool: .text)
+            textUXEngine.updateDrag(to: CGPoint(x: brPos.x + 80, y: brPos.y + 40))
+            let resizedTxt = textUXEngine.endDrag(at: CGPoint(x: brPos.x + 80, y: brPos.y + 40))
+            TestHarness.assertTrue((resizedTxt?.fontSize ?? 0) > initialFontSize, "S3.8: Dragging corner handle proportionally increases fontSize")
+
+            // Undo restores both fontSize and bounds
+            textUXEngine.undo()
+            TestHarness.assertEqual(textUXEngine.objects.first?.fontSize, initialFontSize, "S3.8: Undo restores original fontSize after corner resize")
+
+            // Clicking and dragging existing text while still in .text mode moves it instead of spawning a second text object
+            let midPt = CGPoint(x: textUXEngine.objects[0].bounds.midX, y: textUXEngine.objects[0].bounds.midY)
+            let oldMinX = textUXEngine.objects[0].bounds.minX
+            textUXEngine.startDrag(at: midPt, tool: .text)
+            textUXEngine.updateDrag(to: CGPoint(x: midPt.x + 50, y: midPt.y + 30))
+            _ = textUXEngine.endDrag(at: CGPoint(x: midPt.x + 50, y: midPt.y + 30))
+            TestHarness.assertEqual(textUXEngine.objects.count, 1, "S3.8: Dragging existing text in .text mode does not spawn duplicate object")
+            TestHarness.assertEqual(textUXEngine.objects[0].bounds.minX, oldMinX + 50, "S3.8: Dragging existing text in .text mode translates its position")
+        }
+
+        // Verify InlineCanvasTextField auto-expansion and border drag zone
+        let inlineField = InlineCanvasTextField(frame: NSRect(x: 50, y: 50, width: 80, height: 32))
+        TestHarness.assertFalse(inlineField.drawsBackground, "S3.8: InlineCanvasTextField has transparent WYSIWYG background")
+        TestHarness.assertTrue(inlineField.isPointInBorderDragZone(CGPoint(x: 2, y: 2)), "S3.8: Outer border ring is recognized as draggable zone")
+        TestHarness.assertFalse(inlineField.isPointInBorderDragZone(CGPoint(x: 40, y: 16)), "S3.8: Interior text area is reserved for text cursor editing")
+
         print("  --- Cycle 20 All Test Sections Completed Successfully ---")
     }
 }

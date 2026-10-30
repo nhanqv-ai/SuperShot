@@ -199,11 +199,55 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
 
         // If bounds is zero but points exist, derive bounds from points
         if self.bounds.isEmpty && !points.isEmpty {
-            self.bounds = AnnotationObject.calculateBounds(from: points, strokeWidth: self.strokeWidth)
+            if self.tool == .text {
+                let measured = AnnotationObject.measureTextSize(text: self.text, fontSize: self.fontSize)
+                self.bounds = CGRect(x: points[0].x, y: points[0].y, width: measured.width, height: measured.height)
+            } else {
+                self.bounds = AnnotationObject.calculateBounds(from: points, strokeWidth: self.strokeWidth)
+            }
         }
     }
 
     // MARK: - Bounds Calculation
+
+    /// Computes the bounding size required to render single-line or multi-line typography with padding.
+    public static func measureTextSize(text: String, fontSize: CGFloat) -> CGSize {
+        let effectiveFontSize = max(9.0, min(fontSize, 144.0))
+        let font = NSFont.systemFont(ofSize: effectiveFontSize, weight: .semibold)
+        let effectiveText = text.isEmpty ? "Text" : text
+        let lines = effectiveText.components(separatedBy: .newlines)
+        let lineHeight = effectiveFontSize * 1.25
+        let singleLineMetric = ceil(font.ascender - font.descender)
+
+        var maxLineWidth: CGFloat = 0
+        for line in lines {
+            let sample = line.isEmpty ? " " : line
+            let sz = (sample as NSString).size(withAttributes: [.font: font])
+            maxLineWidth = max(maxLineWidth, sz.width)
+        }
+
+        let totalHeight: CGFloat
+        if lines.count <= 1 {
+            let sz = (effectiveText as NSString).size(withAttributes: [.font: font])
+            totalHeight = max(sz.height, singleLineMetric) + 8.0
+        } else {
+            totalHeight = CGFloat(lines.count - 1) * lineHeight + singleLineMetric + 8.0
+        }
+
+        return CGSize(
+            width: max(24.0, ceil(maxLineWidth) + 12.0),
+            height: max(20.0, ceil(totalHeight))
+        )
+    }
+
+    /// Visual selection outline rectangle around the annotation object.
+    /// Text annotations receive extra breathing room so the selection frame and corner handles never crowd glyphs.
+    public var selectionBounds: CGRect {
+        if tool == .text {
+            return bounds.insetBy(dx: -6.0, dy: -4.0)
+        }
+        return bounds.insetBy(dx: -2.0, dy: -2.0)
+    }
 
     /// Computes enclosing bounding box enclosing an array of points with stroke padding.
     public static func calculateBounds(from points: [CGPoint], strokeWidth: CGFloat = 0) -> CGRect {
@@ -233,11 +277,11 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
         let hitThreshold = max(strokeWidth / 2.0 + 4.0, tolerance)
 
         switch tool {
-        case .rectangle:
+        case .rectangle, .blur:
             return bounds.insetBy(dx: -hitThreshold, dy: -hitThreshold).contains(point)
 
-        case .blur, .text:
-            return bounds.insetBy(dx: -hitThreshold, dy: -hitThreshold).contains(point)
+        case .text:
+            return selectionBounds.insetBy(dx: -hitThreshold, dy: -hitThreshold).contains(point)
 
         case .ellipse:
             let rx = bounds.width / 2.0
@@ -344,6 +388,16 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
             ]
         }
 
+        if tool == .text {
+            let b = selectionBounds
+            return [
+                .topLeft: CGPoint(x: b.minX, y: b.minY),
+                .topRight: CGPoint(x: b.maxX, y: b.minY),
+                .bottomRight: CGPoint(x: b.maxX, y: b.maxY),
+                .bottomLeft: CGPoint(x: b.minX, y: b.maxY)
+            ]
+        }
+
         let b = bounds
         return [
             .topLeft: CGPoint(x: b.minX, y: b.minY),
@@ -440,6 +494,52 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
                 points[1] = shiftConstrained ? AnnotationObject.snapAngle(from: points[0], to: target) : target
             }
             bounds = AnnotationObject.calculateBounds(from: points, strokeWidth: strokeWidth)
+            return
+        }
+
+        if tool == .text {
+            let oldW = max(12.0, bounds.width)
+            let oldH = max(12.0, bounds.height)
+            let anchor: CGPoint
+            switch handle {
+            case .topLeft:      anchor = CGPoint(x: bounds.maxX, y: bounds.maxY)
+            case .topRight:     anchor = CGPoint(x: bounds.minX, y: bounds.maxY)
+            case .bottomLeft:   anchor = CGPoint(x: bounds.maxX, y: bounds.minY)
+            case .bottomRight:  anchor = CGPoint(x: bounds.minX, y: bounds.minY)
+            case .topCenter:    anchor = CGPoint(x: bounds.midX, y: bounds.maxY)
+            case .bottomCenter: anchor = CGPoint(x: bounds.midX, y: bounds.minY)
+            case .middleLeft:   anchor = CGPoint(x: bounds.maxX, y: bounds.midY)
+            case .middleRight:  anchor = CGPoint(x: bounds.minX, y: bounds.midY)
+            case .startPoint, .endPoint: anchor = bounds.origin
+            }
+
+            let rawW = max(12.0, abs(target.x - anchor.x))
+            let rawH = max(12.0, abs(target.y - anchor.y))
+            let origDiag = max(1.0, hypot(oldW, oldH))
+            let newDiag = hypot(rawW, rawH)
+            let scaleFactor = newDiag / origDiag
+
+            let scaledFontSize = max(9.0, min(144.0, round(fontSize * scaleFactor * 2.0) / 2.0))
+            fontSize = scaledFontSize
+            let measured = AnnotationObject.measureTextSize(text: text, fontSize: scaledFontSize)
+
+            let newX: CGFloat
+            let newY: CGFloat
+            switch handle {
+            case .topLeft, .bottomLeft, .middleLeft:
+                newX = anchor.x - measured.width
+            default:
+                newX = anchor.x
+            }
+            switch handle {
+            case .topLeft, .topRight, .topCenter:
+                newY = anchor.y - measured.height
+            default:
+                newY = anchor.y
+            }
+
+            bounds = CGRect(x: newX, y: newY, width: measured.width, height: measured.height)
+            points = [bounds.origin]
             return
         }
 

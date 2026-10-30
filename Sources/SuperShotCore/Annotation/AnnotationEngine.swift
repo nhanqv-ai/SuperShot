@@ -162,8 +162,8 @@ public final class AnnotationEngine: ObservableObject {
         let effectiveTool = tool ?? activeTool
         dragStartPoint = point
 
-        // 1. If activeTool is .select, check if user clicked on a resize handle of selected object
-        if effectiveTool == .select, let sel = selectedObject {
+        // 1. If activeTool is .select or .text, check if user clicked on a resize handle or body of selected object
+        if (effectiveTool == .select || effectiveTool == .text), let sel = selectedObject {
             // For small annotations, prioritize moving when clicking inside the object body
             let minDim = min(sel.bounds.width, sel.bounds.height)
             let isSmallShape = (sel.tool != .line && sel.tool != .arrow) && (minDim > 0 && minDim <= 24.0)
@@ -198,9 +198,26 @@ public final class AnnotationEngine: ObservableObject {
             return
         }
 
+        // 2b. When in .text mode, clicking an existing text object selects and moves it rather than spawning an overlapping text box
+        if effectiveTool == .text {
+            if let hit = hitObject(at: point), hit.tool == .text {
+                selectedObjectID = hit.id
+                updateSelectionFlags()
+                isDraggingExistingObject = true
+                preDragObjectSnapshot = objects.first(where: { $0.id == hit.id }) ?? hit
+                return
+            }
+        }
+
         // 3. User is drawing a new vector object
         deselectAll()
-        let initialBounds = CGRect(x: point.x, y: point.y, width: 0, height: 0)
+        let initialBounds: CGRect
+        if effectiveTool == .text {
+            let measured = AnnotationObject.measureTextSize(text: "Text", fontSize: fontSize)
+            initialBounds = CGRect(x: point.x, y: point.y, width: measured.width, height: measured.height)
+        } else {
+            initialBounds = CGRect(x: point.x, y: point.y, width: 0, height: 0)
+        }
         let newObj = AnnotationObject(
             tool: effectiveTool,
             points: [point],
@@ -272,7 +289,13 @@ public final class AnnotationEngine: ObservableObject {
             draft.bounds = AnnotationObject.calculateBounds(from: draft.points, strokeWidth: draft.strokeWidth)
 
         case .text:
-            draft.bounds = CGRect(x: startPoint.x, y: startPoint.y, width: max(100.0, currentPoint.x - startPoint.x), height: 40.0)
+            let measured = AnnotationObject.measureTextSize(text: draft.text, fontSize: draft.fontSize)
+            draft.bounds = CGRect(
+                x: startPoint.x,
+                y: startPoint.y,
+                width: max(measured.width, currentPoint.x - startPoint.x),
+                height: measured.height
+            )
 
         case .select:
             break
@@ -313,14 +336,23 @@ public final class AnnotationEngine: ObservableObject {
         // Case A: Finished resizing via handle
         if let _ = activeResizeHandle, let snapshot = preDragObjectSnapshot,
            let updated = objects.first(where: { $0.id == snapshot.id }) {
-            let action = AnnotationAction.resize(
+            let resizeAction = AnnotationAction.resize(
                 id: updated.id,
                 oldBounds: snapshot.bounds,
                 newBounds: updated.bounds,
                 oldPoints: snapshot.points,
                 newPoints: updated.points
             )
-            pushUndo(action)
+            if snapshot.tool == .text && snapshot.fontSize != updated.fontSize {
+                let fontAction = AnnotationAction.updateFontSize(
+                    id: updated.id,
+                    oldSize: snapshot.fontSize,
+                    newSize: updated.fontSize
+                )
+                pushUndo(.batch([fontAction, resizeAction]))
+            } else {
+                pushUndo(resizeAction)
+            }
             return updated
         }
 
@@ -383,29 +415,136 @@ public final class AnnotationEngine: ObservableObject {
         pushUndo(action)
     }
 
-    public func updateSelectedFontSize(_ newSize: CGFloat) {
+    public func updateSelectedFontSize(_ newSize: CGFloat, anchorMaxY: Bool = false) {
         guard let id = selectedObjectID, let idx = objects.firstIndex(where: { $0.id == id }) else { return }
         let oldSize = objects[idx].fontSize
-        objects[idx].fontSize = max(9.0, min(newSize, 144.0))
-        let action = AnnotationAction.updateFontSize(id: id, oldSize: oldSize, newSize: objects[idx].fontSize)
-        pushUndo(action)
+        let clampedSize = max(9.0, min(newSize, 144.0))
+        guard oldSize != clampedSize else { return }
+        objects[idx].fontSize = clampedSize
+
+        if objects[idx].tool == .text {
+            let oldBounds = objects[idx].bounds
+            let measured = AnnotationObject.measureTextSize(text: objects[idx].text, fontSize: clampedSize)
+            let newY = anchorMaxY ? (oldBounds.maxY - measured.height) : oldBounds.minY
+            let newBounds = CGRect(x: oldBounds.minX, y: newY, width: measured.width, height: measured.height)
+            objects[idx].bounds = newBounds
+            let fontAction = AnnotationAction.updateFontSize(id: id, oldSize: oldSize, newSize: clampedSize)
+            let resizeAction = AnnotationAction.resize(
+                id: id,
+                oldBounds: oldBounds,
+                newBounds: newBounds,
+                oldPoints: objects[idx].points,
+                newPoints: objects[idx].points
+            )
+            pushUndo(.batch([fontAction, resizeAction]))
+        } else {
+            let action = AnnotationAction.updateFontSize(id: id, oldSize: oldSize, newSize: clampedSize)
+            pushUndo(action)
+        }
     }
 
-    public func updateSelectedText(_ newText: String) {
+    public func updateSelectedText(_ newText: String, anchorMaxY: Bool = false) {
         guard let id = selectedObjectID, let idx = objects.firstIndex(where: { $0.id == id }) else { return }
         let oldText = objects[idx].text
         let oldBounds = objects[idx].bounds
         objects[idx].text = newText
-        let font = NSFont.systemFont(ofSize: objects[idx].fontSize, weight: .semibold)
-        let textSize = (newText as NSString).size(withAttributes: [.font: font])
+        let measured = AnnotationObject.measureTextSize(text: newText, fontSize: objects[idx].fontSize)
+        let newY = anchorMaxY ? (oldBounds.maxY - measured.height) : oldBounds.minY
         objects[idx].bounds = CGRect(
             x: oldBounds.minX,
-            y: oldBounds.minY,
-            width: max(textSize.width + 12.0, oldBounds.width),
-            height: max(textSize.height + 8.0, oldBounds.height)
+            y: newY,
+            width: measured.width,
+            height: measured.height
         )
         let action = AnnotationAction.editText(id: id, oldText: oldText, newText: newText, oldBounds: oldBounds, newBounds: objects[idx].bounds)
         pushUndo(action)
+    }
+
+    /// Updates a text object in-place while the inline editor is actively open (without pushing intermediate undo states).
+    public func updateLiveEditingObject(id: UUID, text: String? = nil, bounds: CGRect? = nil) {
+        guard let idx = objects.firstIndex(where: { $0.id == id }) else { return }
+        if let text = text {
+            objects[idx].text = text
+        }
+        if let bounds = bounds {
+            objects[idx].bounds = bounds
+            objects[idx].points = [bounds.origin]
+        }
+    }
+
+    /// Commits a finished inline text edit, coalescing newly created text objects into a single `.create` undo step
+    /// or recording `.editText` for existing text objects.
+    public func commitInlineTextEdit(
+        id: UUID,
+        newText: String,
+        initialText: String,
+        initialBounds: CGRect,
+        isNew: Bool,
+        anchorMaxY: Bool = false
+    ) {
+        guard let idx = objects.firstIndex(where: { $0.id == id }) else { return }
+        let currentBounds = objects[idx].bounds
+        let measured = AnnotationObject.measureTextSize(text: newText, fontSize: objects[idx].fontSize)
+        let finalY = anchorMaxY ? (currentBounds.maxY - measured.height) : currentBounds.minY
+        let finalBounds = CGRect(
+            x: currentBounds.minX,
+            y: finalY,
+            width: measured.width,
+            height: measured.height
+        )
+
+        objects[idx].text = newText
+        objects[idx].bounds = finalBounds
+        objects[idx].points = [finalBounds.origin]
+        selectedObjectID = id
+        updateSelectionFlags()
+
+        if isNew {
+            if let lastAction = undoStack.last,
+               case .create(let createdObj) = lastAction,
+               createdObj.id == id {
+                undoStack[undoStack.count - 1] = .create(objects[idx])
+                updateStackFlags()
+            } else {
+                let action = AnnotationAction.editText(
+                    id: id,
+                    oldText: initialText,
+                    newText: newText,
+                    oldBounds: initialBounds,
+                    newBounds: finalBounds
+                )
+                pushUndo(action)
+            }
+        } else if newText != initialText || finalBounds != initialBounds {
+            let action = AnnotationAction.editText(
+                id: id,
+                oldText: initialText,
+                newText: newText,
+                oldBounds: initialBounds,
+                newBounds: finalBounds
+            )
+            pushUndo(action)
+        }
+    }
+
+    /// Discards a newly created text object when inline editing is cancelled or committed empty,
+    /// removing its initial `.create` step from the undo stack if it was just created.
+    public func discardNewInlineTextObject(id: UUID) {
+        guard let idx = objects.firstIndex(where: { $0.id == id }) else { return }
+        if let lastAction = undoStack.last,
+           case .create(let createdObj) = lastAction,
+           createdObj.id == id {
+            objects.remove(at: idx)
+            if selectedObjectID == id {
+                selectedObjectID = nil
+            }
+            updateSelectionFlags()
+            _ = undoStack.popLast()
+            updateStackFlags()
+        } else {
+            selectedObjectID = id
+            _ = deleteSelected()
+        }
     }
 
     public func updateSelectedObject(_ transform: (inout AnnotationObject) -> Void) {
