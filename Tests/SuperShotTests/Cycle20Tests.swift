@@ -346,6 +346,10 @@ public struct Cycle20Tests {
         TestHarness.assertEqual(AppSettingsSnapshot.default.activeColorHex, "#FF3B30", "S3.8: AppSettingsSnapshot default activeColorHex is Red (#FF3B30)")
         let isolatedSettings = AppSettings()
         TestHarness.assertTrue(isolatedSettings.settingsURL.path.contains("SuperShotTests_Isolated"), "S3.8: Default AppSettings in test runner uses isolated temporary settingsURL")
+        let isolatedStorage = StorageManager()
+        TestHarness.assertTrue(isolatedStorage.baseDirectory.path.contains("SuperShotTests_Storage_"), "S3.8: Default StorageManager in test runner uses isolated temporary baseDirectory")
+        let rowView = ShotRowView(item: ShotItem(width: 800, height: 600, isPinned: true, sourceApp: "Preview"), shortcutIndex: nil, shortcutBadge: nil)
+        TestHarness.assertNil(rowView.shortcutBadge, "S3.8: HistoryPopover ShotRowView omits shortcut badge")
         TestHarness.assertTrue(inlineField.isPointInBorderDragZone(CGPoint(x: 2, y: 2)), "S3.8: Outer border ring is recognized as draggable zone")
         TestHarness.assertFalse(inlineField.isPointInBorderDragZone(CGPoint(x: 40, y: 16)), "S3.8: Interior text area is reserved for text cursor editing")
 

@@ -92,8 +92,17 @@ public final class StorageManager: ObservableObject, StorageManaging {
     // MARK: - Initializer & Sandboxing
 
     public init(baseDirectory: URL? = nil, initialCapacity: Int = 50) {
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
-        let dir = baseDirectory ?? appSupport.appendingPathComponent("SuperShot", isDirectory: true)
+        let procName = ProcessInfo.processInfo.processName.lowercased()
+        let isTestProcess = procName.contains("verifier") || procName.contains("runner") || procName.contains("test")
+        let defaultDir: URL
+        if isTestProcess {
+            defaultDir = FileManager.default.temporaryDirectory
+                .appendingPathComponent("SuperShotTests_Storage_\(UUID().uuidString)", isDirectory: true)
+        } else {
+            let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
+            defaultDir = appSupport.appendingPathComponent("SuperShot", isDirectory: true)
+        }
+        let dir = baseDirectory ?? defaultDir
         self.baseDirectory = dir
         self.imagesDirectory = dir.appendingPathComponent("images", isDirectory: true)
         self.thumbnailsDirectory = dir.appendingPathComponent("thumbnails", isDirectory: true)
