@@ -72,7 +72,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.28"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.29"
                 Button(action: { copyDiagnosticsToClipboard(version: version) }) {
                     HStack(spacing: 4) {
                         Text(LocalizationManager.shared.tr(.versionLabel(version)))
@@ -150,19 +150,7 @@ public struct AboutSettingsTab: View {
             Divider()
 
             VStack(alignment: .leading, spacing: 8) {
-                HStack(spacing: 8) {
-                    Button(action: {
-                        WelcomeWindowController.shared.showWelcomeWindow()
-                    }) {
-                        HStack(spacing: 4) {
-                            Image(systemName: "book.pages")
-                            Text(LocalizationManager.shared.tr(.welcomeGuideButton))
-                        }
-                    }
-                    .buttonStyle(.bordered)
-                    .controlSize(.small)
-                    .pointingHandCursor()
-
+                HStack(alignment: .top, spacing: 8) {
                     VStack(alignment: .leading, spacing: 3) {
                         Button(action: {
                             updateManager.checkForUpdates(userInitiated: true)
@@ -184,11 +172,6 @@ public struct AboutSettingsTab: View {
                         }
                     }
 
-
-                    Spacer()
-                }
-
-                HStack {
                     Button(action: { showingResetAllConfirmation = true }) {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.counterclockwise")
@@ -210,6 +193,7 @@ public struct AboutSettingsTab: View {
                     } message: {
                         Text(LocalizationManager.shared.tr(.resetAllConfirmMessage))
                     }
+
                     Spacer()
                 }
 
@@ -247,7 +231,7 @@ public struct AboutSettingsTab: View {
         let arch = "unknown"
         #endif
         let os = ProcessInfo.processInfo.operatingSystemVersionString
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "28"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "29"
         return "SuperShot v\(version) (\(arch)) • macOS \(os) • Build \(build)"
     }
 
