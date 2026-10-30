@@ -145,36 +145,35 @@ public final class ImageStitcher: Sendable {
         let maxFooterPx = min(height / 3, Int(round(options.footerDedupHeight * scale)))
 
         // 1. Detect Stationary Sticky Header & Footer on the first moving frame pair
-        var movingPair: (CGImage, CGImage)? = nil
-        for i in 0..<(frames.count - 1) {
-            let est = estimateVerticalOffset(
-                f1: frames[i],
-                f2: frames[i + 1],
-                effectiveWidth: effectiveWidth,
-                headerH: 0,
-                footerH: 0
-            )
-            if !est.isZeroDelta && est.offset > 0 {
-                movingPair = (frames[i], frames[i + 1])
-                break
-            }
-        }
-
         var detectedHeaderPx = 0
         var detectedFooterPx = 0
-        if let (fA, fB) = movingPair {
-            detectedHeaderPx = detectStationaryHeader(
+        for i in 0..<(frames.count - 1) {
+            let fA = frames[i]
+            let fB = frames[i + 1]
+            let candH = detectStationaryHeader(
                 f1: fA,
                 f2: fB,
                 effectiveWidth: effectiveWidth,
                 maxHeaderH: maxHeaderPx
             )
-            detectedFooterPx = detectStationaryFooter(
+            let candF = detectStationaryFooter(
                 f1: fA,
                 f2: fB,
                 effectiveWidth: effectiveWidth,
                 maxFooterH: maxFooterPx
             )
+            let est = estimateVerticalOffset(
+                f1: fA,
+                f2: fB,
+                effectiveWidth: effectiveWidth,
+                headerH: candH,
+                footerH: candF
+            )
+            if !est.isZeroDelta && est.offset > 0 {
+                detectedHeaderPx = candH
+                detectedFooterPx = candF
+                break
+            }
         }
 
         // 2. Calculate vertical offsets across all consecutive pairs
@@ -494,22 +493,42 @@ public final class ImageStitcher: Sendable {
         maxOffset: Int? = nil
     ) -> OffsetEstimation {
         let height = f1.height
-        let maxOff = min(height - headerH - footerH - 1, maxOffset ?? (height - headerH - footerH - 10))
-        guard maxOff >= minOffset else {
+        let contentH = height - headerH - footerH
+        let minOverlap = max(10, contentH / 5)
+        let defaultMaxOff = max(minOffset, contentH - minOverlap)
+        let maxOff = min(contentH - 1, maxOffset ?? defaultMaxOff)
+        guard maxOff >= max(1, minOffset), contentH > 1 else {
             return OffsetEstimation(offset: 0, isZeroDelta: true, confidence: 1.0)
         }
 
-        let sampleCols = min(32, effectiveWidth)
+        let sampleCols = min(96, max(1, effectiveWidth))
         let g1 = extractGrayscaleMatrix(image: f1, effectiveWidth: effectiveWidth, height: height, startY: 0, sampleCols: sampleCols)
         let g2 = extractGrayscaleMatrix(image: f2, effectiveWidth: effectiveWidth, height: height, startY: 0, sampleCols: sampleCols)
 
-        // Check for Zero-Delta (no displacement across content area)
-        let checkRows = max(1, height - headerH - footerH)
+        // Check for Zero-Delta and localized micro-changes (e.g. blinking caret or hover highlight)
+        let checkRows = max(1, contentH)
         var zeroDiffSum: Int64 = 0
+        var texturedRows = 0
+        var unchangedTexturedRows = 0
+
         for r in headerH..<(height - footerH) {
             let offset = r * sampleCols
+            var rowDiff: Int = 0
+            var rowMin: UInt8 = 255
+            var rowMax: UInt8 = 0
             for c in 0..<sampleCols {
-                zeroDiffSum += Int64(abs(Int(g1[offset + c]) - Int(g2[offset + c])))
+                let p1 = g1[offset + c]
+                let p2 = g2[offset + c]
+                if p1 < rowMin { rowMin = p1 }
+                if p1 > rowMax { rowMax = p1 }
+                rowDiff += abs(Int(p1) - Int(p2))
+            }
+            zeroDiffSum += Int64(rowDiff)
+            if Int(rowMax) - Int(rowMin) >= 12 {
+                texturedRows += 1
+                if rowDiff <= sampleCols * 2 {
+                    unchangedTexturedRows += 1
+                }
             }
         }
         let avgZeroDiff = Double(zeroDiffSum) / Double(checkRows * sampleCols)
@@ -519,28 +538,39 @@ public final class ImageStitcher: Sendable {
 
         var bestOffset = 0
         var bestScore = Double.greatestFiniteMagnitude
+        var bestRawScore = Double.greatestFiniteMagnitude
         var scores: [Double] = []
+        let colStride = sampleCols > 48 ? 2 : 1
+        let rowStride = contentH > 160 ? 2 : 1
 
-        for offset in minOffset...maxOff {
+        // Search from 1...maxOff so sub-threshold scrolls (1..<minOffset px) are accurately identified
+        // rather than skipped in favor of a false-positive periodic match further down the frame.
+        for offset in 1...maxOff {
             let rowsToCompare = height - offset - footerH
             if rowsToCompare <= headerH { continue }
 
             var diffSum: Int64 = 0
             var count = 0
-            for r2 in stride(from: headerH, to: rowsToCompare, by: 2) {
+            for r2 in stride(from: headerH, to: rowsToCompare, by: rowStride) {
                 let r1 = r2 + offset
                 let o1 = r1 * sampleCols
                 let o2 = r2 * sampleCols
-                for c in stride(from: 0, to: sampleCols, by: 2) {
+                for c in stride(from: 0, to: sampleCols, by: colStride) {
                     diffSum += Int64(abs(Int(g1[o1 + c]) - Int(g2[o2 + c])))
                     count += 1
                 }
             }
             if count > 0 {
                 let avg = Double(diffSum) / Double(count)
-                scores.append(avg)
-                if avg < bestScore {
-                    bestScore = avg
+                let overlapRows = max(1, rowsToCompare - headerH)
+                let overlapRatio = Double(overlapRows) / Double(max(1, contentH))
+                let regularizedAvg = avg * (1.0 + 0.15 * (1.0 - overlapRatio))
+                if offset >= minOffset {
+                    scores.append(avg)
+                }
+                if regularizedAvg < bestScore {
+                    bestScore = regularizedAvg
+                    bestRawScore = avg
                     bestOffset = offset
                 }
             }
@@ -556,9 +586,20 @@ public final class ImageStitcher: Sendable {
             }
         }
 
-        let isZero = (bestOffset == 0 || (avgZeroDiff <= bestScore && avgZeroDiff < 1.0))
+        // Blinking caret / stationary content guard:
+        // When >= 90% of textured rows are stationary and no candidate shift achieves a much cleaner match,
+        // treat the frame pair as stationary (zero-delta).
+        if texturedRows >= 4 {
+            let stationaryRatio = Double(unchangedTexturedRows) / Double(texturedRows)
+            if stationaryRatio >= 0.90 && avgZeroDiff < 2.5 && bestRawScore > avgZeroDiff * 0.5 {
+                return OffsetEstimation(offset: 0, isZeroDelta: true, confidence: 1.0)
+            }
+        }
+
+        let isSubThreshold = bestOffset < minOffset
+        let isZero = (bestOffset == 0 || isSubThreshold || (avgZeroDiff <= bestRawScore && avgZeroDiff < 1.5))
         let finalOffset = isZero ? 0 : bestOffset
-        let finalScore = isZero ? avgZeroDiff : bestScore
+        let finalScore = isZero ? min(avgZeroDiff, bestRawScore) : bestRawScore
         return OffsetEstimation(
             offset: finalOffset,
             isZeroDelta: isZero,

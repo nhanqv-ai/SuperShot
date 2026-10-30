@@ -7,7 +7,7 @@ import SuperShotCore
 // MARK: - Live Preview Layout Math Engine
 
 public struct LivePreviewLayoutEngine {
-    public static let defaultPanelSize = CGSize(width: 216, height: 290)
+    public static let defaultPanelSize = CGSize(width: 236, height: 320)
     public static let defaultMargin: CGFloat = 12.0
     public static let screenEdgePadding: CGFloat = 12.0
 
@@ -73,6 +73,7 @@ public final class LiveStitchedPreviewViewModel: ObservableObject {
     @Published public var previewImage: NSImage?
     @Published public var isAtBottom: Bool = false
     @Published public var isMaxHeightReached: Bool = false
+    public private(set) var wantsAnnotateOnFinish: Bool = false
 
     public weak var manager: ScrollingCaptureManager?
 
@@ -113,6 +114,12 @@ public final class LiveStitchedPreviewViewModel: ObservableObject {
     }
 
     public func finish() {
+        wantsAnnotateOnFinish = false
+        manager?.finishSession(reason: .userDone)
+    }
+
+    public func finishAndAnnotate() {
+        wantsAnnotateOnFinish = true
         manager?.finishSession(reason: .userDone)
     }
 
@@ -127,6 +134,7 @@ public final class LiveStitchedPreviewPanel: NSPanel, ScrollingCaptureDelegate {
     public let viewModel: LiveStitchedPreviewViewModel
     public let captureManager: ScrollingCaptureManager
     public var onFinished: ((CGImage, CGFloat, ScrollingCaptureStopReason) -> Void)?
+    public var onAnnotateRequested: ((CGImage, CGFloat) -> Void)?
     public var onCancelled: (() -> Void)?
 
     private var localKeyMonitor: Any?
@@ -375,9 +383,15 @@ public final class LiveStitchedPreviewPanel: NSPanel, ScrollingCaptureDelegate {
 
     public func scrollingCaptureDidFinish(image: CGImage, totalHeight: CGFloat, reason: ScrollingCaptureStopReason) {
         DispatchQueue.main.async { [weak self] in
-            self?.removeKeyboardMonitors()
-            self?.orderOut(nil)
-            self?.onFinished?(image, totalHeight, reason)
+            guard let self = self else { return }
+            let wantsAnnotate = self.viewModel.wantsAnnotateOnFinish
+            self.removeKeyboardMonitors()
+            self.orderOut(nil)
+            if wantsAnnotate, let onAnnotate = self.onAnnotateRequested {
+                onAnnotate(image, totalHeight)
+            } else {
+                self.onFinished?(image, totalHeight, reason)
+            }
         }
     }
 
@@ -461,7 +475,7 @@ public struct LiveStitchedPreviewContentView: View {
                     .cornerRadius(4)
             }
 
-            // Thumbnail Stitched Viewport Box
+            // Live Stitched Long Image Viewport Box
             ZStack(alignment: .bottom) {
                 RoundedRectangle(cornerRadius: 6)
                     .fill(Color.black.opacity(0.45))
@@ -471,10 +485,13 @@ public struct LiveStitchedPreviewContentView: View {
                     )
 
                 if let img = viewModel.previewImage {
-                    Image(nsImage: img)
-                        .resizable()
-                        .aspectRatio(contentMode: .fit)
-                        .padding(4)
+                    ScrollView(.vertical, showsIndicators: true) {
+                        Image(nsImage: img)
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(maxWidth: .infinity)
+                            .padding(4)
+                    }
                 } else {
                     VStack(spacing: 4) {
                         Image(systemName: "arrow.up.and.down.text.horizontal")
@@ -505,28 +522,38 @@ public struct LiveStitchedPreviewContentView: View {
                         }
                         Spacer()
                     }
+                    .allowsHitTesting(false)
                 }
             }
-            .frame(height: 155)
+            .frame(height: 175)
             .clipped()
 
-            // Manual Scroll Hint Bar (Auto Scroll hidden per user preference)
-            HStack(spacing: 4) {
-                Image(systemName: "computermouse.fill")
-                    .font(.system(size: 10))
-                    .foregroundColor(.accentColor)
-                Text("\(LocalizationManager.shared.tr(.scrollManualMode)) • Enter / Esc")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(.white.opacity(0.9))
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
-            }
-            .frame(maxWidth: .infinity, minHeight: 20)
-            .background(Color.white.opacity(0.08))
-            .cornerRadius(4)
+            // Manual / Auto Scroll Mode Switcher
+            HStack(spacing: 6) {
+                ModePillButton(
+                    title: LocalizationManager.shared.tr(.scrollManualMode),
+                    isSelected: viewModel.mode == .manual,
+                    action: {
+                        if viewModel.mode != .manual {
+                            viewModel.toggleMode()
+                        }
+                    }
+                )
 
-            // Footer Control Buttons
-            HStack(spacing: 8) {
+                ModePillButton(
+                    title: LocalizationManager.shared.tr(.scrollAutoMode),
+                    isSelected: viewModel.mode == .auto,
+                    action: {
+                        if viewModel.mode != .auto {
+                            viewModel.toggleMode()
+                        }
+                    }
+                )
+            }
+            .frame(maxWidth: .infinity, minHeight: 22)
+
+            // Footer Control Buttons: Cancel | Annotate | Done (1-Step Copy)
+            HStack(spacing: 6) {
                 Button(action: { viewModel.cancel() }) {
                     Text(LocalizationManager.shared.tr(.actionCancel))
                         .font(.system(size: 11, weight: .medium))
@@ -541,6 +568,26 @@ public struct LiveStitchedPreviewContentView: View {
                 .buttonStyle(PlainButtonStyle())
                 .pointingHandCursor()
                 .help(localizationManager.tr(.previewCancelTooltip))
+
+                Button(action: { viewModel.finishAndAnnotate() }) {
+                    HStack(spacing: 3) {
+                        Image(systemName: "pencil.tip.crop.circle")
+                            .font(.system(size: 11, weight: .semibold))
+                        Text(localizationManager.tr(.actionAnnotate))
+                            .font(.system(size: 10.5, weight: .semibold))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
+                    }
+                    .foregroundColor(.white.opacity(0.92))
+                    .padding(.horizontal, 8)
+                    .frame(minHeight: 26)
+                    .background(Color.white.opacity(0.12))
+                    .cornerRadius(5)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(PlainButtonStyle())
+                .pointingHandCursor()
+                .help(localizationManager.tr(.actionAnnotate))
 
                 Button(action: { viewModel.finish() }) {
                     Text(localizationManager.tr(.doneButton))
@@ -572,7 +619,9 @@ public struct LiveStitchedPreviewContentView: View {
     }
 
     private var statusText: String {
-        LocalizationManager.shared.tr(.scrollManualMode)
+        viewModel.mode == .auto
+            ? LocalizationManager.shared.tr(.scrollAutoMode)
+            : LocalizationManager.shared.tr(.scrollManualMode)
     }
 }
 

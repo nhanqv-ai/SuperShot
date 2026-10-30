@@ -1748,6 +1748,12 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         spaceKeyDragging = false
         previousDragPoint = nil
         isSpaceKeyPressed = false
+        let wasCreatingSelection: Bool
+        if case .creating = dragMode {
+            wasCreatingSelection = true
+        } else {
+            wasCreatingSelection = false
+        }
         if dragMode == .annotating {
             let wasCreatingNewObject = (annotationEngine.activeDragObject != nil)
             let committed = annotationEngine.endDrag(at: point)
@@ -1757,6 +1763,20 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         }
         dragMode = .none
         initialResizingRect = .zero
+
+        if wasCreatingSelection,
+           let win = windowDelegate,
+           win.prefersScrollingOnConfirm,
+           selectionRect.width >= 10,
+           selectionRect.height >= 10 {
+            win.captureDelegate?.overlayDidTriggerScroll(
+                rect: selectionRect,
+                display: capturedScreen.displayInfo
+            )
+            win.close()
+            return
+        }
+
         updateTextTargetState()
         updateToolbarPositions()
         updateCanvasCursor(at: point)

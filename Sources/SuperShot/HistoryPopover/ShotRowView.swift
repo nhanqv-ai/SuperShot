@@ -95,15 +95,8 @@ public struct ShotRowView: View {
                     Text(RelativeTimeFormatter.format(item.timestamp))
                         .font(.system(size: 10, weight: .regular))
                         .foregroundColor(.secondary)
-
-                    if item.captureType == .scrolling {
-                        Text("SCROLL")
-                            .font(.system(size: 8, weight: .bold))
-                            .foregroundColor(.accentColor)
-                            .padding(.horizontal, 3)
-                            .background(RoundedRectangle(cornerRadius: 2).fill(Color.accentColor.opacity(0.12)))
-                    }
                 }
+                .lineLimit(1)
             }
 
             Spacer()
