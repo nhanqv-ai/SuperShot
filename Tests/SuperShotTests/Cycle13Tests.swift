@@ -153,8 +153,8 @@ public struct Cycle13Tests {
         // ---------------------------------------------------------------------
         // F10: Canonical Version Verification
         // ---------------------------------------------------------------------
-        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.27", "F10: UpdateManager currentVersion is 1.0.27")
-        let diag = AboutSettingsTab.diagnosticString(version: "1.0.27")
-        TestHarness.assertTrue(diag.contains("SuperShot v1.0.27"), "F10: Diagnostic string contains v1.0.27")
+        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.28", "F10: UpdateManager currentVersion is 1.0.28")
+        let diag = AboutSettingsTab.diagnosticString(version: "1.0.28")
+        TestHarness.assertTrue(diag.contains("SuperShot v1.0.28"), "F10: Diagnostic string contains v1.0.28")
     }
 }

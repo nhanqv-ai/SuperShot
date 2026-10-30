@@ -388,6 +388,7 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M70 | Canonical Version Bump to 1.0.26 / Build 26 | Synchronize 8 canonical files to 1.0.26 / Build 26, update downstream tests, 0 emojis, make lint, make test | M69 | DONE |
 | M71 | Cycle 20 Latent Bug Fixes & Regression Suite | Implement multi-display clamping, short-vector arrow geometry, lock-free storage notifications, DMG cleanup, and Cycle20Tests.swift | M70 | DONE |
 | M72 | Canonical Version Bump to 1.0.27 / Build 27 & Release | Synchronize 8 canonical files to 1.0.27 / Build 27, update downstream tests, PR #27, Universal 2 release v1.0.27 | M71 | DONE |
+| M73 | Fix UpdateDownloadDelegate 100% Completion & Release v1.0.28 | Retain completion callbacks across URLSession invalidation, auto-restart on user-initiated update install, PR #28, Universal 2 release v1.0.28 | M72 | DONE |
 
 ## Interface Contracts
 

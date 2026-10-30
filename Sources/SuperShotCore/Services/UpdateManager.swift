@@ -185,7 +185,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     private var _customVersion: String? = nil
     public var currentVersion: String {
         get {
-            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.27")
+            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.28")
         }
         set {
             _customVersion = newValue
@@ -260,6 +260,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     private let lock = NSRecursiveLock()
     private var _activeDownloadTask: URLSessionDownloadTask?
     private var _activeDownloadDir: URL?
+    private var _activeDownloadDelegate: UpdateDownloadDelegate?
 
     public var activeDownloadTask: URLSessionDownloadTask? {
         get {
@@ -701,6 +702,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     public func startDownloadAndInstall(
         release: ReleaseInfo,
         targetURL: URL? = nil,
+        autoRestart: Bool = false,
         completion: ((Result<URL, Error>) -> Void)? = nil
     ) {
         lock.lock()
@@ -715,6 +717,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
             prevTask.cancel()
             _activeDownloadTask = nil
         }
+        _activeDownloadDelegate = nil
         if let prevDir = _activeDownloadDir {
             try? FileManager.default.removeItem(at: prevDir)
             _activeDownloadDir = nil
@@ -725,12 +728,19 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         defer { lock.unlock() }
 
         downloadAsset(from: assetURL) { [weak self] progress in
-            DispatchQueue.main.async {
+            let applyProgress: () -> Void = { [weak self] in
                 guard let self = self else { return }
                 self.lock.lock()
                 self.downloadProgress = progress
-                self.status = .downloading(progress: progress)
+                if case .downloading = self.status {
+                    self.status = .downloading(progress: progress)
+                }
                 self.lock.unlock()
+            }
+            if Thread.isMainThread {
+                applyProgress()
+            } else {
+                DispatchQueue.main.async(execute: applyProgress)
             }
         } completion: { [weak self] result in
             guard let self = self else { return }
@@ -738,15 +748,14 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
             case .failure(let err):
                 DispatchQueue.main.async {
                     self.lock.lock()
+                    self._activeDownloadTask = nil
+                    self._activeDownloadDelegate = nil
+                    self._activeDownloadDir = nil
                     if (err as? URLError)?.code == .cancelled {
-                        self._activeDownloadTask = nil
-                        self._activeDownloadDir = nil
                         self.lock.unlock()
                         completion?(.failure(err))
                         return
                     }
-                    self._activeDownloadTask = nil
-                    self._activeDownloadDir = nil
                     self.status = .error(message: err.localizedDescription)
                     self.lock.unlock()
                     completion?(.failure(err))
@@ -756,6 +765,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
                 DispatchQueue.main.async {
                     self.lock.lock()
                     self._activeDownloadTask = nil
+                    self._activeDownloadDelegate = nil
                     self._activeDownloadDir = nil
                     self.lock.unlock()
                 }
@@ -780,6 +790,11 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
                             self.isBannerDismissedForSession = false
                             self.lock.unlock()
                             completion?(.success(stagedURL))
+                            if autoRestart {
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.25) { [weak self] in
+                                    self?.restartApp()
+                                }
+                            }
                         }
                     } catch {
                         DispatchQueue.main.async {
@@ -824,6 +839,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         lock.lock()
         let taskToCancel = _activeDownloadTask
         _activeDownloadTask = nil
+        _activeDownloadDelegate = nil
         let dirToRemove = _activeDownloadDir
         _activeDownloadDir = nil
         self.downloadProgress = 0.0
@@ -897,6 +913,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
         let task = session.downloadTask(with: url)
         lock.lock()
         _activeDownloadDir = tempDir
+        _activeDownloadDelegate = delegate
         _activeDownloadTask = task
         lock.unlock()
         task.resume()
@@ -1145,11 +1162,16 @@ public final class UpdateDownloadDelegate: NSObject, URLSessionDownloadDelegate,
     ) {
         guard totalBytesExpectedToWrite > 0 else { return }
         let progress = min(1.0, max(0.0, Double(totalBytesWritten) / Double(totalBytesExpectedToWrite)))
-        let updateBlock: () -> Void = { [weak self] in
-            guard let self = self else { return }
-            self.updateManager?.downloadProgress = progress
-            self.updateManager?.status = .downloading(progress: progress)
-            self.onProgress?(progress)
+        let updateManager = self.updateManager
+        let onProgress = self.onProgress
+        let updateBlock: () -> Void = {
+            if let mgr = updateManager {
+                mgr.downloadProgress = progress
+                if case .downloading = mgr.status {
+                    mgr.status = .downloading(progress: progress)
+                }
+            }
+            onProgress?(progress)
         }
         if Thread.isMainThread {
             updateBlock()
@@ -1167,12 +1189,17 @@ public final class UpdateDownloadDelegate: NSObject, URLSessionDownloadDelegate,
         defer { lock.unlock() }
         guard !hasCompleted else { return }
 
+        let updateManager = self.updateManager
+        let onProgress = self.onProgress
+        let onCompletion = self.onCompletion
+        let destURL = self.destinationURL
+
         if let response = downloadTask.response as? HTTPURLResponse, !(200...299).contains(response.statusCode) {
             hasCompleted = true
             session.finishTasksAndInvalidate()
             let err = UpdateError.downloadFailed("HTTP error \(response.statusCode)")
-            let failBlock: () -> Void = { [weak self] in
-                self?.onCompletion?(.failure(err))
+            let failBlock: () -> Void = {
+                onCompletion?(.failure(err))
             }
             if Thread.isMainThread {
                 failBlock()
@@ -1184,21 +1211,20 @@ public final class UpdateDownloadDelegate: NSObject, URLSessionDownloadDelegate,
 
         do {
             let fm = FileManager.default
-            let parentDir = destinationURL.deletingLastPathComponent()
+            let parentDir = destURL.deletingLastPathComponent()
             if !fm.fileExists(atPath: parentDir.path) {
                 try fm.createDirectory(at: parentDir, withIntermediateDirectories: true)
             }
-            if fm.fileExists(atPath: destinationURL.path) {
-                try fm.removeItem(at: destinationURL)
+            if fm.fileExists(atPath: destURL.path) {
+                try fm.removeItem(at: destURL)
             }
-            try fm.moveItem(at: location, to: destinationURL)
+            try fm.moveItem(at: location, to: destURL)
             hasCompleted = true
             session.finishTasksAndInvalidate()
-            let completeBlock: () -> Void = { [weak self] in
-                guard let self = self else { return }
-                self.updateManager?.downloadProgress = 1.0
-                self.onProgress?(1.0)
-                self.onCompletion?(.success(self.destinationURL))
+            let completeBlock: () -> Void = {
+                updateManager?.downloadProgress = 1.0
+                onProgress?(1.0)
+                onCompletion?(.success(destURL))
             }
             if Thread.isMainThread {
                 completeBlock()
@@ -1208,8 +1234,8 @@ public final class UpdateDownloadDelegate: NSObject, URLSessionDownloadDelegate,
         } catch {
             hasCompleted = true
             session.finishTasksAndInvalidate()
-            let failBlock: () -> Void = { [weak self] in
-                self?.onCompletion?(.failure(error))
+            let failBlock: () -> Void = {
+                onCompletion?(.failure(error))
             }
             if Thread.isMainThread {
                 failBlock()
@@ -1230,9 +1256,10 @@ public final class UpdateDownloadDelegate: NSObject, URLSessionDownloadDelegate,
 
         if let error = error {
             hasCompleted = true
+            let onCompletion = self.onCompletion
             session.finishTasksAndInvalidate()
-            let failBlock: () -> Void = { [weak self] in
-                self?.onCompletion?(.failure(error))
+            let failBlock: () -> Void = {
+                onCompletion?(.failure(error))
             }
             if Thread.isMainThread {
                 failBlock()

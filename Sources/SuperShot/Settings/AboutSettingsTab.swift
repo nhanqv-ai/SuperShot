@@ -72,7 +72,7 @@ public struct AboutSettingsTab: View {
                 Text(LocalizationManager.shared.tr(.appTitle))
                     .font(.system(size: 16, weight: .bold))
 
-                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.27"
+                let version = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.28"
                 Button(action: { copyDiagnosticsToClipboard(version: version) }) {
                     HStack(spacing: 4) {
                         Text(LocalizationManager.shared.tr(.versionLabel(version)))
@@ -247,7 +247,7 @@ public struct AboutSettingsTab: View {
         let arch = "unknown"
         #endif
         let os = ProcessInfo.processInfo.operatingSystemVersionString
-        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "27"
+        let build = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "28"
         return "SuperShot v\(version) (\(arch)) • macOS \(os) • Build \(build)"
     }
 
@@ -328,7 +328,7 @@ public struct AboutSettingsTab: View {
 
                 Button(action: {
                     if release.preferredAssetURL != nil {
-                        updateManager.startDownloadAndInstall(release: release)
+                        updateManager.startDownloadAndInstall(release: release, autoRestart: true)
                     } else {
                         NSWorkspace.shared.open(release.htmlURL)
                     }
@@ -415,7 +415,7 @@ public struct AboutSettingsTab: View {
                     .help(msg)
                 Button(action: {
                     if let rel = updateManager.latestRelease {
-                        updateManager.startDownloadAndInstall(release: rel)
+                        updateManager.startDownloadAndInstall(release: rel, autoRestart: true)
                     } else {
                         updateManager.checkForUpdates(userInitiated: true)
                     }
