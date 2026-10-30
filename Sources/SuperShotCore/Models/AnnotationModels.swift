@@ -297,9 +297,12 @@ public struct AnnotationObject: Identifiable, Codable, Equatable, Sendable {
         let dx = p2.x - p1.x
         let dy = p2.y - p1.y
         let len = hypot(dx, dy)
-        guard len > 1.0 else { return false }
+        guard len > 1.0 else {
+            return hypot(point.x - p1.x, point.y - p1.y) <= max(threshold, strokeWidth)
+        }
         let theta = atan2(dy, dx)
-        let headLen = max(12.0, min(len * 0.5, strokeWidth * 4.0))
+        let desiredHeadLen = max(8.0, strokeWidth * 3.5)
+        let headLen = min(desiredHeadLen, max(3.0, len * 0.6))
         let wingAngle: CGFloat = 0.488 // ~28 degrees
 
         let w1 = CGPoint(

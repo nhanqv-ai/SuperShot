@@ -187,13 +187,47 @@ public final class ThumbnailHoverPreviewPanel: NSPanel {
         self.isReleasedWhenClosed = false
         self.hostingView.rootView = ThumbnailHoverPreviewCardView(viewModel: self.viewModel, item: nil)
         self.contentView = hostingView
+
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleItemDidDelete(_:)),
+            name: Notification.Name("SuperShotItemDidDelete"),
+            object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(handleHistoryDidClear),
+            name: Notification.Name("SuperShotHistoryDidClear"),
+            object: nil
+        )
     }
 
     deinit {
+        NotificationCenter.default.removeObserver(self)
         showTimer?.invalidate()
         showTimer = nil
         hideTimer?.invalidate()
         hideTimer = nil
+    }
+
+    @objc private func handleItemDidDelete(_ notification: Notification) {
+        let deletedId = notification.userInfo?["itemID"] as? UUID
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            if let del = deletedId {
+                if self.currentItemId == del || self.pendingItemId == del {
+                    self.hide(immediate: true)
+                }
+            } else {
+                self.hide(immediate: true)
+            }
+        }
+    }
+
+    @objc private func handleHistoryDidClear() {
+        DispatchQueue.main.async { [weak self] in
+            self?.hide(immediate: true)
+        }
     }
 
     public func show(for item: ShotItem) {
@@ -216,6 +250,10 @@ public final class ThumbnailHoverPreviewPanel: NSPanel {
     }
 
     private func display(item: ShotItem) {
+        if let sm = storageManager, !sm.items.contains(where: { $0.id == item.id }) {
+            hide(immediate: true)
+            return
+        }
         self.pendingItemId = nil
         self.currentItemId = item.id
         self.viewModel.update(item: item, storageManager: storageManager)

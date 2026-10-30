@@ -106,6 +106,8 @@ struct VerificationRunner {
         // 26. Cycle 19 Latent Bug Fixes & Regression Tests (v1.0.26)
         Cycle19Tests.run(sandboxDir: sandboxURL.appendingPathComponent("Cycle19Test"))
 
+        // 27. Cycle 20 Latent Bug Fixes & Multi-Display Edge Cases
+        Cycle20Tests.run(sandboxDir: sandboxURL.appendingPathComponent("Cycle20Test"))
 
         let elapsed = Date().timeIntervalSince(startTimestamp)
         print("\nVerification completed in \(String(format: "%.3f", elapsed)) seconds.")

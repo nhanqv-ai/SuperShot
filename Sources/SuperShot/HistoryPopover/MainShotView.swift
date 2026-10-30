@@ -532,6 +532,7 @@ public struct MainShotView: View {
                                 onAnnotate: { annotateItem($0) },
                                 onTogglePin: { storageManager.togglePin(id: $0.id) },
                                 onDelete: {
+                                    ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                                     storageManager.deleteItem(id: $0.id)
                                     triggerDeleteFeedback()
                                 },
@@ -564,6 +565,7 @@ public struct MainShotView: View {
                                 onAnnotate: { annotateItem($0) },
                                 onTogglePin: { storageManager.togglePin(id: $0.id) },
                                 onDelete: {
+                                    ThumbnailHoverPreviewPanel.shared.hide(immediate: true)
                                     storageManager.deleteItem(id: $0.id)
                                     triggerDeleteFeedback()
                                 },
@@ -799,9 +801,22 @@ public struct MainShotView: View {
         let pb = NSPasteboard.general
         pb.clearContents()
         pb.declareTypes([.png, .tiff], owner: nil)
-        pb.setData(data, forType: .png)
-        if let img = NSImage(data: data), let tiff = img.tiffRepresentation {
-            pb.setData(tiff, forType: .tiff)
+        if let rep = NSBitmapImageRep(data: data) {
+            let scale = NSScreen.main?.backingScaleFactor ?? 2.0
+            rep.size = NSSize(width: CGFloat(rep.pixelsWide) / scale, height: CGFloat(rep.pixelsHigh) / scale)
+            if let pngData = rep.representation(using: .png, properties: [:]) {
+                pb.setData(pngData, forType: .png)
+            } else {
+                pb.setData(data, forType: .png)
+            }
+            if let tiff = rep.tiffRepresentation {
+                pb.setData(tiff, forType: .tiff)
+            }
+        } else {
+            pb.setData(data, forType: .png)
+            if let img = NSImage(data: data), let tiff = img.tiffRepresentation {
+                pb.setData(tiff, forType: .tiff)
+            }
         }
 
         triggerCopyFeedback(for: item.id)

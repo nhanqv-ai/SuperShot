@@ -23,6 +23,8 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     public var hasActiveTextEditing: Bool { activeTextField != nil }
     private var activeTextField: NSTextField?
     private var editingObjectID: UUID?
+    private var preEditTextSnapshot: String?
+    private var isNewTextAnnotation: Bool = false
     private var trackingAreaRef: NSTrackingArea?
     public private(set) var isDraggingOnCanvas: Bool = false
     public var isPointOverFloatingToolbar: ((CGPoint) -> Bool)?
@@ -344,20 +346,33 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         let dx = p2.x - p1.x
         let dy = p2.y - p1.y
         let len = hypot(dx, dy)
-        guard len > 1.0 else { return }
+        guard len > 1.0 else {
+            context.setFillColor(color.cgColor)
+            let anchorRadius = max(2.0, strokeWidth / 2.0)
+            context.fillEllipse(in: CGRect(x: p1.x - anchorRadius, y: p1.y - anchorRadius, width: anchorRadius * 2, height: anchorRadius * 2))
+            return
+        }
         let theta = atan2(dy, dx)
-        let headLen = max(12.0, min(len * 0.5, strokeWidth * 4.0))
+        let desiredHeadLen = max(8.0, strokeWidth * 3.5)
+        let headLen = min(desiredHeadLen, max(3.0, len * 0.6))
         let wingAngle: CGFloat = 0.488
-        let shaftEnd = CGPoint(x: p2.x - (headLen * 0.7) * cos(theta), y: p2.y - (headLen * 0.7) * sin(theta))
+
+        let shaftSetback = min(headLen * 0.7, len)
+        let shaftEnd = CGPoint(x: p2.x - shaftSetback * cos(theta), y: p2.y - shaftSetback * sin(theta))
+
+        if len > shaftSetback + 0.5 {
+            context.strokeLineSegments(between: [p1, shaftEnd])
+        }
+
         let w1 = CGPoint(x: p2.x - headLen * cos(theta - wingAngle), y: p2.y - headLen * sin(theta - wingAngle))
         let w2 = CGPoint(x: p2.x - headLen * cos(theta + wingAngle), y: p2.y - headLen * sin(theta + wingAngle))
 
-        context.strokeLineSegments(between: [p1, shaftEnd])
         let arrowPath = CGMutablePath()
         arrowPath.move(to: p2)
         arrowPath.addLine(to: w1)
         arrowPath.addLine(to: w2)
         arrowPath.closeSubpath()
+        context.setFillColor(color.cgColor)
         context.addPath(arrowPath)
         context.fillPath()
     }
@@ -439,7 +454,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         // Double click handling
         if event.clickCount == 2 {
             if let clickedObj = engine.selectObject(at: point), clickedObj.tool == .text {
-                startInlineTextEditing(for: clickedObj)
+                startInlineTextEditing(for: clickedObj, isNew: false)
                 updateCanvasCursor(with: event)
                 return
             }
@@ -475,7 +490,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
 
         // If newly created object is a text box, immediately focus inline editor
         if let created = committed, created.tool == .text, (created.text.isEmpty || created.text == "Text") {
-            startInlineTextEditing(for: created)
+            startInlineTextEditing(for: created, isNew: true)
         }
 
         updateCanvasCursor(with: event)
@@ -501,8 +516,10 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
 
     // MARK: - Inline Text Editing
 
-    private func startInlineTextEditing(for obj: AnnotationObject) {
+    private func startInlineTextEditing(for obj: AnnotationObject, isNew: Bool = false) {
         commitActiveTextEditing()
+        self.preEditTextSnapshot = obj.text
+        self.isNewTextAnnotation = isNew
 
         let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
         let fieldH = max(26.0, ceil(font.ascender - font.descender) + 6.0)
@@ -533,6 +550,24 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         self.editingObjectID = obj.id
     }
 
+    public func cancelActiveTextEditing() {
+        guard let field = activeTextField, let objID = editingObjectID else { return }
+        let defaultPlaceholder = LocalizationManager.shared.tr(.toolText)
+        if isNewTextAnnotation || (preEditTextSnapshot ?? "").isEmpty || preEditTextSnapshot == "Text" || preEditTextSnapshot == defaultPlaceholder {
+            engine.selectedObjectID = objID
+            engine.deleteSelected()
+        } else if let original = preEditTextSnapshot {
+            engine.selectedObjectID = objID
+            engine.updateSelectedText(original)
+        }
+        field.removeFromSuperview()
+        activeTextField = nil
+        editingObjectID = nil
+        preEditTextSnapshot = nil
+        isNewTextAnnotation = false
+        needsDisplay = true
+    }
+
     public func commitActiveTextEditing() {
         guard let field = activeTextField, let objID = editingObjectID else { return }
         let trimmed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -540,11 +575,13 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         if trimmed.isEmpty {
             engine.deleteSelected()
         } else {
-            engine.updateSelectedText(field.stringValue)
+            engine.updateSelectedText(trimmed)
         }
         field.removeFromSuperview()
         activeTextField = nil
         editingObjectID = nil
+        preEditTextSnapshot = nil
+        isNewTextAnnotation = false
         needsDisplay = true
     }
 
@@ -891,20 +928,28 @@ public final class ScrollableCanvasView: NSView {
         toolbarsViewModel.onToolChanged = { [weak self] toolType in
             guard let self = self else { return }
             self.documentView.commitActiveTextEditing()
+            self.documentView.cancelDrag()
+            self.engine.cancelDrag()
+            let mappedTool: AnnotationTool
             switch toolType {
-            case .select: self.engine.activeTool = .select
-            case .rectangle: self.engine.activeTool = .rectangle
-            case .ellipse: self.engine.activeTool = .ellipse
-            case .arrow: self.engine.activeTool = .arrow
-            case .line: self.engine.activeTool = .line
-            case .pen: self.engine.activeTool = .pen
-            case .highlighter: self.engine.activeTool = .highlighter
-            case .text: self.engine.activeTool = .text
-            case .blur: self.engine.activeTool = .blur
+            case .select: mappedTool = .select
+            case .rectangle: mappedTool = .rectangle
+            case .ellipse: mappedTool = .ellipse
+            case .arrow: mappedTool = .arrow
+            case .line: mappedTool = .line
+            case .pen: mappedTool = .pen
+            case .highlighter: mappedTool = .highlighter
+            case .text: mappedTool = .text
+            case .blur: mappedTool = .blur
             }
+            if mappedTool != .select {
+                self.engine.deselectAll()
+            }
+            self.engine.activeTool = mappedTool
             self.documentView.updateCanvasCursor()
             self.updateTextTargetState()
             self.documentView.showToolSelectionHUD(tool: toolType)
+            self.documentView.needsDisplay = true
         }
 
         toolbarsViewModel.onColorSelected = { [weak self] hex in
@@ -1039,8 +1084,11 @@ public final class ScrollableCanvasView: NSView {
         ) else { return }
 
         let rep = NSBitmapImageRep(cgImage: rendered)
+        let effectiveScale = max(1.0, documentView.scale)
+        rep.size = NSSize(width: CGFloat(rendered.width) / effectiveScale, height: CGFloat(rendered.height) / effectiveScale)
         let pasteboard = NSPasteboard.general
         pasteboard.clearContents()
+        pasteboard.declareTypes([.png, .tiff], owner: nil)
         if let pngData = rep.representation(using: .png, properties: [:]) {
             pasteboard.setData(pngData, forType: .png)
         }
@@ -1178,9 +1226,9 @@ public final class ScrollableAnnotationWindow: NSWindow {
                 canvasView.documentView.cancelDrag()
                 return
             }
-            // Tier 1: Commit active inline text editing on Esc
+            // Tier 1: Cancel active inline text editing on Esc
             if canvasView.documentView.hasActiveTextEditing {
-                canvasView.documentView.commitActiveTextEditing()
+                canvasView.documentView.cancelActiveTextEditing()
                 return
             }
             // Tier 2: Deselect active vector object if any object is selected

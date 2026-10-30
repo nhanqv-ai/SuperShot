@@ -42,6 +42,8 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     private var horizontalToolbarHost: NSHostingView<HorizontalActionToolbarView>?
     public private(set) var activeTextField: NSTextField?
     private var editingObjectID: UUID?
+    private var preEditTextSnapshot: String?
+    private var isNewTextAnnotation: Bool = false
     public var currentMousePoint: CGPoint?
     private var trackingAreaRef: NSTrackingArea?
     public private(set) var spaceKeyDragging: Bool = false
@@ -154,11 +156,18 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         toolbarsViewModel.onToolChanged = { [weak self] toolType in
             guard let self = self else { return }
             self.commitActiveTextEditing()
-            self.annotationEngine.activeTool = Self.mapTool(toolType)
+            self.annotationEngine.cancelDrag()
+            self.dragMode = .none
+            let mapped = Self.mapTool(toolType)
+            if mapped != .select {
+                self.annotationEngine.deselectAll()
+            }
+            self.annotationEngine.activeTool = mapped
             self.updateTextTargetState()
             let pt = self.currentMousePoint ?? (self.window.map { self.convert($0.mouseLocationOutsideOfEventStream, from: nil) }) ?? CGPoint(x: self.bounds.midX, y: self.bounds.midY)
             self.updateCanvasCursor(at: pt)
             self.showToolSelectionHUD(tool: toolType)
+            self.needsDisplay = true
         }
 
         toolbarsViewModel.onColorSelected = { [weak self] hex in
@@ -332,11 +341,19 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         }
 
         // Convert selectionRect and AnnotationObjects from Cocoa (bottom-left) to top-left coordinate space
+        let safeSelection = selectionRect.intersection(bounds)
+        guard !safeSelection.isNull && safeSelection.width >= 1 && safeSelection.height >= 1 else { return nil }
+
+        let pixelX = round(safeSelection.minX * scale)
+        let pixelY = round((windowH - safeSelection.maxY) * scale)
+        let pixelW = max(1, round(safeSelection.maxX * scale) - pixelX)
+        let pixelH = max(1, round((windowH - safeSelection.minY) * scale) - pixelY)
+
         let topLeftCropRect = CGRect(
-            x: max(0, min(selectionRect.minX, bounds.width)),
-            y: max(0, min(windowH - selectionRect.maxY, windowH)),
-            width: max(1, min(selectionRect.width, bounds.width - selectionRect.minX)),
-            height: max(1, min(selectionRect.height, windowH - (windowH - selectionRect.maxY)))
+            x: pixelX / scale,
+            y: pixelY / scale,
+            width: pixelW / scale,
+            height: pixelH / scale
         )
 
         let topLeftAnnotations: [AnnotationObject] = annotationEngine.objects.map { obj in
@@ -603,20 +620,33 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         let dx = p2.x - p1.x
         let dy = p2.y - p1.y
         let len = hypot(dx, dy)
-        guard len > 1.0 else { return }
+        guard len > 1.0 else {
+            context.setFillColor(color.cgColor)
+            let anchorRadius = max(2.0, strokeWidth / 2.0)
+            context.fillEllipse(in: CGRect(x: p1.x - anchorRadius, y: p1.y - anchorRadius, width: anchorRadius * 2, height: anchorRadius * 2))
+            return
+        }
         let theta = atan2(dy, dx)
-        let headLen = max(12.0, min(len * 0.5, strokeWidth * 4.0))
+        let desiredHeadLen = max(8.0, strokeWidth * 3.5)
+        let headLen = min(desiredHeadLen, max(3.0, len * 0.6))
         let wingAngle: CGFloat = 0.488
-        let shaftEnd = CGPoint(x: p2.x - (headLen * 0.7) * cos(theta), y: p2.y - (headLen * 0.7) * sin(theta))
+
+        let shaftSetback = min(headLen * 0.7, len)
+        let shaftEnd = CGPoint(x: p2.x - shaftSetback * cos(theta), y: p2.y - shaftSetback * sin(theta))
+
+        if len > shaftSetback + 0.5 {
+            context.strokeLineSegments(between: [p1, shaftEnd])
+        }
+
         let w1 = CGPoint(x: p2.x - headLen * cos(theta - wingAngle), y: p2.y - headLen * sin(theta - wingAngle))
         let w2 = CGPoint(x: p2.x - headLen * cos(theta + wingAngle), y: p2.y - headLen * sin(theta + wingAngle))
 
-        context.strokeLineSegments(between: [p1, shaftEnd])
         let arrowPath = CGMutablePath()
         arrowPath.move(to: p2)
         arrowPath.addLine(to: w1)
         arrowPath.addLine(to: w2)
         arrowPath.closeSubpath()
+        context.setFillColor(color.cgColor)
         context.addPath(arrowPath)
         context.fillPath()
     }
@@ -945,9 +975,13 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             return true
         }
 
-        // Tier 1: Commit active inline text editing on Esc
+        // Tier 1: Cancel active inline text editing on Esc, Commit on Return / Enter
         if activeTextField != nil {
-            if event.keyCode == 53 || event.keyCode == 36 || event.keyCode == 76 {
+            if event.keyCode == 53 {
+                cancelActiveTextEditing()
+                return true
+            }
+            if event.keyCode == 36 || event.keyCode == 76 {
                 commitActiveTextEditing()
                 return true
             }
@@ -1253,7 +1287,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             // Double-click handling
             if event.clickCount == 2 {
                 if let hitObj = annotationEngine.selectObject(at: point), hitObj.tool == .text {
-                    startInlineTextEditing(for: hitObj)
+                    startInlineTextEditing(for: hitObj, isNew: false)
                     updateTextTargetState()
                     updateCanvasCursor(at: point)
                     needsDisplay = true
@@ -1432,7 +1466,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         if dragMode == .annotating {
             let committed = annotationEngine.endDrag(at: point)
             if let obj = committed, obj.tool == .text {
-                startInlineTextEditing(for: obj)
+                startInlineTextEditing(for: obj, isNew: true)
             }
         }
         dragMode = .none
@@ -1604,8 +1638,10 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
     // MARK: - Inline Text Editing
 
-    private func startInlineTextEditing(for obj: AnnotationObject) {
+    private func startInlineTextEditing(for obj: AnnotationObject, isNew: Bool = false) {
         commitActiveTextEditing()
+        self.preEditTextSnapshot = obj.text
+        self.isNewTextAnnotation = isNew
 
         let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
         let fieldH = max(26.0, ceil(font.ascender - font.descender) + 6.0)
@@ -1637,6 +1673,26 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         updateTextTargetState()
     }
 
+    public func cancelActiveTextEditing() {
+        guard let field = activeTextField, let objID = editingObjectID else { return }
+        let defaultPlaceholder = LocalizationManager.shared.tr(.toolText)
+        if isNewTextAnnotation || (preEditTextSnapshot ?? "").isEmpty || preEditTextSnapshot == "Text" || preEditTextSnapshot == defaultPlaceholder {
+            annotationEngine.selectedObjectID = objID
+            annotationEngine.deleteSelected()
+        } else if let original = preEditTextSnapshot {
+            annotationEngine.selectedObjectID = objID
+            annotationEngine.updateSelectedText(original)
+        }
+        field.removeFromSuperview()
+        activeTextField = nil
+        editingObjectID = nil
+        preEditTextSnapshot = nil
+        isNewTextAnnotation = false
+        updateTextTargetState()
+        window?.makeFirstResponder(self)
+        needsDisplay = true
+    }
+
     public func commitActiveTextEditing() {
         guard let field = activeTextField, let objID = editingObjectID else { return }
         let trimmed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -1644,11 +1700,13 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         if trimmed.isEmpty {
             annotationEngine.deleteSelected()
         } else {
-            annotationEngine.updateSelectedText(field.stringValue)
+            annotationEngine.updateSelectedText(trimmed)
         }
         field.removeFromSuperview()
         activeTextField = nil
         editingObjectID = nil
+        preEditTextSnapshot = nil
+        isNewTextAnnotation = false
         updateTextTargetState()
         window?.makeFirstResponder(self)
         needsDisplay = true

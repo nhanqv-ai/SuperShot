@@ -314,6 +314,7 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | 191 | Canonical Version Bump & Automated Release Pipeline | Synchronize 8 canonical files to 1.0.25 / Build 25, update downstream tests, PR #25, Universal 2 build, and GitHub release v1.0.25 | M67/M68 | Cycle 18 Backlog |
 | 192 | Latent Bug Fixes across Stitching, Canvas & Annotations | Low-entropy flat-MAD guard, sticky dedup resilience, frame tolerance, overlay Esc/Space tiering, edge crop clamping, handle minBy selection, metadata backup | M69 | Cycle 19 Backlog |
 | 193 | Cycle 19 Regression Test Suite & Canonical Version Bump | Comprehensive Cycle19Tests.swift with non-uniform synthetic images, version bump to 1.0.26 / Build 26 across 8 files | M69/M70 | Cycle 19 Backlog |
+| 194 | Cycle 20 Latent Bug Fixes & Concurrency Hardening | Short-vector arrow scaling, Escape text cancel, multi-display boundary clamping, StorageManager/ThumbnailImageCache lock-free notification, DMG force-detach, Cycle20Tests.swift, version bump to 1.0.27 / Build 27 | M71/M72 | Cycle 20 Backlog |
 
 ## Milestones
 
@@ -385,6 +386,8 @@ SuperShot is structured as a native macOS menu bar application (`LSUIElement = t
 | M68 | Multi-Angle Review, PR #25 & Release Pipeline | Independent review, adversarial challenge, PR #25 merge, Universal 2 package, GitHub release v1.0.25, live app relaunch | M67 | DONE |
 | M69 | Latent Bug Fixes & Cycle 19 Regression Tests | Low-entropy flat-MAD guard, sticky dedup resilience, frame tolerance, overlay Esc/Space tiering, edge crop clamping, handle minBy selection, metadata backup, add Cycle19Tests.swift | M68 | DONE |
 | M70 | Canonical Version Bump to 1.0.26 / Build 26 | Synchronize 8 canonical files to 1.0.26 / Build 26, update downstream tests, 0 emojis, make lint, make test | M69 | DONE |
+| M71 | Cycle 20 Latent Bug Fixes & Regression Suite | Implement multi-display clamping, short-vector arrow geometry, lock-free storage notifications, DMG cleanup, and Cycle20Tests.swift | M70 | DONE |
+| M72 | Canonical Version Bump to 1.0.27 / Build 27 & Release | Synchronize 8 canonical files to 1.0.27 / Build 27, update downstream tests, PR #27, Universal 2 release v1.0.27 | M71 | DONE |
 
 ## Interface Contracts
 
