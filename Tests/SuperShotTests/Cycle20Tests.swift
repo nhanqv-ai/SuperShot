@@ -264,6 +264,41 @@ public struct Cycle20Tests {
         TestHarness.assertTrue(readSuccessCount > 0, "S3.6: Concurrent main-thread reads succeeded with 0 deadlocks")
         TestHarness.assertEqual(concurrentStorage.items.count, 10, "S3.6: StorageManager enforced capacity limit of 10 items under concurrent saves")
 
+        // S3.7: UpdateDownloadDelegate background completion fires onCompletion even after delegate scope ends
+        let bgDownloadDir = sandboxDir.appendingPathComponent("BgDownloadTest_\(UUID().uuidString)")
+        try? FileManager.default.createDirectory(at: bgDownloadDir, withIntermediateDirectories: true)
+        let srcFile = bgDownloadDir.appendingPathComponent("temp_download.tmp")
+        let destFile = bgDownloadDir.appendingPathComponent("SuperShot-update.zip")
+        try? Data("dummy-zip-payload".utf8).write(to: srcFile)
+
+        var bgCompletionResult: Result<URL, Error>? = nil
+        var bgProgress: Double = 0.0
+        let bgMgr = UpdateManager()
+        bgMgr.status = .downloading(progress: 0.5)
+
+        DispatchQueue.global(qos: .userInitiated).async {
+            let ephemeralSession = URLSession(configuration: .ephemeral)
+            let dummyTask = ephemeralSession.downloadTask(with: URL(string: "https://example.com/update.zip")!)
+            let delegate = UpdateDownloadDelegate(
+                destinationURL: destFile,
+                updateManager: bgMgr,
+                onProgress: { p in bgProgress = p },
+                onCompletion: { res in bgCompletionResult = res }
+            )
+            delegate.urlSession(ephemeralSession, downloadTask: dummyTask, didFinishDownloadingTo: srcFile)
+        }
+
+        let bgDeadline = Date().addingTimeInterval(2.0)
+        while bgCompletionResult == nil && Date() < bgDeadline {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.02))
+        }
+        if case .success(let completedURL) = bgCompletionResult {
+            TestHarness.assertEqual(completedURL.path, destFile.path, "S3.7: UpdateDownloadDelegate background completion invoked onCompletion with destinationURL")
+        } else {
+            TestHarness.assertTrue(false, "S3.7: UpdateDownloadDelegate background completion must not drop onCompletion when delegate is released")
+        }
+        TestHarness.assertEqual(bgProgress, 1.0, "S3.7: UpdateDownloadDelegate reported 100% progress before completion")
+
         print("  --- Cycle 20 All Test Sections Completed Successfully ---")
     }
 }

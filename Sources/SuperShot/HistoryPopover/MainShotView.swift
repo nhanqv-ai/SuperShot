@@ -436,7 +436,7 @@ public struct MainShotView: View {
 
                 Button(action: {
                     if release.preferredAssetURL != nil {
-                        updateManager.startDownloadAndInstall(release: release)
+                        updateManager.startDownloadAndInstall(release: release, autoRestart: true)
                     } else {
                         NSWorkspace.shared.open(release.htmlURL)
                     }
@@ -475,7 +475,7 @@ public struct MainShotView: View {
 
                 if let release = updateManager.latestRelease {
                     Button(action: {
-                        updateManager.startDownloadAndInstall(release: release)
+                        updateManager.startDownloadAndInstall(release: release, autoRestart: true)
                     }) {
                         Text(localizationManager.tr(.updateNow))
                             .font(.system(size: 10, weight: .semibold))
