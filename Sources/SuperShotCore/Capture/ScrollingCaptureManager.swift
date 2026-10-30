@@ -323,7 +323,8 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
     public func startSession(
         selectionRect: CGRect,
         displayInfo: CaptureDisplayInfo,
-        mode: ScrollingCaptureMode = .manual
+        mode: ScrollingCaptureMode = .manual,
+        initialFrame: CGImage? = nil
     ) -> Bool {
         stateLock.lock()
         defer { stateLock.unlock() }
@@ -355,14 +356,22 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
             isMaxHeightReached: false
         )
 
-        // Capture initial frame
-        guard let initialFullImage = captureProvider.captureDisplayImage(displayID: displayInfo.displayID),
-              let initialCropped = ScreenCaptureManager.cropImage(
+        // Use clean pre-cropped initialFrame when provided, otherwise capture display image
+        let resolvedInitial: CGImage?
+        if let provided = initialFrame {
+            resolvedInitial = provided
+        } else if let initialFullImage = captureProvider.captureDisplayImage(displayID: displayInfo.displayID) {
+            resolvedInitial = ScreenCaptureManager.cropImage(
                 initialFullImage,
                 selectionInWindow: selectionRect,
                 windowSize: displayInfo.cocoaFrame.size,
                 scaleFactor: scale
-              ) else {
+            )
+        } else {
+            resolvedInitial = nil
+        }
+
+        guard let initialCropped = resolvedInitial else {
             _state = .failed("Failed to capture initial screen frame")
             delegate?.scrollingCaptureDidFail(error: "Failed to capture initial screen frame")
             return false
@@ -586,24 +595,31 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
             }
 
             // Step 4: Estimate vertical offset between consecutive frames
-            let (offset, shouldStop, stopReason) = stateLock.withLock { () -> (CGFloat, Bool, ScrollingCaptureStopReason?) in
+            let (offset, shouldStop, stopReason, framesSnapshot) = stateLock.withLock { () -> (CGFloat, Bool, ScrollingCaptureStopReason?, [CGImage]) in
                 guard let last = self.lastCapturedFrame else {
-                    return (0, false, nil)
+                    return (0, false, nil, [])
                 }
 
                 let effectiveW = max(1, last.width - Int(round(self.configuration.scrollbarStripWidth * disp.scaleFactor)))
+                let maxHeaderPx = min(last.height / 3, Int(round(80.0 * disp.scaleFactor)))
+                let maxFooterPx = min(last.height / 3, Int(round(80.0 * disp.scaleFactor)))
+                let candH = ImageStitcher.detectStationaryHeader(f1: last, f2: cropped, effectiveWidth: effectiveW, maxHeaderH: maxHeaderPx)
+                let candF = ImageStitcher.detectStationaryFooter(f1: last, f2: cropped, effectiveWidth: effectiveW, maxFooterH: maxFooterPx)
                 let est = ImageStitcher.estimateVerticalOffset(
                     f1: last,
                     f2: cropped,
-                    effectiveWidth: effectiveW
+                    effectiveWidth: effectiveW,
+                    headerH: candH,
+                    footerH: candF,
+                    minOffset: 6
                 )
 
-                if est.isZeroDelta || est.offset <= 0 {
+                if est.isZeroDelta || est.offset <= 0 || est.confidence < 0.85 {
                     self.consecutiveZeroDeltas += 1
                     if self.consecutiveZeroDeltas >= self.configuration.maxConsecutiveZeroDeltas {
-                        return (0, true, .bottomReached)
+                        return (0, true, .bottomReached, [])
                     }
-                    return (0, false, nil)
+                    return (0, false, nil, [])
                 }
 
                 self.consecutiveZeroDeltas = 0
@@ -614,7 +630,7 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
                 let isMax = self.accumulatedHeightPx >= CGFloat(self.configuration.maxScrollHeightPx)
                 if isMax {
                     self.accumulatedHeightPx = CGFloat(self.configuration.maxScrollHeightPx)
-                    return (CGFloat(est.offset), true, .maxHeightReached)
+                    return (CGFloat(est.offset), true, .maxHeightReached, self.capturedFrames)
                 }
 
                 let currentProg = ScrollingProgress(
@@ -627,14 +643,20 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
                     isMaxHeightReached: false
                 )
                 self._progress = currentProg
-                return (CGFloat(est.offset), false, nil)
+                return (CGFloat(est.offset), false, nil, self.capturedFrames)
             }
 
-            // Update live preview on UI thread
+            // Update live stitched preview on UI thread
             if offset > 0 {
+                let stitchOptions = StitchOptions(
+                    scrollbarStripWidth: configuration.scrollbarStripWidth,
+                    maxScrollHeightPx: CGFloat(configuration.maxScrollHeightPx),
+                    scaleFactor: disp.scaleFactor
+                )
+                let liveImage = (try? ImageStitcher.stitch(frames: framesSnapshot, options: stitchOptions).image) ?? cropped
                 let prog = self.progress
                 DispatchQueue.main.async { [weak self] in
-                    self?.delegate?.scrollingCaptureDidUpdate(progress: prog, previewImage: cropped)
+                    self?.delegate?.scrollingCaptureDidUpdate(progress: prog, previewImage: liveImage)
                 }
             }
 
@@ -677,17 +699,24 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
                 continue
             }
 
-            let (offset, shouldStop) = stateLock.withLock { () -> (CGFloat, Bool) in
-                guard let last = self.lastCapturedFrame else { return (0, false) }
+            let (offset, shouldStop, framesSnapshot) = stateLock.withLock { () -> (CGFloat, Bool, [CGImage]) in
+                guard let last = self.lastCapturedFrame else { return (0, false, []) }
                 let effectiveW = max(1, last.width - Int(round(self.configuration.scrollbarStripWidth * disp.scaleFactor)))
+                let maxHeaderPx = min(last.height / 3, Int(round(80.0 * disp.scaleFactor)))
+                let maxFooterPx = min(last.height / 3, Int(round(80.0 * disp.scaleFactor)))
+                let candH = ImageStitcher.detectStationaryHeader(f1: last, f2: cropped, effectiveWidth: effectiveW, maxHeaderH: maxHeaderPx)
+                let candF = ImageStitcher.detectStationaryFooter(f1: last, f2: cropped, effectiveWidth: effectiveW, maxFooterH: maxFooterPx)
                 let est = ImageStitcher.estimateVerticalOffset(
                     f1: last,
                     f2: cropped,
-                    effectiveWidth: effectiveW
+                    effectiveWidth: effectiveW,
+                    headerH: candH,
+                    footerH: candF,
+                    minOffset: 8
                 )
 
-                // Only accumulate if user scrolled by at least 5px
-                if !est.isZeroDelta && est.offset >= 5 {
+                // Only accumulate if user scrolled by at least 8px with high confidence
+                if !est.isZeroDelta && est.offset >= 8 && est.confidence >= 0.88 {
                     self.accumulatedHeightPx += CGFloat(est.offset)
                     self.capturedFrames.append(cropped)
                     self.lastCapturedFrame = cropped
@@ -695,7 +724,7 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
                     let isMax = self.accumulatedHeightPx >= CGFloat(self.configuration.maxScrollHeightPx)
                     if isMax {
                         self.accumulatedHeightPx = CGFloat(self.configuration.maxScrollHeightPx)
-                        return (CGFloat(est.offset), true)
+                        return (CGFloat(est.offset), true, self.capturedFrames)
                     }
 
                     let currentProg = ScrollingProgress(
@@ -708,15 +737,21 @@ public final class ScrollingCaptureManager: @unchecked Sendable {
                         isMaxHeightReached: false
                     )
                     self._progress = currentProg
-                    return (CGFloat(est.offset), false)
+                    return (CGFloat(est.offset), false, self.capturedFrames)
                 }
-                return (0, false)
+                return (0, false, [])
             }
 
             if offset > 0 {
+                let stitchOptions = StitchOptions(
+                    scrollbarStripWidth: configuration.scrollbarStripWidth,
+                    maxScrollHeightPx: CGFloat(configuration.maxScrollHeightPx),
+                    scaleFactor: disp.scaleFactor
+                )
+                let liveImage = (try? ImageStitcher.stitch(frames: framesSnapshot, options: stitchOptions).image) ?? cropped
                 let prog = self.progress
                 DispatchQueue.main.async { [weak self] in
-                    self?.delegate?.scrollingCaptureDidUpdate(progress: prog, previewImage: cropped)
+                    self?.delegate?.scrollingCaptureDidUpdate(progress: prog, previewImage: liveImage)
                 }
             }
 

@@ -6,9 +6,9 @@ import SuperShotCore
 
 public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayWindowDelegate, ScrollingCaptureDelegate {
     public static var shared: AppDelegate?
-    // Canonical Application Version: 1.0.32 (Build 32)
-    public static let canonicalVersion = "1.0.32"
-    public static let canonicalBuild = "32"
+    // Canonical Application Version: 1.0.33 (Build 33)
+    public static let canonicalVersion = "1.0.33"
+    public static let canonicalBuild = "33"
 
     // Core Managers & Services
     public var storageManager: StorageManager!
@@ -190,6 +190,15 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
     }
 
     public func startScrollingCapture(selectionRect: CGRect, display: CaptureDisplayInfo) {
+        let cleanInitialFrame: CGImage? = {
+            guard let overlay = activeOverlayWindow else { return nil }
+            return ScreenCaptureManager.cropImage(
+                overlay.capturedScreen.fullImage,
+                selectionInWindow: selectionRect,
+                windowSize: overlay.frame.size,
+                scaleFactor: display.scaleFactor
+            )
+        }()
         activeOverlayWindow?.close()
         activeOverlayWindow = nil
         activeScrollRegionBorderWindow?.close()
@@ -219,6 +228,18 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
                 captureType: .scrolling,
                 sourceApp: self.previousAppTracker.previousApp?.localizedName
             )
+        }
+        panel.onAnnotateRequested = { [weak self] image, _ in
+            guard let self = self else { return }
+            self.activeScrollRegionBorderWindow?.close()
+            self.activeScrollRegionBorderWindow = nil
+            self.activeStitchedPreviewPanel?.close()
+            self.activeStitchedPreviewPanel = nil
+            self.handleCaptureCompletion(
+                image: image,
+                captureType: .scrolling,
+                sourceApp: self.previousAppTracker.previousApp?.localizedName
+            )
             self.presentScrollableAnnotationWindow(image: image, scale: display.scaleFactor)
         }
         panel.onCancelled = { [weak self] in
@@ -238,7 +259,8 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         _ = ScrollingCaptureManager.shared.startSession(
             selectionRect: selectionRect,
             displayInfo: display,
-            mode: .manual
+            mode: .manual,
+            initialFrame: cleanInitialFrame
         )
     }
 

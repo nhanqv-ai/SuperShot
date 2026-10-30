@@ -185,7 +185,7 @@ public final class UpdateManager: ObservableObject, @unchecked Sendable {
     private var _customVersion: String? = nil
     public var currentVersion: String {
         get {
-            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.32")
+            _customVersion ?? (Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "1.0.33")
         }
         set {
             _customVersion = newValue

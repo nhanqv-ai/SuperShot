@@ -37,6 +37,7 @@ public class CaptureOverlayWindow: NSPanel {
         self.isOpaque = false
         self.backgroundColor = .clear
         self.hasShadow = false
+        self.sharingType = .none // Exclude overlay UI from CGDisplayCreateImage during scrolling capture transition
         self.ignoresMouseEvents = false
         self.acceptsMouseMovedEvents = true
         self.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
@@ -57,6 +58,7 @@ public class CaptureOverlayWindow: NSPanel {
     public override func close() {
         contentViewRef?.cleanup()
         NSCursor.arrow.set()
+        orderOut(nil)
         super.close()
     }
 

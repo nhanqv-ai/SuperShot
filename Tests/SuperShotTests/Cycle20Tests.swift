@@ -353,6 +353,76 @@ public struct Cycle20Tests {
         TestHarness.assertTrue(inlineField.isPointInBorderDragZone(CGPoint(x: 2, y: 2)), "S3.8: Outer border ring is recognized as draggable zone")
         TestHarness.assertFalse(inlineField.isPointInBorderDragZone(CGPoint(x: 40, y: 16)), "S3.8: Interior text area is reserved for text cursor editing")
 
+        // S3.9: Scrolling Capture Code Editor Deduplication & 1-Step UX Verification (v1.0.33)
+        let codeW = 500
+        let codeTotalH = 900
+        let codeViewportH = 400
+        let cs = CGColorSpaceCreateDeviceRGB()
+        let bmpInfo = CGImageAlphaInfo.premultipliedLast.rawValue
+        if let masterCtx = CGContext(data: nil, width: codeW, height: codeTotalH, bitsPerComponent: 8, bytesPerRow: codeW * 4, space: cs, bitmapInfo: bmpInfo) {
+            // Dark code editor background
+            masterCtx.setFillColor(red: 0.11, green: 0.12, blue: 0.14, alpha: 1.0)
+            masterCtx.fill(CGRect(x: 0, y: 0, width: codeW, height: codeTotalH))
+
+            // Draw two code blocks with repetitive JSDoc structure but distinct function header signatures
+            for yTop in stride(from: 20, to: codeTotalH - 40, by: 22) {
+                let isFnHeader1 = (yTop >= 20 && yTop < 42)
+                let isFnHeader2 = (yTop >= 240 && yTop < 262)
+                let isFnHeader3 = (yTop >= 460 && yTop < 482)
+                let lineLen: Int
+                if isFnHeader1 {
+                    lineLen = 260 // _resetHasWarned
+                } else if isFnHeader2 {
+                    lineLen = 410 // getCompatibleVersions
+                } else if isFnHeader3 {
+                    lineLen = 350 // getAllVersions
+                } else {
+                    // JSDoc comment lines with slight length variation per block
+                    lineLen = 180 + ((yTop * 17) % 190)
+                }
+                for x in stride(from: 24, to: min(codeW - 30, 24 + lineLen), by: 8) {
+                    let bright = CGFloat(140 + ((x * 13 + yTop * 7) % 100)) / 255.0
+                    masterCtx.setFillColor(red: bright, green: bright * 0.9, blue: bright * 0.8, alpha: 1.0)
+                    masterCtx.fill(CGRect(x: x, y: codeTotalH - yTop - 12, width: 5, height: 10))
+                }
+            }
+
+            if let codeMaster = masterCtx.makeImage(),
+               let frame0 = codeMaster.cropping(to: CGRect(x: 0, y: 0, width: codeW, height: codeViewportH)),
+               let frameSubScroll = codeMaster.cropping(to: CGRect(x: 0, y: 2, width: codeW, height: codeViewportH)),
+               let frameTrueScroll = codeMaster.cropping(to: CGRect(x: 0, y: 120, width: codeW, height: codeViewportH)) {
+                // 1) Sub-threshold 2px trackpad scroll must resolve to zero-delta (0px) instead of jumping to JSDoc block at ~220px
+                let subEst = ImageStitcher.estimateVerticalOffset(f1: frame0, f2: frameSubScroll, effectiveWidth: codeW - 24, minOffset: 8)
+                TestHarness.assertTrue(subEst.isZeroDelta, "S3.9: Sub-threshold 2px scroll in code editor resolves to isZeroDelta")
+                TestHarness.assertEqual(subEst.offset, 0, "S3.9: Sub-threshold 2px scroll does not hallucinate duplicate block offset")
+
+                // 2) Real 120px scroll accurately resolves to 120px
+                let trueEst = ImageStitcher.estimateVerticalOffset(f1: frame0, f2: frameTrueScroll, effectiveWidth: codeW - 24, minOffset: 8)
+                TestHarness.assertFalse(trueEst.isZeroDelta, "S3.9: Real 120px code editor scroll is not zero-delta")
+                TestHarness.assertEqual(trueEst.offset, 120, "S3.9: Real 120px code editor scroll resolves to exact 120px offset")
+            }
+        }
+
+        // Verify CaptureOverlayWindow sharingType is .none and LiveStitchedPreviewViewModel finish vs finishAndAnnotate
+        let testDisp = CaptureDisplayInfo(
+            displayID: 1,
+            name: "Main",
+            cocoaFrame: CGRect(x: 0, y: 0, width: 800, height: 600),
+            cgBounds: CGRect(x: 0, y: 0, width: 800, height: 600),
+            scaleFactor: 2.0,
+            isMain: true,
+            pixelSize: CGSize(width: 1600, height: 1200)
+        )
+        let testCaptured = CapturedScreen(displayInfo: testDisp, fullImage: baseImg, timestamp: Date())
+        let testOverlayWin = CaptureOverlayWindow(capturedScreen: testCaptured, appSettings: isolatedSettings, prefersScrollingOnConfirm: true)
+        TestHarness.assertEqual(testOverlayWin.sharingType, .none, "S3.9: CaptureOverlayWindow sharingType is .none to prevent overlay border in Frame 0")
+
+        let previewVM = LiveStitchedPreviewViewModel()
+        previewVM.finishAndAnnotate()
+        TestHarness.assertTrue(previewVM.wantsAnnotateOnFinish, "S3.9: finishAndAnnotate sets wantsAnnotateOnFinish = true")
+        previewVM.finish()
+        TestHarness.assertFalse(previewVM.wantsAnnotateOnFinish, "S3.9: finish sets wantsAnnotateOnFinish = false for 1-step copy")
+
         print("  --- Cycle 20 All Test Sections Completed Successfully ---")
     }
 }

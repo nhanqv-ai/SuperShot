@@ -207,9 +207,9 @@ public struct Cycle15Tests {
         // ---------------------------------------------------------------------
         // F11: Canonical Version Bump to v1.0.22 / Build 22
         // ---------------------------------------------------------------------
-        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.32", "F11: UpdateManager currentVersion is 1.0.32")
-        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.32")
-        TestHarness.assertTrue(diagString.contains("SuperShot v1.0.32"), "F11: Diagnostic string contains v1.0.32")
-        TestHarness.assertTrue(diagString.contains("• Build 32"), "Diagnostic string contains application • Build 32")
+        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.33", "F11: UpdateManager currentVersion is 1.0.33")
+        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.33")
+        TestHarness.assertTrue(diagString.contains("SuperShot v1.0.33"), "F11: Diagnostic string contains v1.0.33")
+        TestHarness.assertTrue(diagString.contains("• Build 33"), "Diagnostic string contains application • Build 33")
     }
 }
