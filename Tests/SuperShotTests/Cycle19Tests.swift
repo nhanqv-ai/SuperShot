@@ -534,13 +534,13 @@ public struct Cycle19Tests {
         TestHarness.assertNotNil(existingShortcut, "S3.8: HotKeyManager holds valid default inPlaceCapture shortcut")
         TestHarness.assertTrue((existingShortcut?.keyCode ?? 0) > 0, "S3.8: HotKeyManager holds valid default shortcut")
 
-        // Test 3.9: Canonical Version 1.0.29 & Build 29 Diagnostics Regression
-        let diag19 = AboutSettingsTab.diagnosticString(version: "1.0.29")
-        TestHarness.assertTrue(diag19.contains("• Build 29"), "S3.9: Diagnostic string contains application • Build 29")
+        // Test 3.9: Canonical Version 1.0.30 & Build 30 Diagnostics Regression
+        let diag19 = AboutSettingsTab.diagnosticString(version: "1.0.30")
+        TestHarness.assertTrue(diag19.contains("• Build 30"), "S3.9: Diagnostic string contains application • Build 30")
         TestHarness.assertFalse(diag19.contains("• Build 25"), "S3.9: Diagnostic string does NOT contain Build 25")
-        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.29", "S3.9: UpdateManager reports canonical 1.0.29")
-        TestHarness.assertEqual(AppDelegate.canonicalVersion, "1.0.29", "S3.9: AppDelegate canonicalVersion is 1.0.29")
-        TestHarness.assertEqual(AppDelegate.canonicalBuild, "29", "S3.9: AppDelegate canonicalBuild is 29")
+        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.30", "S3.9: UpdateManager reports canonical 1.0.30")
+        TestHarness.assertEqual(AppDelegate.canonicalVersion, "1.0.30", "S3.9: AppDelegate canonicalVersion is 1.0.30")
+        TestHarness.assertEqual(AppDelegate.canonicalBuild, "30", "S3.9: AppDelegate canonicalBuild is 30")
 
         print("  --- Cycle 19 All Test Sections Completed Successfully ---")
     }

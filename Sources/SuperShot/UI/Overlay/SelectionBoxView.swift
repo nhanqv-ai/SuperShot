@@ -13,6 +13,204 @@ public enum DragMode: Equatable {
     case annotating
 }
 
+// MARK: - WYSIWYG Auto-Expanding Inline Canvas Text Editor
+
+public final class InlineCanvasTextFieldCell: NSTextFieldCell {
+    public static let horizontalPadding: CGFloat = 8.0
+    public static let verticalPadding: CGFloat = 5.0
+
+    public override func drawingRect(forBounds rect: NSRect) -> NSRect {
+        return rect.insetBy(dx: Self.horizontalPadding, dy: Self.verticalPadding)
+    }
+
+    public override func titleRect(forBounds rect: NSRect) -> NSRect {
+        return rect.insetBy(dx: Self.horizontalPadding, dy: Self.verticalPadding)
+    }
+
+    public override func edit(
+        withFrame rect: NSRect,
+        in controlView: NSView,
+        editor textObj: NSText,
+        delegate: Any?,
+        event: NSEvent?
+    ) {
+        let insetRect = rect.insetBy(dx: Self.horizontalPadding, dy: Self.verticalPadding)
+        super.edit(withFrame: insetRect, in: controlView, editor: textObj, delegate: delegate, event: event)
+    }
+
+    public override func select(
+        withFrame rect: NSRect,
+        in controlView: NSView,
+        editor textObj: NSText,
+        delegate: Any?,
+        start selStart: Int,
+        length selLength: Int
+    ) {
+        let insetRect = rect.insetBy(dx: Self.horizontalPadding, dy: Self.verticalPadding)
+        super.select(withFrame: insetRect, in: controlView, editor: textObj, delegate: delegate, start: selStart, length: selLength)
+    }
+}
+
+public final class InlineCanvasTextField: NSTextField {
+    public var onFrameMoved: ((CGPoint) -> Void)?
+    public var allowedDragBounds: CGRect?
+    public private(set) var isDraggingBorder: Bool = false
+    private var lastDragSuperviewPoint: CGPoint?
+
+    public override class var cellClass: AnyClass? {
+        get { InlineCanvasTextFieldCell.self }
+        set { }
+    }
+
+    public override init(frame frameRect: NSRect) {
+        super.init(frame: frameRect)
+        let customCell = InlineCanvasTextFieldCell(textCell: "")
+        customCell.isEditable = true
+        customCell.isSelectable = true
+        customCell.wraps = true
+        customCell.isScrollable = false
+        customCell.usesSingleLineMode = false
+        customCell.lineBreakMode = .byClipping
+        customCell.drawsBackground = false
+        customCell.focusRingType = .none
+        self.cell = customCell
+
+        self.isEditable = true
+        self.isSelectable = true
+        self.isBordered = false
+        self.drawsBackground = false
+        self.backgroundColor = .clear
+        self.focusRingType = .none
+        self.wantsLayer = true
+        self.layer?.masksToBounds = false
+        updateTypographyColor(.white)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    public func updateTypographyColor(_ color: NSColor) {
+        self.textColor = color
+        let shadow = NSShadow()
+        shadow.shadowColor = NSColor(cgColor: ImageRenderer.textShadowColor(for: color)) ?? NSColor.black.withAlphaComponent(0.55)
+        shadow.shadowOffset = NSSize(width: 0, height: -1)
+        shadow.shadowBlurRadius = 2.0
+        self.shadow = shadow
+        if let editor = currentEditor() as? NSTextView {
+            editor.textColor = color
+            editor.insertionPointColor = color
+        }
+        needsDisplay = true
+    }
+
+    public func configureFieldEditor() {
+        guard let editor = currentEditor() as? NSTextView else { return }
+        editor.drawsBackground = false
+        editor.backgroundColor = .clear
+        editor.insertionPointColor = textColor ?? .white
+        editor.isHorizontallyResizable = false
+        editor.isVerticallyResizable = true
+        editor.textContainer?.widthTracksTextView = true
+        editor.textContainer?.lineFragmentPadding = 0
+        let insetBounds = bounds.insetBy(
+            dx: InlineCanvasTextFieldCell.horizontalPadding,
+            dy: InlineCanvasTextFieldCell.verticalPadding
+        )
+        if insetBounds.width > 0 && insetBounds.height > 0 {
+            editor.frame = insetBounds
+            editor.textContainer?.containerSize = NSSize(width: insetBounds.width, height: .greatestFiniteMagnitude)
+        }
+    }
+
+    /// Returns true when a point in local coordinates lies on the outer draggable border ring.
+    public func isPointInBorderDragZone(_ localPoint: CGPoint) -> Bool {
+        guard bounds.contains(localPoint) else { return false }
+        let inner = bounds.insetBy(
+            dx: InlineCanvasTextFieldCell.horizontalPadding,
+            dy: InlineCanvasTextFieldCell.verticalPadding
+        )
+        return !inner.contains(localPoint)
+    }
+
+    public override func hitTest(_ point: NSPoint) -> NSView? {
+        let localPoint = superview != nil ? convert(point, from: superview) : point
+        guard bounds.contains(localPoint) else { return nil }
+        if isPointInBorderDragZone(localPoint) {
+            return self
+        }
+        return super.hitTest(point)
+    }
+
+    public override func mouseDown(with event: NSEvent) {
+        let localPoint = convert(event.locationInWindow, from: nil)
+        if isPointInBorderDragZone(localPoint), let sv = superview {
+            isDraggingBorder = true
+            lastDragSuperviewPoint = sv.convert(event.locationInWindow, from: nil)
+            NSCursor.closedHand.set()
+            return
+        }
+        super.mouseDown(with: event)
+    }
+
+    public override func mouseDragged(with event: NSEvent) {
+        if isDraggingBorder, let sv = superview, let lastPt = lastDragSuperviewPoint {
+            let currentPt = sv.convert(event.locationInWindow, from: nil)
+            var dx = currentPt.x - lastPt.x
+            var dy = currentPt.y - lastPt.y
+            var newFrame = frame.offsetBy(dx: dx, dy: dy)
+            if let limit = allowedDragBounds, !limit.isEmpty {
+                if newFrame.minX < limit.minX { newFrame.origin.x = limit.minX }
+                if newFrame.maxX > limit.maxX { newFrame.origin.x = max(limit.minX, limit.maxX - newFrame.width) }
+                if newFrame.minY < limit.minY { newFrame.origin.y = limit.minY }
+                if newFrame.maxY > limit.maxY { newFrame.origin.y = max(limit.minY, limit.maxY - newFrame.height) }
+                dx = newFrame.origin.x - frame.origin.x
+                dy = newFrame.origin.y - frame.origin.y
+            }
+            if dx != 0 || dy != 0 {
+                frame = newFrame
+                lastDragSuperviewPoint = currentPt
+                onFrameMoved?(CGPoint(x: dx, y: dy))
+            }
+            NSCursor.closedHand.set()
+            return
+        }
+        super.mouseDragged(with: event)
+    }
+
+    public override func mouseUp(with event: NSEvent) {
+        if isDraggingBorder {
+            isDraggingBorder = false
+            lastDragSuperviewPoint = nil
+            NSCursor.openHand.set()
+            return
+        }
+        super.mouseUp(with: event)
+    }
+
+    public override func draw(_ dirtyRect: NSRect) {
+        guard let ctx = NSGraphicsContext.current?.cgContext else {
+            super.draw(dirtyRect)
+            return
+        }
+        ctx.saveGState()
+        let borderRect = bounds.insetBy(dx: 1.0, dy: 1.0)
+        let roundedPath = NSBezierPath(roundedRect: borderRect, xRadius: 5.0, yRadius: 5.0)
+
+        NSColor.black.withAlphaComponent(0.16).setFill()
+        roundedPath.fill()
+
+        NSColor.systemBlue.withAlphaComponent(0.90).setStroke()
+        roundedPath.lineWidth = 1.5
+        let dashPattern: [CGFloat] = [4.0, 3.0]
+        roundedPath.setLineDash(dashPattern, count: dashPattern.count, phase: 0)
+        roundedPath.stroke()
+        ctx.restoreGState()
+
+        super.draw(dirtyRect)
+    }
+}
+
 public typealias SelectionBoxView = CaptureOverlayContentView
 
 public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
@@ -43,6 +241,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     public private(set) var activeTextField: NSTextField?
     private var editingObjectID: UUID?
     private var preEditTextSnapshot: String?
+    private var preEditBoundsSnapshot: CGRect?
     private var isNewTextAnnotation: Bool = false
     public var currentMousePoint: CGPoint?
     private var trackingAreaRef: NSTrackingArea?
@@ -174,8 +373,14 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             guard let self = self else { return }
             if self.annotationEngine.selectedObjectID != nil {
                 self.annotationEngine.recolorSelected(newHex: hex)
-                self.needsDisplay = true
             }
+            if let field = self.activeTextField as? InlineCanvasTextField {
+                let newColor = ColorPreset(name: "", hex: hex).toNSColor()
+                field.updateTypographyColor(newColor)
+                self.window?.makeFirstResponder(field)
+                field.configureFieldEditor()
+            }
+            self.needsDisplay = true
         }
 
         toolbarsViewModel.onStrokeWidthSelected = { [weak self] width in
@@ -190,7 +395,13 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         toolbarsViewModel.onFontSizeSelected = { [weak self] size in
             guard let self = self else { return }
             if let sel = self.annotationEngine.selectedObject, sel.tool == .text {
-                self.annotationEngine.updateSelectedFontSize(size)
+                self.annotationEngine.updateSelectedFontSize(size, anchorMaxY: true)
+            }
+            if let field = self.activeTextField {
+                field.font = NSFont.systemFont(ofSize: size, weight: .semibold)
+                self.adjustActiveTextFieldFrame()
+                self.window?.makeFirstResponder(field)
+                (field as? InlineCanvasTextField)?.configureFieldEditor()
             }
             self.showFontSizeHUD(size: Int(round(size)))
             self.needsDisplay = true
@@ -459,12 +670,12 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             }
         }
 
-        // 4. Selection handles on selected vector annotation
-        if let selected = annotationEngine.selectedObject {
+        // 4. Selection handles on selected vector annotation (hidden while inline editor is open on that object)
+        if let selected = annotationEngine.selectedObject, editingObjectID != selected.id {
             context.saveGState()
             context.setStrokeColor(NSColor.systemBlue.cgColor)
             context.setLineWidth(1.5)
-            context.stroke(selected.bounds.insetBy(dx: -2, dy: -2))
+            context.stroke(selected.selectionBounds)
 
             for (_, pos) in selected.handlePositions() {
                 let hr = CGRect(x: pos.x - 4, y: pos.y - 4, width: 8, height: 8)
@@ -592,6 +803,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         case .text:
             guard !obj.text.isEmpty, editingObjectID != obj.id else { break }
             let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
+            let shadowCGColor = ImageRenderer.textShadowColor(for: nsColor)
             let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: nsColor]
             let lines = obj.text.components(separatedBy: .newlines)
             let lineHeight = obj.fontSize * 1.25
@@ -602,6 +814,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                 let line = CTLineCreateWithAttributedString(attrStr)
 
                 context.saveGState()
+                context.setShadow(offset: CGSize(width: 0, height: -1.0), blur: 2.0, color: shadowCGColor)
                 context.translateBy(
                     x: obj.bounds.minX,
                     y: obj.bounds.maxY - obj.fontSize - CGFloat(index) * lineHeight
@@ -975,13 +1188,24 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
             return true
         }
 
-        // Tier 1: Cancel active inline text editing on Esc, Commit on Return / Enter
+        // Tier 1: Cancel active inline text editing on Esc, Commit on Return / Enter (Shift/Option+Enter inserts newline)
         if activeTextField != nil {
             if event.keyCode == 53 {
                 cancelActiveTextEditing()
                 return true
             }
             if event.keyCode == 36 || event.keyCode == 76 {
+                let flags = event.modifierFlags.intersection(.deviceIndependentFlagsMask)
+                if flags.contains(.shift) || flags.contains(.option) {
+                    if let editor = activeTextField?.currentEditor() as? NSTextView {
+                        editor.insertNewlineIgnoringFieldEditor(nil)
+                        adjustActiveTextFieldFrame()
+                    } else if let field = activeTextField {
+                        field.stringValue += "\n"
+                        adjustActiveTextFieldFrame()
+                    }
+                    return true
+                }
                 commitActiveTextEditing()
                 return true
             }
@@ -1236,6 +1460,7 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     }
 
     public override func mouseDown(with event: NSEvent) {
+        let hadActiveTextField = (activeTextField != nil)
         commitActiveTextEditing()
         let point = convert(event.locationInWindow, from: nil)
         currentMousePoint = point
@@ -1298,6 +1523,18 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
                 return
             }
 
+            // If user clicked outside an active inline text editor on empty canvas space, only commit the current text
+            // without immediately spawning a new blank text box at the clicked position.
+            if hadActiveTextField {
+                let clickedHandle = (annotationEngine.selectedObject?.handle(at: point) != nil)
+                let clickedObject = (annotationEngine.hitObject(at: point) != nil)
+                if !clickedHandle && !clickedObject {
+                    updateTextTargetState()
+                    updateCanvasCursor(at: point)
+                    needsDisplay = true
+                    return
+                }
+            }
 
             if annotationEngine.activeTool != .select {
                 dragMode = .annotating
@@ -1464,8 +1701,9 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
         previousDragPoint = nil
         isSpaceKeyPressed = false
         if dragMode == .annotating {
+            let wasCreatingNewObject = (annotationEngine.activeDragObject != nil)
             let committed = annotationEngine.endDrag(at: point)
-            if let obj = committed, obj.tool == .text {
+            if wasCreatingNewObject, let obj = committed, obj.tool == .text {
                 startInlineTextEditing(for: obj, isNew: true)
             }
         }
@@ -1540,7 +1778,13 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     /// Resolves the appropriate AppKit cursor for the given point on the capture overlay canvas.
     /// Returns nil when the point is over a floating toolbar or popover so button cursors are preserved.
     public func resolveCanvasCursor(at point: CGPoint) -> NSCursor? {
-        if let tf = activeTextField, tf.frame.contains(point) {
+        if let tf = activeTextField as? InlineCanvasTextField, tf.frame.contains(point) {
+            if tf.isDraggingBorder {
+                return .closedHand
+            }
+            let localPt = tf.convert(point, from: self)
+            return tf.isPointInBorderDragZone(localPt) ? .openHand : .iBeam
+        } else if let tf = activeTextField, tf.frame.contains(point) {
             return .iBeam
         }
 
@@ -1584,13 +1828,16 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
         // 3. Hover state inside selection box
         if selectionRect.contains(point) {
-            if let sel = annotationEngine.selectedObject, let aHandle = sel.handle(at: point) {
+            if let sel = annotationEngine.selectedObject, editingObjectID != sel.id, let aHandle = sel.handle(at: point) {
                 return aHandle.cursor(isFlipped: false)
             }
             switch annotationEngine.activeTool {
             case .select:
                 return .openHand
             case .text:
+                if let hit = annotationEngine.hitObject(at: point), hit.tool == .text {
+                    return .openHand
+                }
                 return .iBeam
             case .rectangle, .ellipse, .arrow, .line, .pen, .highlighter, .blur:
                 return .crosshair
@@ -1641,53 +1888,119 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
     private func startInlineTextEditing(for obj: AnnotationObject, isNew: Bool = false) {
         commitActiveTextEditing()
         self.preEditTextSnapshot = obj.text
+        self.preEditBoundsSnapshot = obj.bounds
         self.isNewTextAnnotation = isNew
 
         let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
-        let fieldH = max(26.0, ceil(font.ascender - font.descender) + 6.0)
-        let baselineFromBottom = round((fieldH - (font.ascender - font.descender)) / 2.0) - font.descender
-        let fieldY = obj.bounds.maxY - obj.fontSize - baselineFromBottom
-        let fieldFrame = CGRect(
-            x: obj.bounds.minX,
-            y: fieldY,
-            width: max(140, obj.bounds.width),
-            height: fieldH
-        )
-        let field = NSTextField(frame: fieldFrame)
         let defaultPlaceholder = LocalizationManager.shared.tr(.toolText)
-        field.stringValue = (obj.text == "Text" || obj.text == defaultPlaceholder) ? "" : obj.text
+        let initialString = (obj.text == "Text" || obj.text == defaultPlaceholder) ? "" : obj.text
+
+        let field = InlineCanvasTextField(frame: .zero)
+        field.stringValue = initialString
         field.placeholderString = defaultPlaceholder
         field.font = font
-        field.textColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
-        field.isBordered = true
-        field.drawsBackground = true
-        field.backgroundColor = NSColor.black.withAlphaComponent(0.75)
-        field.focusRingType = .none
+        field.updateTypographyColor(ColorPreset(name: "", hex: obj.colorHex).toNSColor())
+        field.allowedDragBounds = selectionRect.isEmpty ? bounds : selectionRect
         field.delegate = self
 
-        addSubview(field)
-        window?.makeFirstResponder(field)
+        let objID = obj.id
+        field.onFrameMoved = { [weak self] delta in
+            guard let self = self,
+                  let currentObj = self.annotationEngine.objects.first(where: { $0.id == objID }) else { return }
+            let movedBounds = currentObj.bounds.offsetBy(dx: delta.x, dy: delta.y)
+            self.annotationEngine.updateLiveEditingObject(id: objID, bounds: movedBounds)
+            self.needsDisplay = true
+        }
 
         self.activeTextField = field
         self.editingObjectID = obj.id
+        adjustActiveTextFieldFrame()
+
+        addSubview(field)
+        window?.makeFirstResponder(field)
+        field.configureFieldEditor()
+        if let editor = field.currentEditor() {
+            editor.selectedRange = NSRange(location: (field.stringValue as NSString).length, length: 0)
+        }
+
         updateTextTargetState()
+        needsDisplay = true
+    }
+
+    public func adjustActiveTextFieldFrame() {
+        guard let field = activeTextField,
+              let objID = editingObjectID,
+              let obj = annotationEngine.objects.first(where: { $0.id == objID }) else { return }
+
+        let liveText = (field.currentEditor() as? NSTextView)?.string ?? field.stringValue
+        if field.stringValue != liveText {
+            field.stringValue = liveText
+        }
+
+        let fontSize = field.font?.pointSize ?? obj.fontSize
+        let font = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
+        let sample = liveText.isEmpty ? (field.placeholderString ?? "Text") : liveText
+        let measured = AnnotationObject.measureTextSize(text: sample, fontSize: fontSize)
+
+        let topAnchorY = obj.bounds.maxY
+        let leftAnchorX = obj.bounds.minX
+        let updatedObjBounds = CGRect(
+            x: leftAnchorX,
+            y: topAnchorY - measured.height,
+            width: measured.width,
+            height: measured.height
+        )
+        annotationEngine.updateLiveEditingObject(id: objID, bounds: updatedObjBounds)
+
+        let padX = InlineCanvasTextFieldCell.horizontalPadding
+        let padY = InlineCanvasTextFieldCell.verticalPadding
+        let fieldW = max(72.0, measured.width + padX * 2 + 10.0)
+        let fieldH = max(30.0, measured.height + padY * 2)
+        let fieldMaxY = topAnchorY - fontSize + font.ascender + padY + 3.0
+        var fieldFrame = CGRect(
+            x: leftAnchorX - padX,
+            y: fieldMaxY - fieldH,
+            width: fieldW,
+            height: fieldH
+        )
+
+        let clampBounds = selectionRect.isEmpty ? bounds : selectionRect
+        if !clampBounds.isEmpty {
+            if fieldFrame.minX < clampBounds.minX { fieldFrame.origin.x = clampBounds.minX }
+            if fieldFrame.maxY > clampBounds.maxY { fieldFrame.origin.y = clampBounds.maxY - fieldFrame.height }
+        }
+
+        field.frame = fieldFrame
+        (field as? InlineCanvasTextField)?.allowedDragBounds = clampBounds
+        (field as? InlineCanvasTextField)?.configureFieldEditor()
+        needsDisplay = true
     }
 
     public func cancelActiveTextEditing() {
         guard let field = activeTextField, let objID = editingObjectID else { return }
         let defaultPlaceholder = LocalizationManager.shared.tr(.toolText)
-        if isNewTextAnnotation || (preEditTextSnapshot ?? "").isEmpty || preEditTextSnapshot == "Text" || preEditTextSnapshot == defaultPlaceholder {
-            annotationEngine.selectedObjectID = objID
-            annotationEngine.deleteSelected()
-        } else if let original = preEditTextSnapshot {
-            annotationEngine.selectedObjectID = objID
-            annotationEngine.updateSelectedText(original)
-        }
+        let wasNew = isNewTextAnnotation
+        let origText = preEditTextSnapshot
+        let origBounds = preEditBoundsSnapshot
+
+        field.delegate = nil
         field.removeFromSuperview()
         activeTextField = nil
         editingObjectID = nil
         preEditTextSnapshot = nil
+        preEditBoundsSnapshot = nil
         isNewTextAnnotation = false
+
+        if wasNew || (origText ?? "").isEmpty || origText == "Text" || origText == defaultPlaceholder {
+            annotationEngine.discardNewInlineTextObject(id: objID)
+        } else if let original = origText {
+            if let ob = origBounds {
+                annotationEngine.updateLiveEditingObject(id: objID, text: original, bounds: ob)
+            } else {
+                annotationEngine.selectedObjectID = objID
+                annotationEngine.updateSelectedText(original, anchorMaxY: true)
+            }
+        }
         updateTextTargetState()
         window?.makeFirstResponder(self)
         needsDisplay = true
@@ -1695,24 +2008,77 @@ public class CaptureOverlayContentView: NSView, NSTextFieldDelegate {
 
     public func commitActiveTextEditing() {
         guard let field = activeTextField, let objID = editingObjectID else { return }
-        let trimmed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        annotationEngine.selectedObjectID = objID
-        if trimmed.isEmpty {
-            annotationEngine.deleteSelected()
-        } else {
-            annotationEngine.updateSelectedText(trimmed)
-        }
+        let liveText = (field.currentEditor() as? NSTextView)?.string ?? field.stringValue
+        let trimmed = liveText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let wasNew = isNewTextAnnotation
+        let origText = preEditTextSnapshot ?? ""
+        let origBounds = preEditBoundsSnapshot ?? .zero
+
+        field.delegate = nil
         field.removeFromSuperview()
         activeTextField = nil
         editingObjectID = nil
         preEditTextSnapshot = nil
+        preEditBoundsSnapshot = nil
         isNewTextAnnotation = false
+
+        if trimmed.isEmpty {
+            if wasNew {
+                annotationEngine.discardNewInlineTextObject(id: objID)
+            } else {
+                annotationEngine.selectedObjectID = objID
+                annotationEngine.deleteSelected()
+            }
+        } else {
+            annotationEngine.commitInlineTextEdit(
+                id: objID,
+                newText: trimmed,
+                initialText: origText,
+                initialBounds: origBounds,
+                isNew: wasNew,
+                anchorMaxY: true
+            )
+        }
         updateTextTargetState()
         window?.makeFirstResponder(self)
         needsDisplay = true
     }
 
+    public func controlTextDidChange(_ obj: Notification) {
+        adjustActiveTextFieldFrame()
+    }
+
+    public func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            let flags = NSApp.currentEvent?.modifierFlags ?? []
+            if flags.contains(.shift) || flags.contains(.option) {
+                textView.insertNewlineIgnoringFieldEditor(nil)
+                adjustActiveTextFieldFrame()
+                return true
+            }
+            commitActiveTextEditing()
+            return true
+        }
+        if commandSelector == #selector(NSResponder.insertLineBreak(_:)) ||
+           commandSelector == #selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)) {
+            textView.insertNewlineIgnoringFieldEditor(nil)
+            adjustActiveTextFieldFrame()
+            return true
+        }
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            cancelActiveTextEditing()
+            return true
+        }
+        return false
+    }
+
     public func controlTextDidEndEditing(_ obj: Notification) {
+        if let win = window {
+            let mousePt = convert(win.mouseLocationOutsideOfEventStream, from: nil)
+            if isPointOverFloatingUI(mousePt) {
+                return
+            }
+        }
         commitActiveTextEditing()
     }
 }

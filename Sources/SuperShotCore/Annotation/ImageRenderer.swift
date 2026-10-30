@@ -240,10 +240,22 @@ public struct ImageRenderer {
 
     // MARK: - Typography Rendering
 
+    /// Returns a contrasting subtle drop shadow color for typography legibility across light and dark backgrounds.
+    public static func textShadowColor(for textColor: NSColor) -> CGColor {
+        let rgb = textColor.usingColorSpace(.sRGB) ?? textColor
+        let luminance = 0.2126 * rgb.redComponent + 0.7152 * rgb.greenComponent + 0.0722 * rgb.blueComponent
+        if luminance < 0.15 {
+            return NSColor.white.withAlphaComponent(0.45).cgColor
+        } else {
+            return NSColor.black.withAlphaComponent(0.55).cgColor
+        }
+    }
+
     private static func drawTypography(obj: AnnotationObject, context: CGContext) {
         guard !obj.text.isEmpty else { return }
         let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
         let nsColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
+        let shadowCGColor = textShadowColor(for: nsColor)
 
         let attributes: [NSAttributedString.Key: Any] = [
             .font: font,
@@ -259,6 +271,7 @@ public struct ImageRenderer {
             let line = CTLineCreateWithAttributedString(attrString)
 
             context.saveGState()
+            context.setShadow(offset: CGSize(width: 0, height: -1.0), blur: 2.0, color: shadowCGColor)
             context.translateBy(x: obj.bounds.minX, y: obj.bounds.minY + obj.fontSize + CGFloat(index) * lineHeight)
             context.scaleBy(x: 1.0, y: -1.0)
             context.textPosition = .zero

@@ -21,9 +21,10 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     public var currentFontSize: CGFloat = 18.0
 
     public var hasActiveTextEditing: Bool { activeTextField != nil }
-    private var activeTextField: NSTextField?
+    public private(set) var activeTextField: NSTextField?
     private var editingObjectID: UUID?
     private var preEditTextSnapshot: String?
+    private var preEditBoundsSnapshot: CGRect?
     private var isNewTextAnnotation: Bool = false
     private var trackingAreaRef: NSTrackingArea?
     public private(set) var isDraggingOnCanvas: Bool = false
@@ -83,7 +84,13 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         if let winPt = windowPoint, isPointOverFloatingToolbar?(winPt) == true {
             return nil
         }
-        if let tf = activeTextField, tf.frame.contains(point) {
+        if let tf = activeTextField as? InlineCanvasTextField, tf.frame.contains(point) {
+            if tf.isDraggingBorder {
+                return .closedHand
+            }
+            let localPt = tf.convert(point, from: self)
+            return tf.isPointInBorderDragZone(localPt) ? .openHand : .iBeam
+        } else if let tf = activeTextField, tf.frame.contains(point) {
             return .iBeam
         }
 
@@ -97,7 +104,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
             return engine.activeTool == .text ? .iBeam : (engine.activeTool == .select ? .arrow : .crosshair)
         }
 
-        if let sel = engine.selectedObject, let aHandle = sel.handle(at: point) {
+        if let sel = engine.selectedObject, editingObjectID != sel.id, let aHandle = sel.handle(at: point) {
             return aHandle.cursor(isFlipped: true)
         }
 
@@ -108,6 +115,9 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
             }
             return .arrow
         case .text:
+            if let hit = engine.hitObject(at: point), hit.tool == .text {
+                return .openHand
+            }
             return .iBeam
         case .rectangle, .ellipse, .arrow, .line, .pen, .highlighter, .blur:
             return .crosshair
@@ -220,8 +230,8 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
             }
         }
 
-        // 5. Draw Selection Outlines & Grab Handles
-        if let selected = engine.selectedObject, selected.bounds.intersects(dirtyRect) {
+        // 5. Draw Selection Outlines & Grab Handles (hidden while inline editor is open on that object)
+        if let selected = engine.selectedObject, editingObjectID != selected.id, selected.selectionBounds.intersects(dirtyRect) {
             drawSelectionHighlight(for: selected, context: context)
         }
 
@@ -405,6 +415,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         guard !obj.text.isEmpty, editingObjectID != obj.id else { return }
         let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
         let nsColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
+        let shadowCGColor = ImageRenderer.textShadowColor(for: nsColor)
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: nsColor]
 
         let lines = obj.text.components(separatedBy: .newlines)
@@ -416,6 +427,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
             let line = CTLineCreateWithAttributedString(attrStr)
 
             context.saveGState()
+            context.setShadow(offset: CGSize(width: 0, height: -1.0), blur: 2.0, color: shadowCGColor)
             context.translateBy(x: obj.bounds.minX, y: obj.bounds.minY + obj.fontSize + CGFloat(index) * lineHeight)
             context.scaleBy(x: 1.0, y: -1.0)
             context.textPosition = .zero
@@ -428,7 +440,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
         context.saveGState()
         context.setStrokeColor(NSColor.systemBlue.cgColor)
         context.setLineWidth(1.5)
-        context.stroke(obj.bounds.insetBy(dx: -2, dy: -2))
+        context.stroke(obj.selectionBounds)
 
         for (_, pos) in obj.handlePositions() {
             let handleRect = CGRect(x: pos.x - 4, y: pos.y - 4, width: 8, height: 8)
@@ -448,6 +460,7 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     }
 
     public override func mouseDown(with event: NSEvent) {
+        let hadActiveTextField = (activeTextField != nil)
         commitActiveTextEditing()
         let point = convert(event.locationInWindow, from: nil)
 
@@ -461,6 +474,17 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
             // Double-click on empty canvas triggers quick copy & dismiss
             onQuickCopyRequested?()
             return
+        }
+
+        // If user clicked outside an active inline text editor on empty canvas space, only commit the current text
+        if hadActiveTextField {
+            let clickedHandle = (engine.selectedObject?.handle(at: point) != nil)
+            let clickedObject = (engine.hitObject(at: point) != nil)
+            if !clickedHandle && !clickedObject {
+                updateCanvasCursor(with: event)
+                needsDisplay = true
+                return
+            }
         }
 
         isDraggingOnCanvas = true
@@ -486,10 +510,11 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     public override func mouseUp(with event: NSEvent) {
         let point = convert(event.locationInWindow, from: nil)
         isDraggingOnCanvas = false
+        let wasCreatingNewObject = (engine.activeDragObject != nil)
         let committed = engine.endDrag(at: point)
 
         // If newly created object is a text box, immediately focus inline editor
-        if let created = committed, created.tool == .text, (created.text.isEmpty || created.text == "Text") {
+        if wasCreatingNewObject, let created = committed, created.tool == .text {
             startInlineTextEditing(for: created, isNew: true)
         }
 
@@ -519,73 +544,192 @@ public final class ScrollableAnnotationDocumentView: NSView, NSTextFieldDelegate
     private func startInlineTextEditing(for obj: AnnotationObject, isNew: Bool = false) {
         commitActiveTextEditing()
         self.preEditTextSnapshot = obj.text
+        self.preEditBoundsSnapshot = obj.bounds
         self.isNewTextAnnotation = isNew
 
         let font = NSFont.systemFont(ofSize: obj.fontSize, weight: .semibold)
-        let fieldH = max(26.0, ceil(font.ascender - font.descender) + 6.0)
-        let baselineFromTop = round((fieldH - (font.ascender - font.descender)) / 2.0) + font.ascender
-        let fieldY = obj.bounds.minY + obj.fontSize - baselineFromTop
-        let fieldFrame = CGRect(
-            x: obj.bounds.minX,
-            y: fieldY,
-            width: max(140, obj.bounds.width),
-            height: fieldH
-        )
-        let field = NSTextField(frame: fieldFrame)
         let defaultPlaceholder = LocalizationManager.shared.tr(.toolText)
-        field.stringValue = (obj.text == "Text" || obj.text == defaultPlaceholder) ? "" : obj.text
+        let initialString = (obj.text == "Text" || obj.text == defaultPlaceholder) ? "" : obj.text
+
+        let field = InlineCanvasTextField(frame: .zero)
+        field.stringValue = initialString
         field.placeholderString = defaultPlaceholder
         field.font = font
-        field.textColor = ColorPreset(name: "", hex: obj.colorHex).toNSColor()
-        field.isBordered = true
-        field.drawsBackground = true
-        field.backgroundColor = NSColor.black.withAlphaComponent(0.75)
-        field.focusRingType = .none
+        field.updateTypographyColor(ColorPreset(name: "", hex: obj.colorHex).toNSColor())
+        field.allowedDragBounds = bounds
         field.delegate = self
 
-        addSubview(field)
-        window?.makeFirstResponder(field)
+        let objID = obj.id
+        field.onFrameMoved = { [weak self] delta in
+            guard let self = self,
+                  let currentObj = self.engine.objects.first(where: { $0.id == objID }) else { return }
+            let movedBounds = currentObj.bounds.offsetBy(dx: delta.x, dy: delta.y)
+            self.engine.updateLiveEditingObject(id: objID, bounds: movedBounds)
+            self.needsDisplay = true
+        }
 
         self.activeTextField = field
         self.editingObjectID = obj.id
+        adjustActiveTextFieldFrame()
+
+        addSubview(field)
+        window?.makeFirstResponder(field)
+        field.configureFieldEditor()
+        if let editor = field.currentEditor() {
+            editor.selectedRange = NSRange(location: (field.stringValue as NSString).length, length: 0)
+        }
+        needsDisplay = true
+    }
+
+    public func adjustActiveTextFieldFrame() {
+        guard let field = activeTextField,
+              let objID = editingObjectID,
+              let obj = engine.objects.first(where: { $0.id == objID }) else { return }
+
+        let liveText = (field.currentEditor() as? NSTextView)?.string ?? field.stringValue
+        if field.stringValue != liveText {
+            field.stringValue = liveText
+        }
+
+        let fontSize = field.font?.pointSize ?? obj.fontSize
+        let font = NSFont.systemFont(ofSize: fontSize, weight: .semibold)
+        let sample = liveText.isEmpty ? (field.placeholderString ?? "Text") : liveText
+        let measured = AnnotationObject.measureTextSize(text: sample, fontSize: fontSize)
+
+        let topAnchorY = obj.bounds.minY
+        let leftAnchorX = obj.bounds.minX
+        let updatedObjBounds = CGRect(
+            x: leftAnchorX,
+            y: topAnchorY,
+            width: measured.width,
+            height: measured.height
+        )
+        engine.updateLiveEditingObject(id: objID, bounds: updatedObjBounds)
+
+        let padX = InlineCanvasTextFieldCell.horizontalPadding
+        let padY = InlineCanvasTextFieldCell.verticalPadding
+        let fieldW = max(72.0, measured.width + padX * 2 + 10.0)
+        let fieldH = max(30.0, measured.height + padY * 2)
+        let fieldMinY = topAnchorY + fontSize - font.ascender - padY - 3.0
+        var fieldFrame = CGRect(
+            x: leftAnchorX - padX,
+            y: fieldMinY,
+            width: fieldW,
+            height: fieldH
+        )
+
+        if !bounds.isEmpty {
+            if fieldFrame.minX < bounds.minX { fieldFrame.origin.x = bounds.minX }
+            if fieldFrame.minY < bounds.minY { fieldFrame.origin.y = bounds.minY }
+        }
+
+        field.frame = fieldFrame
+        (field as? InlineCanvasTextField)?.allowedDragBounds = bounds
+        (field as? InlineCanvasTextField)?.configureFieldEditor()
+        needsDisplay = true
     }
 
     public func cancelActiveTextEditing() {
         guard let field = activeTextField, let objID = editingObjectID else { return }
         let defaultPlaceholder = LocalizationManager.shared.tr(.toolText)
-        if isNewTextAnnotation || (preEditTextSnapshot ?? "").isEmpty || preEditTextSnapshot == "Text" || preEditTextSnapshot == defaultPlaceholder {
-            engine.selectedObjectID = objID
-            engine.deleteSelected()
-        } else if let original = preEditTextSnapshot {
-            engine.selectedObjectID = objID
-            engine.updateSelectedText(original)
-        }
+        let wasNew = isNewTextAnnotation
+        let origText = preEditTextSnapshot
+        let origBounds = preEditBoundsSnapshot
+
+        field.delegate = nil
         field.removeFromSuperview()
         activeTextField = nil
         editingObjectID = nil
         preEditTextSnapshot = nil
+        preEditBoundsSnapshot = nil
         isNewTextAnnotation = false
+
+        if wasNew || (origText ?? "").isEmpty || origText == "Text" || origText == defaultPlaceholder {
+            engine.discardNewInlineTextObject(id: objID)
+        } else if let original = origText {
+            if let ob = origBounds {
+                engine.updateLiveEditingObject(id: objID, text: original, bounds: ob)
+            } else {
+                engine.selectedObjectID = objID
+                engine.updateSelectedText(original, anchorMaxY: false)
+            }
+        }
+        window?.makeFirstResponder(self)
         needsDisplay = true
     }
 
     public func commitActiveTextEditing() {
         guard let field = activeTextField, let objID = editingObjectID else { return }
-        let trimmed = field.stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
-        engine.selectedObjectID = objID
-        if trimmed.isEmpty {
-            engine.deleteSelected()
-        } else {
-            engine.updateSelectedText(trimmed)
-        }
+        let liveText = (field.currentEditor() as? NSTextView)?.string ?? field.stringValue
+        let trimmed = liveText.trimmingCharacters(in: .whitespacesAndNewlines)
+        let wasNew = isNewTextAnnotation
+        let origText = preEditTextSnapshot ?? ""
+        let origBounds = preEditBoundsSnapshot ?? .zero
+
+        field.delegate = nil
         field.removeFromSuperview()
         activeTextField = nil
         editingObjectID = nil
         preEditTextSnapshot = nil
+        preEditBoundsSnapshot = nil
         isNewTextAnnotation = false
+
+        if trimmed.isEmpty {
+            if wasNew {
+                engine.discardNewInlineTextObject(id: objID)
+            } else {
+                engine.selectedObjectID = objID
+                engine.deleteSelected()
+            }
+        } else {
+            engine.commitInlineTextEdit(
+                id: objID,
+                newText: trimmed,
+                initialText: origText,
+                initialBounds: origBounds,
+                isNew: wasNew,
+                anchorMaxY: false
+            )
+        }
+        window?.makeFirstResponder(self)
         needsDisplay = true
     }
 
+    public func controlTextDidChange(_ obj: Notification) {
+        adjustActiveTextFieldFrame()
+    }
+
+    public func control(_ control: NSControl, textView: NSTextView, doCommandBy commandSelector: Selector) -> Bool {
+        if commandSelector == #selector(NSResponder.insertNewline(_:)) {
+            let flags = NSApp.currentEvent?.modifierFlags ?? []
+            if flags.contains(.shift) || flags.contains(.option) {
+                textView.insertNewlineIgnoringFieldEditor(nil)
+                adjustActiveTextFieldFrame()
+                return true
+            }
+            commitActiveTextEditing()
+            return true
+        }
+        if commandSelector == #selector(NSResponder.insertLineBreak(_:)) ||
+           commandSelector == #selector(NSResponder.insertNewlineIgnoringFieldEditor(_:)) {
+            textView.insertNewlineIgnoringFieldEditor(nil)
+            adjustActiveTextFieldFrame()
+            return true
+        }
+        if commandSelector == #selector(NSResponder.cancelOperation(_:)) {
+            cancelActiveTextEditing()
+            return true
+        }
+        return false
+    }
+
     public func controlTextDidEndEditing(_ obj: Notification) {
+        if let win = window {
+            let winPt = win.mouseLocationOutsideOfEventStream
+            if isPointOverFloatingToolbar?(winPt) == true {
+                return
+            }
+        }
         commitActiveTextEditing()
     }
 }
@@ -957,8 +1101,14 @@ public final class ScrollableCanvasView: NSView {
             self.documentView.currentColorHex = hex
             if self.engine.selectedObjectID != nil {
                 self.engine.recolorSelected(newHex: hex)
-                self.documentView.needsDisplay = true
             }
+            if let field = self.documentView.activeTextField as? InlineCanvasTextField {
+                let newColor = ColorPreset(name: "", hex: hex).toNSColor()
+                field.updateTypographyColor(newColor)
+                self.window?.makeFirstResponder(field)
+                field.configureFieldEditor()
+            }
+            self.documentView.needsDisplay = true
         }
 
         toolbarsViewModel.onStrokeWidthSelected = { [weak self] width in
@@ -975,9 +1125,15 @@ public final class ScrollableCanvasView: NSView {
             guard let self = self else { return }
             self.documentView.currentFontSize = size
             if let sel = self.engine.selectedObject, sel.tool == .text {
-                self.engine.updateSelectedFontSize(size)
-                self.documentView.needsDisplay = true
+                self.engine.updateSelectedFontSize(size, anchorMaxY: false)
             }
+            if let field = self.documentView.activeTextField {
+                field.font = NSFont.systemFont(ofSize: size, weight: .semibold)
+                self.documentView.adjustActiveTextFieldFrame()
+                self.window?.makeFirstResponder(field)
+                (field as? InlineCanvasTextField)?.configureFieldEditor()
+            }
+            self.documentView.needsDisplay = true
             self.showFontSizeHUD(size: Int(round(size)))
         }
 
@@ -1209,6 +1365,29 @@ public final class ScrollableAnnotationWindow: NSWindow {
                 canvasView.documentView.needsDisplay = true
                 return
             }
+        }
+
+        if canvasView.documentView.hasActiveTextEditing {
+            if keyCode == 53 {
+                canvasView.documentView.cancelActiveTextEditing()
+                return
+            }
+            if keyCode == 36 || keyCode == 76 {
+                if flags.contains(.shift) || flags.contains(.option) {
+                    if let editor = canvasView.documentView.activeTextField?.currentEditor() as? NSTextView {
+                        editor.insertNewlineIgnoringFieldEditor(nil)
+                        canvasView.documentView.adjustActiveTextFieldFrame()
+                    } else if let field = canvasView.documentView.activeTextField {
+                        field.stringValue += "\n"
+                        canvasView.documentView.adjustActiveTextFieldFrame()
+                    }
+                    return
+                }
+                canvasView.documentView.commitActiveTextEditing()
+                return
+            }
+            super.keyDown(with: event)
+            return
         }
 
         // Delete / Backspace removes selected annotation
