@@ -4839,7 +4839,11 @@ struct AdversarialChallenge {
         // -------------------------------------------------------------
         // Sub-scenario 26E: Rapid Repeated Update Checks (100 Concurrent Requests)
         // -------------------------------------------------------------
-        let concurrentCheckMgr = UpdateManager()
+        let mockCheckConfig = URLSessionConfiguration.ephemeral
+        mockCheckConfig.protocolClasses = [AdversarialMockURLProtocol.self]
+        AdversarialMockURLProtocol.reset()
+        AdversarialMockURLProtocol.mockData = bothJSON
+        let concurrentCheckMgr = UpdateManager(session: URLSession(configuration: mockCheckConfig))
         concurrentCheckMgr.currentVersion = "1.0.24"
         let checkGroup = DispatchGroup()
         let checkQueue = DispatchQueue(label: "adv.check.stress", attributes: .concurrent)
@@ -4978,7 +4982,9 @@ struct AdversarialChallenge {
         // -------------------------------------------------------------
         // Sub-scenario 27A: Rapid Cancellation Tight Loop & Zero Leakage (F1)
         // -------------------------------------------------------------
-        let mgrCancel = UpdateManager()
+        let mockDlConfig = URLSessionConfiguration.ephemeral
+        mockDlConfig.protocolClasses = [AdversarialMockURLProtocol.self]
+        let mgrCancel = UpdateManager(session: URLSession(configuration: mockDlConfig))
         mgrCancel.latestRelease = dummyRelease
 
         let tempBase = FileManager.default.temporaryDirectory
@@ -5013,7 +5019,7 @@ struct AdversarialChallenge {
         }
 
         // Cancellation with latestRelease == nil reverts to .idle
-        let mgrEmpty = UpdateManager()
+        let mgrEmpty = UpdateManager(session: URLSession(configuration: mockDlConfig))
         mgrEmpty.status = .downloading(progress: 0.5)
         mgrEmpty.downloadProgress = 0.5
         mgrEmpty.cancelDownload()
@@ -5023,7 +5029,7 @@ struct AdversarialChallenge {
         // -------------------------------------------------------------
         // Sub-scenario 27B: Abort-and-Restart Storms & State Machine Transitions (F1)
         // -------------------------------------------------------------
-        let mgrStorm = UpdateManager()
+        let mgrStorm = UpdateManager(session: URLSession(configuration: mockDlConfig))
         mgrStorm.latestRelease = dummyRelease
 
         var stateTransitionFailures = 0
@@ -5052,7 +5058,7 @@ struct AdversarialChallenge {
         // -------------------------------------------------------------
         // Sub-scenario 27C: Concurrent Download & Cancellation Storms (F1, F4)
         // -------------------------------------------------------------
-        let mgrConcurrent = UpdateManager()
+        let mgrConcurrent = UpdateManager(session: URLSession(configuration: mockDlConfig))
         mgrConcurrent.latestRelease = dummyRelease
         let concurrentGroup = DispatchGroup()
         let concurrentQueue = DispatchQueue(label: "com.supershot.adversarial.c16", attributes: .concurrent)

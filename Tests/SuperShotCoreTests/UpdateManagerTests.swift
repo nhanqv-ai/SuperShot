@@ -881,5 +881,133 @@ public struct UpdateManagerTests {
         try? "test data".write(to: sampleFile, atomically: true, encoding: .utf8)
         let _ = UpdateManager.removeQuarantineAttribute(at: sampleFile)
         TestHarness.assertTrue(FileManager.default.fileExists(atPath: sampleFile.path), "removeQuarantineAttribute safely executes without corrupting file")
+
+        // Web redirect release parsing test (rate-limit fallback)
+        let redirectURL = URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.33")!
+        let parsedRedirect = UpdateManager.parseReleaseFromWebRedirectURL(redirectURL)
+        TestHarness.assertEqual(parsedRedirect?.tagName, "v1.0.33", "parseReleaseFromWebRedirectURL extracts v1.0.33 tag")
+        TestHarness.assertEqual(
+            parsedRedirect?.zipAssetURL?.absoluteString,
+            "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.33/SuperShot-v1.0.33.zip",
+            "parseReleaseFromWebRedirectURL builds canonical zip asset URL"
+        )
+        TestHarness.assertEqual(
+            parsedRedirect?.dmgAssetURL?.absoluteString,
+            "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.33/SuperShot-v1.0.33.dmg",
+            "parseReleaseFromWebRedirectURL builds canonical dmg asset URL"
+        )
+
+        // ETag / If-None-Match (HTTP 304 Not Modified) & Authorization: Bearer header test
+        class RateLimitResilienceProtocol: URLProtocol {
+            static let lock = NSLock()
+            static var requestCount = 0
+            static var lastIfNoneMatch: String?
+            static var lastAuthHeader: String?
+            static var statusCode = 200
+            static var etagHeader: String? = "\"etag-supershot-1.0.33\""
+            static var payload: Data?
+            static var simulateRedirectFallback = false
+
+            override class func canInit(with request: URLRequest) -> Bool { true }
+            override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+            override func startLoading() {
+                Self.lock.lock()
+                Self.requestCount += 1
+                Self.lastIfNoneMatch = request.value(forHTTPHeaderField: "If-None-Match")
+                Self.lastAuthHeader = request.value(forHTTPHeaderField: "Authorization")
+                let code = Self.statusCode
+                let etag = Self.etagHeader
+                let data = Self.payload
+                let fallback = Self.simulateRedirectFallback
+                Self.lock.unlock()
+
+                if fallback && request.url?.host != "api.github.com" {
+                    let redirected = URL(string: "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.33")!
+                    let resp = HTTPURLResponse(
+                        url: redirected,
+                        statusCode: 200,
+                        httpVersion: nil,
+                        headerFields: ["Location": redirected.absoluteString]
+                    )!
+                    client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)
+                    client?.urlProtocolDidFinishLoading(self)
+                    return
+                }
+
+                var headers: [String: String] = ["Content-Type": "application/json"]
+                if let etag = etag { headers["ETag"] = etag }
+                let resp = HTTPURLResponse(url: request.url!, statusCode: code, httpVersion: nil, headerFields: headers)!
+                client?.urlProtocol(self, didReceive: resp, cacheStoragePolicy: .notAllowed)
+                if code != 304, let data = data {
+                    client?.urlProtocol(self, didLoad: data)
+                }
+                client?.urlProtocolDidFinishLoading(self)
+            }
+            override func stopLoading() {}
+        }
+
+        RateLimitResilienceProtocol.payload = """
+        {
+            "tag_name": "v1.0.33",
+            "name": "SuperShot v1.0.33",
+            "body": "Notes",
+            "html_url": "https://github.com/nhanqv-ai/SuperShot/releases/tag/v1.0.33",
+            "assets": [
+                {
+                    "name": "SuperShot-v1.0.33.zip",
+                    "browser_download_url": "https://github.com/nhanqv-ai/SuperShot/releases/download/v1.0.33/SuperShot-v1.0.33.zip"
+                }
+            ]
+        }
+        """.data(using: .utf8)!
+
+        let resilienceConfig = URLSessionConfiguration.ephemeral
+        resilienceConfig.protocolClasses = [RateLimitResilienceProtocol.self]
+        let resilienceMgr = UpdateManager(session: URLSession(configuration: resilienceConfig))
+        resilienceMgr.currentVersion = "1.0.32"
+        resilienceMgr.githubToken = "ghp_supershot_token"
+
+        // 1) Initial 200 OK caches ETag and sends Authorization: Bearer
+        RateLimitResilienceProtocol.statusCode = 200
+        RateLimitResilienceProtocol.simulateRedirectFallback = false
+        var etagStep1Done = false
+        resilienceMgr.checkForUpdates(userInitiated: true) { _ in etagStep1Done = true }
+        let etagDl1 = Date().addingTimeInterval(2.0)
+        while !etagStep1Done && Date() < etagDl1 {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+        TestHarness.assertEqual(RateLimitResilienceProtocol.lastAuthHeader, "Bearer ghp_supershot_token", "checkForUpdates sends Authorization Bearer header when githubToken is set")
+
+        // 2) Subsequent 304 Not Modified sends If-None-Match and reuses cached release
+        RateLimitResilienceProtocol.statusCode = 304
+        var etagStep2Done = false
+        var etagRelease: ReleaseInfo?
+        resilienceMgr.checkForUpdates(userInitiated: true) { res in
+            if case .success(let rel) = res { etagRelease = rel }
+            etagStep2Done = true
+        }
+        let etagDl2 = Date().addingTimeInterval(2.0)
+        while !etagStep2Done && Date() < etagDl2 {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+        TestHarness.assertEqual(RateLimitResilienceProtocol.lastIfNoneMatch, "\"etag-supershot-1.0.33\"", "Second check sends If-None-Match with cached ETag")
+        TestHarness.assertEqual(etagRelease?.tagName, "v1.0.33", "HTTP 304 reuses cached release metadata")
+
+        // 3) 403 Rate Limit falls back to GitHub web redirect
+        let fallbackMgr = UpdateManager(session: URLSession(configuration: resilienceConfig))
+        fallbackMgr.currentVersion = "1.0.32"
+        RateLimitResilienceProtocol.statusCode = 403
+        RateLimitResilienceProtocol.simulateRedirectFallback = true
+        var fallbackDone = false
+        var fallbackRelease: ReleaseInfo?
+        fallbackMgr.checkForUpdates(userInitiated: true) { res in
+            if case .success(let rel) = res { fallbackRelease = rel }
+            fallbackDone = true
+        }
+        let fbDl = Date().addingTimeInterval(2.0)
+        while !fallbackDone && Date() < fbDl {
+            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
+        }
+        TestHarness.assertEqual(fallbackRelease?.tagName, "v1.0.33", "403 rate limit falls back to web release redirect and resolves v1.0.33")
     }
 }
