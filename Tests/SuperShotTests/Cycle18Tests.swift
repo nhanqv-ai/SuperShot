@@ -797,8 +797,8 @@ public struct Cycle18Tests {
         // SECTION 8: Canonical Version & Build 26 Diagnostics Regression
         // =====================================================================
         print("  --- Section 8: Canonical Version & Build 26 Regression ---")
-        let diag18 = AboutSettingsTab.diagnosticString(version: "1.0.34")
-        TestHarness.assertTrue(diag18.contains("• Build 34"), "S8.1: Diagnostic string contains application • Build 34")
+        let diag18 = AboutSettingsTab.diagnosticString(version: "1.0.35")
+        TestHarness.assertTrue(diag18.contains("• Build 35"), "S8.1: Diagnostic string contains application • Build 35")
         TestHarness.assertFalse(diag18.contains("• Build 25"), "S8.1: Diagnostic string does NOT contain Build 25")
 
         print("  --- Cycle 18 All Test Sections Completed Successfully ---")

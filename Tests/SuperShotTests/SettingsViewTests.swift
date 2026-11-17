@@ -210,7 +210,7 @@ public struct SettingsViewTests {
         var welcomeDismissed = false
         let welcomeView = WelcomeView(onDismiss: { welcomeDismissed = true })
         let _ = welcomeView.body
-        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.34", "WelcomeView version string is v1.0.34")
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.35", "WelcomeView version string is v1.0.35")
         welcomeView.onDismiss?()
         TestHarness.assertTrue(welcomeDismissed, "WelcomeView onDismiss executes cleanly")
 
@@ -251,9 +251,9 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(L10nKey.tabCaptureSave.localized(for: .french), "Capture & Sauvegarde", "French tabCaptureSave is concise 'Capture & Sauvegarde'")
         TestHarness.assertEqual(SettingsTab.history.localizedTitle, "History", "SettingsTab.history default localizedTitle is 'History'")
 
-        // 12. Version Consistency & Fallback Verification (v1.0.34)
+        // 12. Version Consistency & Fallback Verification (v1.0.35)
         let updateMgr = UpdateManager.shared
-        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.34", "UpdateManager currentVersion fallback is 1.0.34")
+        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.35", "UpdateManager currentVersion fallback is 1.0.35")
 
         // 13. Overlay Cmd+A Fullscreen & Arrow Key Nudging Verification (v1.0.15)
         let colorSpace = CGColorSpaceCreateDeviceRGB()
@@ -509,9 +509,9 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(locMgr.tr(.annotationsCleared), "Annotations Cleared (⌘⇧K)", "annotationsCleared English string matches")
         TestHarness.assertEqual(locMgr.tr(.actionShareTooltip), "Share (⌘E)", "actionShareTooltip English string matches")
 
-        // 17. Diagnostic String Formatting & Control+Tab Cycling Verification (v1.0.34)
-        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.34")
-        TestHarness.assertTrue(diagString.hasPrefix("SuperShot v1.0.34"), "Diagnostic string starts with 'SuperShot v1.0.34'")
+        // 17. Diagnostic String Formatting & Control+Tab Cycling Verification (v1.0.35)
+        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.35")
+        TestHarness.assertTrue(diagString.hasPrefix("SuperShot v1.0.35"), "Diagnostic string starts with 'SuperShot v1.0.35'")
         TestHarness.assertTrue(diagString.contains("macOS"), "Diagnostic string contains 'macOS'")
         TestHarness.assertTrue(diagString.contains("Build"), "Diagnostic string contains 'Build'")
 
@@ -583,7 +583,7 @@ public struct SettingsViewTests {
         TestHarness.assertFalse(welcomeWinController.window?.isVisible ?? true, "Cmd+W closes WelcomeWindow")
 
         // UpdateManager version verification
-        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.34", "UpdateManager currentVersion is 1.0.34")
+        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.35", "UpdateManager currentVersion is 1.0.35")
 
         // 19. GeneralSettingsTab Accessibility Permission Flow via PermissionManaging
         let mockPerm = MockPermissionManager()
