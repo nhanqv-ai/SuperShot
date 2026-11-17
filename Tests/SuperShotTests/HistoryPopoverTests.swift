@@ -333,6 +333,39 @@ public struct HistoryPopoverTests {
         let emptyRealTracker = PreviousAppTracker()
         emptyRealTracker.clear()
         TestHarness.assertFalse(emptyRealTracker.activatePreviousApp(), "activatePreviousApp returns false safely when previousApp is nil")
+
+        // Cooperative activation (macOS 14+) and .activateIgnoringOtherApps (macOS 13) verification
+        let legacyPlan = PreviousAppTracker.activationPlan(isMacOS14OrNewer: false)
+        TestHarness.assertFalse(legacyPlan.yieldsCooperativeActivation, "macOS 13 activation plan does not call macOS 14 cooperative yield")
+        TestHarness.assertTrue(legacyPlan.options.contains(.activateIgnoringOtherApps), "macOS 13 activation plan passes .activateIgnoringOtherApps so accessory popover yields focus")
+
+        let modernPlan = PreviousAppTracker.activationPlan(isMacOS14OrNewer: true)
+        TestHarness.assertTrue(modernPlan.yieldsCooperativeActivation, "macOS 14+ activation plan yields cooperative activation before activating target app")
+        TestHarness.assertTrue(modernPlan.options.isEmpty, "macOS 14+ activation plan uses empty options with cooperative yield")
+
+        if let externalRunning = NSWorkspace.shared.runningApplications.first(where: {
+            $0.processIdentifier != ProcessInfo.processInfo.processIdentifier && !$0.isTerminated
+        }) {
+            let recordedPlans = LockedBox<[AppActivationAction]>([])
+            let customTracker = PreviousAppTracker { _, plan in
+                recordedPlans.withValue { $0.append(plan) }
+                return true
+            }
+            customTracker.setPreviousApp(externalRunning)
+            TestHarness.assertTrue(customTracker.activatePreviousApp(), "PreviousAppTracker executes injected activator for tracked external app")
+            TestHarness.assertEqual(recordedPlans.withValue { $0.count }, 1, "PreviousAppTracker invokes activator exactly once")
+        }
+    }
+}
+
+private final class LockedBox<T>: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: T
+    init(_ value: T) { self.value = value }
+    func withValue<R>(_ body: (inout T) -> R) -> R {
+        lock.lock()
+        defer { lock.unlock() }
+        return body(&value)
     }
 }
 
