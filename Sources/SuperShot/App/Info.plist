@@ -13,9 +13,9 @@
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>1.0.34</string>
+    <string>1.0.35</string>
     <key>CFBundleVersion</key>
-    <string>34</string>
+    <string>35</string>
     <key>CFBundleIconFile</key>
     <string>AppIcon</string>
     <key>LSMinimumSystemVersion</key>
@@ -33,6 +33,6 @@
     <key>NSScreenCaptureUsageDescription</key>
     <string>SuperShot requires Screen Recording permission to capture display regions and scrolling content.</string>
     <key>NSAppleEventsUsageDescription</key>
-    <string>SuperShot requires Accessibility permission to support direct auto-paste and keyboard shortcuts.</string>
+    <string>SuperShot requires Accessibility permission to support automatic scrolling capture and keyboard shortcuts.</string>
 </dict>
 </plist>

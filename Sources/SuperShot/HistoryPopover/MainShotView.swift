@@ -7,7 +7,6 @@ public struct MainShotView: View {
     @ObservedObject public var storageManager: StorageManager
     public var appSettings: AppSettings?
     @ObservedObject public var updateManager: UpdateManager
-    public var autoPasteService: any AutoPasteServicing
     public var previousAppTracker: any PreviousAppTracking
     public var onCaptureRegion: (() -> Void)?
     public var onScrollingCapture: (() -> Void)?
@@ -32,14 +31,12 @@ public struct MainShotView: View {
     @State private var showClearedToast: Bool = false
     @State private var clearFeedbackTask: Task<Void, Never>? = nil
     @State private var showingReleaseNotesSheet: Bool = false
-    @State private var autoPasteTask: Task<Void, Never>? = nil
 
 
     public init(
         storageManager: StorageManager,
         appSettings: AppSettings? = nil,
         updateManager: UpdateManager = UpdateManager.shared,
-        autoPasteService: any AutoPasteServicing = AutoPasteService.shared,
         previousAppTracker: any PreviousAppTracking = PreviousAppTracker.shared,
         initialSearchText: String = "",
         onDismiss: (() -> Void)? = nil,
@@ -52,7 +49,6 @@ public struct MainShotView: View {
         self.storageManager = storageManager
         self.appSettings = appSettings
         self.updateManager = updateManager
-        self.autoPasteService = autoPasteService
         self.previousAppTracker = previousAppTracker
         self._searchText = State(initialValue: initialSearchText)
         self.onDismiss = onDismiss
@@ -764,15 +760,7 @@ public struct MainShotView: View {
         copyItem(item)
         onDismiss?()
         onItemSelected?(item)
-
-        let targetApp = previousAppTracker.previousApp
-        let autoPasteEnabled = appSettings?.autoPasteOnSelection ?? true
-        if autoPasteEnabled {
-            autoPasteTask?.cancel()
-            autoPasteTask = Task { @MainActor in
-                _ = autoPasteService.pasteToActiveApp(targetApp: targetApp, delay: 0.035)
-            }
-        }
+        _ = previousAppTracker.activatePreviousApp()
     }
 
     public func copyItem(_ item: ShotItem) {

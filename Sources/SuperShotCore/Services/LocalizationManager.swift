@@ -199,7 +199,6 @@ public enum L10nKey: Sendable {
     case clearHistory
     case itemCount(Int, Int)
     case dimensionTag(Int, Int)
-    case directAutoPaste
     case quickSelectHint
     case openInFinder
 
@@ -235,7 +234,6 @@ public enum L10nKey: Sendable {
     case recheckPermissionButton
     case screenRecordingGuide
     case accessibilityGuide
-    case autoPasteOnSelection
 
     // Settings Tab 2: Capture & Save
     case saveMode
@@ -1318,19 +1316,6 @@ public enum L10nKey: Sendable {
         case .dimensionTag(let w, let h):
             return "\(w) x \(h) px"
 
-        case .directAutoPaste:
-            switch lang {
-            case .vietnamese: return "Mô phỏng ⌘V ngay sau khi sao chép ảnh chụp vào bộ nhớ tạm"
-            case .german: return "Simuliert ⌘V sofort nach dem Kopieren der Aufnahme in die Zwischenablage"
-            case .french: return "Simule ⌘V immédiatement après la copie de la capture dans le presse-papiers"
-            case .spanish: return "Simula ⌘V inmediatamente después de copiar la captura al portapapeles"
-            case .japanese: return "スクリーンショットをクリップボードにコピーした直後に ⌘V を送信します"
-            case .simplifiedChinese: return "将截图复制到剪贴板后立即模拟 ⌘V 粘贴"
-            case .traditionalChinese: return "將截圖複製到剪貼簿後立即模擬 ⌘V 貼上"
-            case .korean: return "스크린샷을 클립보드에 복사한 즉시 ⌘V 키를 시뮬레이션합니다"
-            default: return "Simulates ⌘V immediately after copying screenshot to clipboard"
-            }
-
         case .quickSelectHint:
             switch lang {
             case .vietnamese: return "Nhấn 1-9 để sao chép nhanh"
@@ -1697,28 +1682,15 @@ public enum L10nKey: Sendable {
 
         case .accessibilityGuide:
             switch lang {
-            case .vietnamese: return "Cần quyền Trợ năng để cuộn tự động và dán trực tiếp."
-            case .german: return "Bedienungshilfen-Berechtigung ist für automatisches Scrollen und Einfügen erforderlich."
-            case .french: return "L'autorisation d'accessibilité est nécessaire pour le défilement automatique et le collage direct."
-            case .spanish: return "Se requiere permiso de accesibilidad para desplazamiento y pegado automático."
-            case .japanese: return "自動スクロールと自動貼り付けにはアクセシビリティ権限が必要です。"
-            case .simplifiedChinese: return "自动滚动和直接粘贴需要辅助功能权限。"
-            case .traditionalChinese: return "自動滾動和直接貼上需要輔助功能權限。"
-            case .korean: return "자동 스크롤 및 직접 붙여넣기를 사용하려면 손쉬운 사용 권한이 필요합니다."
-            default: return "Accessibility permission is required for auto-scroll and direct paste."
-            }
-
-        case .autoPasteOnSelection:
-            switch lang {
-            case .vietnamese: return "Tự động dán vào ứng dụng trước khi chọn ảnh"
-            case .german: return "Automatisch beim Auswählen in vorherige Anwendung einfügen"
-            case .french: return "Coller automatiquement dans l'application précédente lors de la sélection"
-            case .spanish: return "Pegar automáticamente en la aplicación anterior al seleccionar"
-            case .japanese: return "選択時に直前のアプリケーションへ自動貼り付け"
-            case .simplifiedChinese: return "选择截屏后自动粘贴至前台应用"
-            case .traditionalChinese: return "選取截圖後自動貼上至前台應用程式"
-            case .korean: return "선택 시 이전 애플리케이션으로 자동 붙여넣기"
-            default: return "Auto-paste into previous application upon selection"
+            case .vietnamese: return "Cần quyền Trợ năng để chụp cuộn trang tự động."
+            case .german: return "Bedienungshilfen-Berechtigung ist für automatisches Scrollen erforderlich."
+            case .french: return "L'autorisation d'accessibilité est nécessaire pour le défilement automatique."
+            case .spanish: return "Se requiere permiso de accesibilidad para el desplazamiento automático."
+            case .japanese: return "自動スクロールにはアクセシビリティ権限が必要です。"
+            case .simplifiedChinese: return "自动滚动截图需要辅助功能权限。"
+            case .traditionalChinese: return "自動捲動截圖需要輔助使用權限。"
+            case .korean: return "자동 스크롤 캡처를 사용하려면 손쉬운 사용 권한이 필요합니다."
+            default: return "Accessibility permission is required for automatic scrolling capture."
             }
 
         case .saveMode:

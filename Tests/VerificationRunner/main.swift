@@ -64,9 +64,6 @@ struct VerificationRunner {
         // 14. HistoryPopover & Navigation Tests (M4)
         HistoryPopoverTests.run(sandboxDir: sandboxURL.appendingPathComponent("HistoryPopoverTest"))
 
-        // 15. AutoPasteService & Synthetic Key Injection Tests (M4)
-        AutoPasteTests.run()
-
         // 16. SettingsView & AppSettings Tests (M4)
         SettingsViewTests.run(sandboxDir: sandboxURL.appendingPathComponent("SettingsViewTest"))
 

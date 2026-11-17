@@ -20,7 +20,6 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(settings.maxScrollHeightPx, 15000, "Default maxScrollHeightPx is 15,000 px")
         TestHarness.assertEqual(settings.capacity, 50, "Default capacity is 50 items")
         TestHarness.assertFalse(settings.autoSaveEnabled, "Auto-save is disabled by default")
-        TestHarness.assertTrue(settings.autoPasteOnSelection, "Auto-paste is enabled by default")
 
         // 2. Preset Add, In-place Update & Capacity Clamping
         let newPreset = ColorPreset(name: "Mint", hex: "#00FFCC")
@@ -211,7 +210,7 @@ public struct SettingsViewTests {
         var welcomeDismissed = false
         let welcomeView = WelcomeView(onDismiss: { welcomeDismissed = true })
         let _ = welcomeView.body
-        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.34", "WelcomeView version string is v1.0.34")
+        TestHarness.assertEqual(welcomeView.appVersionString, "v1.0.35", "WelcomeView version string is v1.0.35")
         welcomeView.onDismiss?()
         TestHarness.assertTrue(welcomeDismissed, "WelcomeView onDismiss executes cleanly")
 
@@ -252,9 +251,9 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(L10nKey.tabCaptureSave.localized(for: .french), "Capture & Sauvegarde", "French tabCaptureSave is concise 'Capture & Sauvegarde'")
         TestHarness.assertEqual(SettingsTab.history.localizedTitle, "History", "SettingsTab.history default localizedTitle is 'History'")
 
-        // 12. Version Consistency & Fallback Verification (v1.0.34)
+        // 12. Version Consistency & Fallback Verification (v1.0.35)
         let updateMgr = UpdateManager.shared
-        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.34", "UpdateManager currentVersion fallback is 1.0.34")
+        TestHarness.assertEqual(updateMgr.currentVersion, "1.0.35", "UpdateManager currentVersion fallback is 1.0.35")
 
         // 13. Overlay Cmd+A Fullscreen & Arrow Key Nudging Verification (v1.0.15)
         let colorSpace = CGColorSpaceCreateDeviceRGB()
@@ -510,9 +509,9 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(locMgr.tr(.annotationsCleared), "Annotations Cleared (⌘⇧K)", "annotationsCleared English string matches")
         TestHarness.assertEqual(locMgr.tr(.actionShareTooltip), "Share (⌘E)", "actionShareTooltip English string matches")
 
-        // 17. Diagnostic String Formatting & Control+Tab Cycling Verification (v1.0.34)
-        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.34")
-        TestHarness.assertTrue(diagString.hasPrefix("SuperShot v1.0.34"), "Diagnostic string starts with 'SuperShot v1.0.34'")
+        // 17. Diagnostic String Formatting & Control+Tab Cycling Verification (v1.0.35)
+        let diagString = AboutSettingsTab.diagnosticString(version: "1.0.35")
+        TestHarness.assertTrue(diagString.hasPrefix("SuperShot v1.0.35"), "Diagnostic string starts with 'SuperShot v1.0.35'")
         TestHarness.assertTrue(diagString.contains("macOS"), "Diagnostic string contains 'macOS'")
         TestHarness.assertTrue(diagString.contains("Build"), "Diagnostic string contains 'Build'")
 
@@ -584,6 +583,47 @@ public struct SettingsViewTests {
         TestHarness.assertFalse(welcomeWinController.window?.isVisible ?? true, "Cmd+W closes WelcomeWindow")
 
         // UpdateManager version verification
-        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.34", "UpdateManager currentVersion is 1.0.34")
+        TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.35", "UpdateManager currentVersion is 1.0.35")
+
+        // 19. GeneralSettingsTab Accessibility Permission Flow via PermissionManaging
+        let mockPerm = MockPermissionManager()
+        let tabWithMockPerm = GeneralSettingsTab(appSettings: settings, permissionManager: mockPerm)
+        let reqResult = tabWithMockPerm.permissionManager.resetAndRequestAccessibility()
+        TestHarness.assertTrue(reqResult, "resetAndRequestAccessibility returns requestAccessibility result")
+        TestHarness.assertEqual(mockPerm.callOrder, ["reset", "openSettings", "request"], "Accessibility grant sequence resets, opens settings, then requests")
+
+        let infoPlistURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Sources/SuperShot/App/Info.plist")
+        if let plistData = try? Data(contentsOf: infoPlistURL),
+           let plistDict = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
+           let axDesc = plistDict["NSAppleEventsUsageDescription"] as? String {
+            TestHarness.assertTrue(axDesc.contains("automatic scrolling capture"), "Info.plist NSAppleEventsUsageDescription references automatic scrolling capture")
+            TestHarness.assertFalse(axDesc.localizedCaseInsensitiveContains("auto-paste"), "Info.plist NSAppleEventsUsageDescription omits auto-paste")
+        } else {
+            TestHarness.recordFail("Info.plist NSAppleEventsUsageDescription", reason: "Failed to parse Info.plist")
+        }
+    }
+}
+
+private final class MockPermissionManager: PermissionManaging, @unchecked Sendable {
+    var callOrder: [String] = []
+    var isScreenRecordingGranted: Bool = false
+    var isAccessibilityGranted: Bool = false
+
+    func checkScreenRecording() -> Bool { isScreenRecordingGranted }
+    func requestScreenRecording() -> Bool { true }
+    func openScreenRecordingSettings() {}
+    func checkAccessibility() -> Bool { isAccessibilityGranted }
+    func requestAccessibility() -> Bool {
+        callOrder.append("request")
+        return true
+    }
+    @discardableResult
+    func resetAccessibility() -> Bool {
+        callOrder.append("reset")
+        return true
+    }
+    func openAccessibilitySettings() {
+        callOrder.append("openSettings")
     }
 }

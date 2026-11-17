@@ -5,90 +5,22 @@ import UniformTypeIdentifiers
 import SuperShotCore
 import SuperShot
 
-/// Stress test harness and empirical challenge suite for AutoPasteService,
+/// Stress test harness and empirical challenge suite for
 /// PreviousAppTracker, SettingsView, and AppSettings.
 public struct AutoPasteSettingsStressTests {
-
-    // MARK: - Thread-Safe Tracking Helpers
-
-    private final class ThreadSafeCounter: @unchecked Sendable {
-        private let lock = NSLock()
-        private var _value: Int = 0
-
-        var value: Int {
-            lock.lock()
-            defer { lock.unlock() }
-            return _value
-        }
-
-        func increment() {
-            lock.lock()
-            _value += 1
-            lock.unlock()
-        }
-
-        func reset() {
-            lock.lock()
-            _value = 0
-            lock.unlock()
-        }
-    }
-
-    private final class StressMockPasteSimulator: PasteSimulating, @unchecked Sendable {
-        let postCount = ThreadSafeCounter()
-        let activateCount = ThreadSafeCounter()
-        var shouldSucceed: Bool = true
-
-        func activate(app: NSRunningApplication) -> Bool {
-            guard !app.isTerminated else { return false }
-            activateCount.increment()
-            return shouldSucceed
-        }
-
-        func postPasteKeyEvent() -> Bool {
-            postCount.increment()
-            return shouldSucceed
-        }
-
-        func postPasteKeyEvent(tap: CGEventTapLocation) -> Bool {
-            postCount.increment()
-            return shouldSucceed
-        }
-
-        func pasteToActiveApp(targetApp: NSRunningApplication?, delay: TimeInterval, completion: (() -> Void)?) {
-            if let app = targetApp, !app.isTerminated {
-                _ = activate(app: app)
-            }
-            if delay <= 0 {
-                _ = postPasteKeyEvent()
-                completion?()
-            } else {
-                DispatchQueue.global().asyncAfter(deadline: .now() + delay) { [weak self] in
-                    _ = self?.postPasteKeyEvent()
-                    completion?()
-                }
-            }
-        }
-    }
 
     // MARK: - Suite Entry Point
 
     public static func run(sandboxDir: URL) {
-        TestHarness.startSuite("Challenger 2: AutoPaste & Settings Empirical Stress Tests")
+        TestHarness.startSuite("Challenger 2: PreviousAppTracker & Settings Empirical Stress Tests")
 
-        // 1. AutoPasteService Concurrency & Timing Stress
-        testAutoPasteConcurrency()
-        testZeroVsPositiveDelayBranching()
-        testRapidRepeatedPasteInvocations()
-        testUntrustedPermissionClipboardFallback()
-
-        // 2. PreviousAppTracker Stress
+        // 1. PreviousAppTracker Stress
         testPreviousAppTrackerExcludesOwnPID()
         testPreviousAppTrackerExternalPIDTracking()
         testPreviousAppTrackerTerminatedAppHandling()
         testPreviousAppTrackerConcurrency()
 
-        // 3. AppSettings & ColorPreset Boundary Stress
+        // 2. AppSettings & ColorPreset Boundary Stress
         testColorPresetSixteenCapacityAndSeventeenthRejection(sandboxDir: sandboxDir)
         testColorPresetInPlaceDuplicateHexUpdate(sandboxDir: sandboxDir)
         testColorPresetInvalidHexHandling()
@@ -98,172 +30,7 @@ public struct AutoPasteSettingsStressTests {
         testSettingsViewAndTabInstantiation(sandboxDir: sandboxDir)
     }
 
-    // MARK: - 1. AutoPasteService Stress Tests
-
-    private static func testAutoPasteConcurrency() {
-        let mockSim = StressMockPasteSimulator()
-        let service = AutoPasteService(
-            pasteSimulator: mockSim,
-            accessibilityChecker: { true },
-            accessibilityPrompter: { true },
-            accessibilityResetter: { true },
-            settingsOpener: {},
-            dispatchQueue: .global(qos: .userInitiated)
-        )
-
-        let concurrentOperations = 50
-        let group = DispatchGroup()
-        let completionCounter = ThreadSafeCounter()
-
-        for _ in 0..<concurrentOperations {
-            group.enter()
-            DispatchQueue.global().async {
-                let success = service.pasteToActiveApp(targetApp: nil, delay: 0.005) {
-                    completionCounter.increment()
-                    group.leave()
-                }
-                TestHarness.assertTrue(success, "Concurrent pasteToActiveApp invocation returns true")
-            }
-        }
-
-        let waitResult = group.wait(timeout: .now() + 5.0)
-        TestHarness.assertEqual(waitResult, .success, "All 50 concurrent paste requests finished without deadlock")
-        TestHarness.assertEqual(completionCounter.value, concurrentOperations, "All 50 completions executed reliably")
-        TestHarness.assertEqual(mockSim.postCount.value, concurrentOperations, "All 50 synthetic key events were posted")
-    }
-
-    private static func testZeroVsPositiveDelayBranching() {
-        let mockSim = StressMockPasteSimulator()
-        let service = AutoPasteService(
-            pasteSimulator: mockSim,
-            accessibilityChecker: { true },
-            accessibilityPrompter: { true },
-            accessibilityResetter: { true },
-            settingsOpener: {}
-        )
-
-        // Case A: Zero delay (must be synchronous)
-        mockSim.postCount.reset()
-        var completedSync = false
-        let retZero = service.pasteToActiveApp(targetApp: nil, delay: 0.0) {
-            completedSync = true
-        }
-        TestHarness.assertTrue(retZero, "pasteToActiveApp with zero delay returns true")
-        TestHarness.assertTrue(completedSync, "Zero delay executes completion synchronously on return")
-        TestHarness.assertEqual(mockSim.postCount.value, 1, "Zero delay posts key event synchronously")
-
-        // Case B: Negative delay (must clamp to <= 0 and execute synchronously)
-        mockSim.postCount.reset()
-        var completedNeg = false
-        let retNeg = service.pasteToActiveApp(targetApp: nil, delay: -0.5) {
-            completedNeg = true
-        }
-        TestHarness.assertTrue(retNeg, "pasteToActiveApp with negative delay returns true")
-        TestHarness.assertTrue(completedNeg, "Negative delay executes completion synchronously on return")
-        TestHarness.assertEqual(mockSim.postCount.value, 1, "Negative delay posts key event synchronously")
-
-        // Case C: Positive delay (must dispatch asynchronously)
-        mockSim.postCount.reset()
-        var completedAsync = false
-        let retPos = service.pasteToActiveApp(targetApp: nil, delay: 0.02) {
-            completedAsync = true
-        }
-        TestHarness.assertTrue(retPos, "pasteToActiveApp with positive delay returns true immediately")
-        TestHarness.assertFalse(completedAsync, "Positive delay completion is deferred asynchronously")
-
-        // Pump run loop so main queue block executes in headless environment
-        let deadline = Date().addingTimeInterval(2.0)
-        while !completedAsync && Date() < deadline {
-            RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.01))
-        }
-
-        TestHarness.assertTrue(completedAsync, "Positive delay completion fired after timer deadline")
-        TestHarness.assertEqual(mockSim.postCount.value, 1, "Positive delay key event was posted")
-    }
-
-    private static func testRapidRepeatedPasteInvocations() {
-        let mockSim = StressMockPasteSimulator()
-        let service = AutoPasteService(
-            pasteSimulator: mockSim,
-            accessibilityChecker: { true },
-            accessibilityPrompter: { true },
-            accessibilityResetter: { true },
-            settingsOpener: {}
-        )
-
-        let iterations = 200
-        mockSim.postCount.reset()
-
-        for _ in 0..<iterations {
-            _ = service.pasteToActiveApp(targetApp: nil, delay: 0.0)
-        }
-
-        TestHarness.assertEqual(mockSim.postCount.value, iterations, "Rapid burst of 200 synchronous paste calls succeeded 100%")
-    }
-
-    private static func testUntrustedPermissionClipboardFallback() {
-        let mockSim = StressMockPasteSimulator()
-        var promptCalled = false
-
-        let service = AutoPasteService(
-            pasteSimulator: mockSim,
-            accessibilityChecker: { false }, // Untrusted permission simulation
-            accessibilityPrompter: {
-                promptCalled = true
-                return false
-            },
-            accessibilityResetter: { true },
-            settingsOpener: {}
-        )
-
-        // 1. pasteToActiveApp without prompt
-        var completionFired = false
-        let untrustedWithoutPrompt = service.pasteToActiveApp(targetApp: nil, delay: 0.0, promptIfUntrusted: false) {
-            completionFired = true
-        }
-        TestHarness.assertFalse(untrustedWithoutPrompt, "Untrusted pasteToActiveApp returns false")
-        TestHarness.assertTrue(completionFired, "Completion still fires when untrusted")
-        TestHarness.assertFalse(promptCalled, "Prompter not invoked when promptIfUntrusted is false")
-        TestHarness.assertEqual(mockSim.postCount.value, 0, "No synthetic keys posted when untrusted")
-
-        // 2. pasteToActiveApp with prompt
-        promptCalled = false
-        completionFired = false
-        let untrustedWithPrompt = service.pasteToActiveApp(targetApp: nil, delay: 0.0, promptIfUntrusted: true) {
-            completionFired = true
-        }
-        TestHarness.assertFalse(untrustedWithPrompt, "Untrusted pasteToActiveApp with prompt returns false")
-        TestHarness.assertTrue(promptCalled, "Prompter invoked when promptIfUntrusted is true")
-        TestHarness.assertTrue(completionFired, "Completion fires when untrusted with prompt")
-        TestHarness.assertEqual(mockSim.postCount.value, 0, "Still no synthetic keys posted")
-
-        // 3. pasteImageDirectly clipboard fallback verification
-        // Create synthetic image to copy
-        let colorSpace = CGColorSpaceCreateDeviceRGB()
-        let ctx = CGContext(data: nil, width: 40, height: 40, bitsPerComponent: 8, bytesPerRow: 40 * 4, space: colorSpace, bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue)!
-        ctx.setFillColor(red: 0.2, green: 0.4, blue: 0.8, alpha: 1.0)
-        ctx.fill(CGRect(x: 0, y: 0, width: 40, height: 40))
-        let sampleImage = ctx.makeImage()!
-
-        let expSema = DispatchSemaphore(value: 0)
-        var pasteImageResult = false
-
-        Task {
-            pasteImageResult = await service.pasteImageDirectly(sampleImage, targetApp: nil, delay: 0.0)
-            expSema.signal()
-        }
-
-        _ = expSema.wait(timeout: .now() + 2.0)
-        TestHarness.assertFalse(pasteImageResult, "pasteImageDirectly returns false due to untrusted accessibility")
-
-        // Check clipboard content: Image data MUST be present on NSPasteboard despite untrusted accessibility!
-        let pb = NSPasteboard.general
-        let hasPNG = pb.data(forType: .png) != nil
-        let hasTIFF = pb.data(forType: .tiff) != nil
-        TestHarness.assertTrue(hasPNG || hasTIFF, "Clipboard fallback: Image data was successfully copied to pasteboard")
-    }
-
-    // MARK: - 2. PreviousAppTracker Stress Tests
+    // MARK: - 1. PreviousAppTracker Stress Tests
 
     private static func testPreviousAppTrackerExcludesOwnPID() {
         let tracker = PreviousAppTracker()

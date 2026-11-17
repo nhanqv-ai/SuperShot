@@ -25,7 +25,6 @@ public struct AppSettingsSnapshot: Codable, Equatable, Sendable {
     public var capacity: Int
     public var launchAtLogin: Bool
     public var language: String
-    public var autoPasteOnSelection: Bool
     public var regionHotKeyKeyCode: UInt32
     public var regionHotKeyModifiers: UInt32
     public var scrollHotKeyKeyCode: UInt32
@@ -47,7 +46,6 @@ public struct AppSettingsSnapshot: Codable, Equatable, Sendable {
         capacity: 50,
         launchAtLogin: false,
         language: "system",
-        autoPasteOnSelection: true,
         regionHotKeyKeyCode: 1,      // kVK_ANSI_S
         regionHotKeyModifiers: 2048, // optionKey
         scrollHotKeyKeyCode: 1,      // kVK_ANSI_S
@@ -70,7 +68,6 @@ public struct AppSettingsSnapshot: Codable, Equatable, Sendable {
         capacity: Int,
         launchAtLogin: Bool,
         language: String,
-        autoPasteOnSelection: Bool,
         regionHotKeyKeyCode: UInt32,
         regionHotKeyModifiers: UInt32,
         scrollHotKeyKeyCode: UInt32,
@@ -91,7 +88,6 @@ public struct AppSettingsSnapshot: Codable, Equatable, Sendable {
         self.capacity = capacity
         self.launchAtLogin = launchAtLogin
         self.language = language
-        self.autoPasteOnSelection = autoPasteOnSelection
         self.regionHotKeyKeyCode = regionHotKeyKeyCode
         self.regionHotKeyModifiers = regionHotKeyModifiers
         self.scrollHotKeyKeyCode = scrollHotKeyKeyCode
@@ -115,7 +111,6 @@ public struct AppSettingsSnapshot: Codable, Equatable, Sendable {
         capacity = try container.decode(Int.self, forKey: .capacity)
         launchAtLogin = try container.decode(Bool.self, forKey: .launchAtLogin)
         language = try container.decode(String.self, forKey: .language)
-        autoPasteOnSelection = try container.decode(Bool.self, forKey: .autoPasteOnSelection)
         regionHotKeyKeyCode = try container.decode(UInt32.self, forKey: .regionHotKeyKeyCode)
         regionHotKeyModifiers = try container.decode(UInt32.self, forKey: .regionHotKeyModifiers)
         scrollHotKeyKeyCode = try container.decode(UInt32.self, forKey: .scrollHotKeyKeyCode)
@@ -184,9 +179,6 @@ public final class AppSettings: ObservableObject {
         didSet { scheduleAutoSave() }
     }
     @Published public var language: String {
-        didSet { scheduleAutoSave() }
-    }
-    @Published public var autoPasteOnSelection: Bool {
         didSet { scheduleAutoSave() }
     }
     @Published public var regionHotKeyKeyCode: UInt32 {
@@ -258,7 +250,6 @@ public final class AppSettings: ObservableObject {
         self.capacity = max(10, min(snapshot.capacity, 500))
         self.launchAtLogin = snapshot.launchAtLogin
         self.language = snapshot.language
-        self.autoPasteOnSelection = snapshot.autoPasteOnSelection
         self.regionHotKeyKeyCode = snapshot.regionHotKeyKeyCode
         self.regionHotKeyModifiers = snapshot.regionHotKeyModifiers
         self.scrollHotKeyKeyCode = snapshot.scrollHotKeyKeyCode
@@ -319,7 +310,6 @@ public final class AppSettings: ObservableObject {
             capacity: capacity,
             launchAtLogin: launchAtLogin,
             language: language,
-            autoPasteOnSelection: autoPasteOnSelection,
             regionHotKeyKeyCode: regionHotKeyKeyCode,
             regionHotKeyModifiers: regionHotKeyModifiers,
             scrollHotKeyKeyCode: scrollHotKeyKeyCode,

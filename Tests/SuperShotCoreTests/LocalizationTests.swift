@@ -227,6 +227,25 @@ public struct LocalizationTests {
         TestHarness.assertEqual(L10nKey.hudDuplicate.localized(for: .vietnamese), "Đã nhân bản (⌘D)", "hudDuplicate translated to Vietnamese")
         TestHarness.assertEqual(L10nKey.quickSelectHintWithPinned.localized(for: .vietnamese), "⌥1-9: Đã ghim · 1-9: Gần đây", "quickSelectHintWithPinned translated to Vietnamese")
 
+        // Accessibility guide copy across all languages (auto-scroll only, zero paste references)
+        TestHarness.assertEqual(
+            L10nKey.accessibilityGuide.localized(for: .english),
+            "Accessibility permission is required for automatic scrolling capture.",
+            "accessibilityGuide English describes automatic scrolling capture"
+        )
+        TestHarness.assertEqual(
+            L10nKey.accessibilityGuide.localized(for: .vietnamese),
+            "Cần quyền Trợ năng để chụp cuộn trang tự động.",
+            "accessibilityGuide Vietnamese describes automatic scrolling capture"
+        )
+        let forbiddenPasteSubstrings = ["paste", "dán", "Einfügen", "collage", "pegado", "貼り付け", "粘贴", "貼上", "붙여넣기"]
+        for lang in AppLanguage.allCases {
+            let guideText = L10nKey.accessibilityGuide.localized(for: lang)
+            TestHarness.assertFalse(guideText.isEmpty, "accessibilityGuide non-empty for \(lang.rawValue)")
+            let containsPaste = forbiddenPasteSubstrings.contains { guideText.localizedCaseInsensitiveContains($0) }
+            TestHarness.assertFalse(containsPaste, "accessibilityGuide in \(lang.rawValue) omits paste references")
+        }
+
         // 6. Zero emoji invariant check across all keys in all languages
         validateZeroEmojisAcrossDictionary()
 
@@ -254,7 +273,7 @@ public struct LocalizationTests {
             .strokeWidthHUD(4), .resetShortcutTooltip("Option+S"),
             .previewCancelTooltip, .previewDoneTooltip,
             .layerBringToFront, .layerSendToBack, .layerBringForward, .layerSendBackward,
-            .zoomHUD(125), .captureOverlayInstruction, .directAutoPaste,
+            .zoomHUD(125), .captureOverlayInstruction, .accessibilityGuide,
             .framesCount(10), .screenshotDeleted, .copiedDiagnostics,
             .rememberLabel, .unpinnedHistoryCleared,
             .actionAnnotate, .saveTallScreenshotTitle, .tallScreenshotWindowTitle, .customColorPreset,
