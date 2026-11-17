@@ -8,7 +8,6 @@ public struct GeneralSettingsTab: View {
     @ObservedObject private var localizationManager = LocalizationManager.shared
     public var hotKeyManager: any HotKeyManaging
     public var launchAtLoginManager: any LaunchAtLoginManaging
-    public var autoPasteService: any AutoPasteServicing
     public var permissionManager: any PermissionManaging
 
     @State private var isScreenRecordingGranted: Bool = false
@@ -22,13 +21,11 @@ public struct GeneralSettingsTab: View {
         appSettings: AppSettings,
         hotKeyManager: any HotKeyManaging = HotKeyManager.shared,
         launchAtLoginManager: any LaunchAtLoginManaging = LaunchAtLoginManager.shared,
-        autoPasteService: any AutoPasteServicing = AutoPasteService.shared,
         permissionManager: any PermissionManaging = PermissionManager.shared
     ) {
         self.appSettings = appSettings
         self.hotKeyManager = hotKeyManager
         self.launchAtLoginManager = launchAtLoginManager
-        self.autoPasteService = autoPasteService
         self.permissionManager = permissionManager
     }
 
@@ -37,7 +34,6 @@ public struct GeneralSettingsTab: View {
             systemStartupCard
             permissionsCard
             globalShortcutsCard
-            autoPasteCard
         }
         .onAppear { refreshPermissions() }
         .onReceive(statusTimer) { _ in refreshPermissions() }
@@ -175,7 +171,7 @@ public struct GeneralSettingsTab: View {
 
                 if !isAccessibilityGranted {
                     Button(LocalizationManager.shared.tr(.grantPermissionButton)) {
-                        _ = autoPasteService.resetAndRequestAccessibilityPermission()
+                        _ = permissionManager.resetAndRequestAccessibility()
                     }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
@@ -247,23 +243,6 @@ public struct GeneralSettingsTab: View {
                 .pointingHandCursor()
                 .help(LocalizationManager.shared.tr(.resetShortcutTooltip("⌥⇧S")))
             }
-        }
-        .padding(11)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .cardStyle()
-    }
-
-    // MARK: - Auto-Paste
-    private var autoPasteCard: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Toggle(LocalizationManager.shared.tr(.autoPasteOnSelection), isOn: $appSettings.autoPasteOnSelection)
-                .toggleStyle(.checkbox)
-                .font(.system(size: 12))
-
-            Text(LocalizationManager.shared.tr(.directAutoPaste))
-                .font(.system(size: 10.5))
-                .foregroundColor(.secondary)
-                .padding(.leading, 20)
         }
         .padding(11)
         .frame(maxWidth: .infinity, alignment: .leading)

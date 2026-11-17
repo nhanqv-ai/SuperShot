@@ -270,7 +270,6 @@ public struct AboutSettingsTab: View {
         storageManager.capacity = def.capacity
         appSettings.launchAtLogin = def.launchAtLogin
         appSettings.language = def.language
-        appSettings.autoPasteOnSelection = def.autoPasteOnSelection
         appSettings.regionHotKeyKeyCode = def.regionHotKeyKeyCode
         appSettings.regionHotKeyModifiers = def.regionHotKeyModifiers
         appSettings.scrollHotKeyKeyCode = def.scrollHotKeyKeyCode

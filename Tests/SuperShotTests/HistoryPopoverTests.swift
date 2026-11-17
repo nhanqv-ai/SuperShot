@@ -314,5 +314,38 @@ public struct HistoryPopoverTests {
         // Verify shareItem runs safely in headless environment without crashing
         mainViewForKeyboard.shareItem(hoverA, from: nil)
         TestHarness.assertTrue(true, "shareItem executed safely in headless environment")
+
+        // 15. Focus Restoration without Synthetic Auto-Paste on Selection
+        let focusTracker = MockFocusTracker()
+        var didDismissOnSelect = false
+        let selectionView = MainShotView(
+            storageManager: storage,
+            previousAppTracker: focusTracker,
+            onDismiss: { didDismissOnSelect = true }
+        )
+        if let firstShot = storage.items.first {
+            NSPasteboard.general.clearContents()
+            selectionView.selectItem(firstShot)
+            TestHarness.assertTrue(didDismissOnSelect, "selectItem invokes onDismiss")
+            TestHarness.assertEqual(focusTracker.activateCallCount, 1, "selectItem delegates focus restoration to previousAppTracker.activatePreviousApp()")
+            TestHarness.assertNotNil(NSPasteboard.general.data(forType: .png), "selectItem copies PNG to clipboard")
+        }
+        let emptyRealTracker = PreviousAppTracker()
+        emptyRealTracker.clear()
+        TestHarness.assertFalse(emptyRealTracker.activatePreviousApp(), "activatePreviousApp returns false safely when previousApp is nil")
     }
+}
+
+final class MockFocusTracker: PreviousAppTracking, @unchecked Sendable {
+    var previousApp: NSRunningApplication? = nil
+    var activateCallCount = 0
+    var shouldActivateResult = false
+    func captureFrontmostApplication() {}
+    func setPreviousApp(_ app: NSRunningApplication?) { previousApp = app }
+    @discardableResult
+    func activatePreviousApp() -> Bool {
+        activateCallCount += 1
+        return shouldActivateResult
+    }
+    func clear() { previousApp = nil }
 }

@@ -16,6 +16,17 @@ public protocol PermissionManaging: AnyObject, Sendable {
     @discardableResult
     func resetAccessibility() -> Bool
     func openAccessibilitySettings()
+    @discardableResult
+    func resetAndRequestAccessibility() -> Bool
+}
+
+extension PermissionManaging {
+    @discardableResult
+    public func resetAndRequestAccessibility() -> Bool {
+        _ = resetAccessibility()
+        openAccessibilitySettings()
+        return requestAccessibility()
+    }
 }
 
 // MARK: - PermissionManager Implementation

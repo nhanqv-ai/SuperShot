@@ -50,7 +50,6 @@ public struct SettingsView: View {
     @ObservedObject private var localizationManager = LocalizationManager.shared
     public var hotKeyManager: any HotKeyManaging
     public var launchAtLoginManager: any LaunchAtLoginManaging
-    public var autoPasteService: any AutoPasteServicing
     public var permissionManager: any PermissionManaging
     public var onClose: (() -> Void)?
 
@@ -61,7 +60,6 @@ public struct SettingsView: View {
         storageManager: StorageManager,
         hotKeyManager: any HotKeyManaging = HotKeyManager.shared,
         launchAtLoginManager: any LaunchAtLoginManaging = LaunchAtLoginManager.shared,
-        autoPasteService: any AutoPasteServicing = AutoPasteService.shared,
         permissionManager: any PermissionManaging = PermissionManager.shared,
         initialTab: SettingsTab = .general,
         onClose: (() -> Void)? = nil
@@ -70,7 +68,6 @@ public struct SettingsView: View {
         self.storageManager = storageManager
         self.hotKeyManager = hotKeyManager
         self.launchAtLoginManager = launchAtLoginManager
-        self.autoPasteService = autoPasteService
         self.permissionManager = permissionManager
         self._selectedTab = State(initialValue: initialTab)
         self.onClose = onClose
@@ -131,7 +128,6 @@ public struct SettingsView: View {
                         appSettings: appSettings,
                         hotKeyManager: hotKeyManager,
                         launchAtLoginManager: launchAtLoginManager,
-                        autoPasteService: autoPasteService,
                         permissionManager: permissionManager
                     )
                 case .captureSave:

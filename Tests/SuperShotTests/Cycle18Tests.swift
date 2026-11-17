@@ -13,7 +13,7 @@ import SuperShot
 /// 4. Typography baseline and layout metrics (CoreText single and multi-line rendering)
 /// 5. Blur region pixelation, bounds clamping, and anti-bleed guarantees
 /// 6. Inverted handle resizing (mirroring vs squishing for pen/highlighter)
-/// 7. Concurrency & Timer cleanup (UpdateManager, MainShotView auto-paste cancellation)
+/// 7. Concurrency & Timer cleanup (UpdateManager, MainShotView rapid selection)
 /// 8. Canonical version and build fallback verification (AboutSettingsTab diagnosticString)
 public struct Cycle18Tests {
 

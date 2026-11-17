@@ -8,7 +8,6 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
     public let appSettings: AppSettings
     public let storageManager: StorageManager
     public let hotKeyManager: any HotKeyManaging
-    public let autoPasteService: any AutoPasteServicing
     public let launchAtLoginManager: any LaunchAtLoginManaging
     public let permissionManager: any PermissionManaging
 
@@ -20,7 +19,6 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         appSettings: AppSettings,
         storageManager: StorageManager,
         hotKeyManager: any HotKeyManaging = HotKeyManager.shared,
-        autoPasteService: any AutoPasteServicing = AutoPasteService.shared,
         launchAtLoginManager: any LaunchAtLoginManaging = LaunchAtLoginManager.shared,
         permissionManager: any PermissionManaging = PermissionManager.shared,
         onPresentationDismissalRequested: (() -> Void)? = nil
@@ -28,7 +26,6 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         self.appSettings = appSettings
         self.storageManager = storageManager
         self.hotKeyManager = hotKeyManager
-        self.autoPasteService = autoPasteService
         self.launchAtLoginManager = launchAtLoginManager
         self.permissionManager = permissionManager
         self.onPresentationDismissalRequested = onPresentationDismissalRequested
@@ -54,14 +51,12 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
         appSettings: AppSettings,
         storageManager: StorageManager,
         hotKeyManager: any HotKeyManaging = HotKeyManager.shared,
-        autoPasteService: any AutoPasteServicing = AutoPasteService.shared,
         onDismiss: (() -> Void)? = nil
     ) {
         self.init(
             appSettings: appSettings,
             storageManager: storageManager,
             hotKeyManager: hotKeyManager,
-            autoPasteService: autoPasteService,
             launchAtLoginManager: LaunchAtLoginManager.shared,
             permissionManager: PermissionManager.shared,
             onPresentationDismissalRequested: onDismiss
@@ -80,7 +75,6 @@ public final class SettingsWindowController: NSWindowController, NSWindowDelegat
             storageManager: storageManager,
             hotKeyManager: hotKeyManager,
             launchAtLoginManager: launchAtLoginManager,
-            autoPasteService: autoPasteService,
             permissionManager: permissionManager,
             initialTab: initialTab,
             onClose: { [weak self] in

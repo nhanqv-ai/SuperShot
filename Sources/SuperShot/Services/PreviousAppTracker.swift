@@ -7,7 +7,17 @@ public protocol PreviousAppTracking: AnyObject, Sendable {
     var previousApp: NSRunningApplication? { get }
     func captureFrontmostApplication()
     func setPreviousApp(_ app: NSRunningApplication?)
+    @discardableResult
+    func activatePreviousApp() -> Bool
     func clear()
+}
+
+extension PreviousAppTracking {
+    @discardableResult
+    public func activatePreviousApp() -> Bool {
+        guard let app = previousApp, !app.isTerminated else { return false }
+        return app.activate(options: [])
+    }
 }
 
 // MARK: - PreviousAppTracker Implementation
@@ -57,6 +67,12 @@ public final class PreviousAppTracker: PreviousAppTracking, @unchecked Sendable 
             return
         }
         setPreviousApp(frontmost)
+    }
+
+    @discardableResult
+    public func activatePreviousApp() -> Bool {
+        guard let app = previousApp, !app.isTerminated else { return false }
+        return app.activate(options: [])
     }
 
     public func clear() {

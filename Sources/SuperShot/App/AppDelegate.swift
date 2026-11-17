@@ -14,7 +14,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
     public var storageManager: StorageManager!
     public var appSettings: AppSettings!
     public var hotKeyManager: (any HotKeyManaging)!
-    public var autoPasteService: (any AutoPasteServicing)!
     public var previousAppTracker: (any PreviousAppTracking)!
     public var statusItemManager: StatusItemManager!
     public var settingsWindowController: SettingsWindowController!
@@ -37,7 +36,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         storageManager = StorageManager(initialCapacity: appSettings.capacity)
         hotKeyManager = HotKeyManager.shared
         previousAppTracker = PreviousAppTracker.shared
-        autoPasteService = AutoPasteService.shared
 
         // 2b. Initialize Update Subsystem
         UpdateManager.shared.appSettings = appSettings
@@ -49,7 +47,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
             appSettings: appSettings,
             storageManager: storageManager,
             hotKeyManager: hotKeyManager,
-            autoPasteService: autoPasteService,
             onDismiss: { [weak self] in
                 self?.statusItemManager?.dismissPopover()
             }
@@ -61,7 +58,6 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
             storageManager: storageManager,
             appSettings: appSettings,
             updateManager: UpdateManager.shared,
-            autoPasteService: autoPasteService,
             previousAppTracker: previousAppTracker,
             onDismiss: { [weak self] in
                 self?.statusItemManager?.dismissPopover()
@@ -418,7 +414,7 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         }
     }
 
-    // MARK: - Completion Pipeline: Storage, Clipboard, Auto-Paste & Audio
+    // MARK: - Completion Pipeline: Storage, Clipboard & Audio
 
     public func handleCaptureCompletion(
         image: CGImage,
@@ -444,15 +440,9 @@ public final class AppDelegate: NSObject, NSApplicationDelegate, CaptureOverlayW
         // 3. Write to Pasteboard unless explicitly skipped
         if !skipClipboard {
             copyImageToPasteboard(image)
-
-            // 4. Direct Auto-Paste if enabled & permissions granted
-            if appSettings.autoPasteOnSelection && autoPasteService.isAccessibilityTrusted {
-                let target = previousAppTracker.previousApp
-                _ = autoPasteService.pasteToActiveApp(targetApp: target, delay: 0.035, promptIfUntrusted: false, completion: nil)
-            }
         }
 
-        // 5. Auditory Feedback
+        // 4. Auditory Feedback
         playCaptureSound()
     }
 

@@ -585,5 +585,35 @@ public struct SettingsViewTests {
 
         // UpdateManager version verification
         TestHarness.assertEqual(UpdateManager.shared.currentVersion, "1.0.34", "UpdateManager currentVersion is 1.0.34")
+
+        // 19. GeneralSettingsTab Accessibility Permission Flow via PermissionManaging
+        let mockPerm = MockPermissionManager()
+        let tabWithMockPerm = GeneralSettingsTab(appSettings: settings, permissionManager: mockPerm)
+        let reqResult = tabWithMockPerm.permissionManager.resetAndRequestAccessibility()
+        TestHarness.assertTrue(reqResult, "resetAndRequestAccessibility returns requestAccessibility result")
+        TestHarness.assertEqual(mockPerm.callOrder, ["reset", "openSettings", "request"], "Accessibility grant sequence resets, opens settings, then requests")
+    }
+}
+
+private final class MockPermissionManager: PermissionManaging, @unchecked Sendable {
+    var callOrder: [String] = []
+    var isScreenRecordingGranted: Bool = false
+    var isAccessibilityGranted: Bool = false
+
+    func checkScreenRecording() -> Bool { isScreenRecordingGranted }
+    func requestScreenRecording() -> Bool { true }
+    func openScreenRecordingSettings() {}
+    func checkAccessibility() -> Bool { isAccessibilityGranted }
+    func requestAccessibility() -> Bool {
+        callOrder.append("request")
+        return true
+    }
+    @discardableResult
+    func resetAccessibility() -> Bool {
+        callOrder.append("reset")
+        return true
+    }
+    func openAccessibilitySettings() {
+        callOrder.append("openSettings")
     }
 }
