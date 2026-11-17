@@ -77,5 +77,41 @@ public struct AppSettingsTests {
         TestHarness.assertEqual(reloadedSettings.activeColorHex, "#007AFF", "Persisted activeColorHex reloaded")
         TestHarness.assertEqual(reloadedSettings.activeStrokeWidth, 5.0, "Persisted stroke width reloaded")
         TestHarness.assertEqual(reloadedSettings.saveFormat, .jpeg, "Persisted save format reloaded")
+
+        // 6. Legacy settings.json containing removed autoPasteOnSelection decodes cleanly and omits key on save
+        let legacyURL = sandboxDir.appendingPathComponent("legacy_settings.json")
+        let legacyJSON = """
+        {
+          "activeColorHex": "#34C759",
+          "activeFontSize": 24.0,
+          "activeStrokeWidth": 7.5,
+          "autoPasteOnSelection": true,
+          "autoSaveDirectoryPath": "/tmp/SuperShotLegacy",
+          "autoSaveEnabled": false,
+          "automaticallyCheckForUpdates": true,
+          "capacity": 80,
+          "jpegQuality": 0.85,
+          "language": "vi",
+          "launchAtLogin": false,
+          "maxScrollHeightPx": 18000,
+          "presets": [
+            { "hex": "#FF3B30", "id": "00000000-0000-0000-0000-000000000001", "name": "Red" }
+          ],
+          "regionHotKeyKeyCode": 1,
+          "regionHotKeyModifiers": 2048,
+          "saveFormat": "jpeg",
+          "scrollHotKeyKeyCode": 1,
+          "scrollHotKeyModifiers": 2560,
+          "updateCheckIntervalDays": 7
+        }
+        """
+        try? legacyJSON.data(using: .utf8)?.write(to: legacyURL)
+        let migratedSettings = AppSettings(settingsURL: legacyURL)
+        TestHarness.assertEqual(migratedSettings.saveFormat, .jpeg, "Legacy JSON preserves customized saveFormat")
+        TestHarness.assertEqual(migratedSettings.activeStrokeWidth, 7.5, "Legacy JSON preserves customized activeStrokeWidth")
+        TestHarness.assertEqual(migratedSettings.capacity, 80, "Legacy JSON preserves customized capacity")
+        try? migratedSettings.saveSynchronously(to: legacyURL)
+        let resavedString = (try? String(contentsOf: legacyURL, encoding: .utf8)) ?? ""
+        TestHarness.assertFalse(resavedString.contains("autoPasteOnSelection"), "Re-saved settings.json omits removed autoPasteOnSelection key")
     }
 }

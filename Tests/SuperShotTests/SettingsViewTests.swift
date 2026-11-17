@@ -20,7 +20,6 @@ public struct SettingsViewTests {
         TestHarness.assertEqual(settings.maxScrollHeightPx, 15000, "Default maxScrollHeightPx is 15,000 px")
         TestHarness.assertEqual(settings.capacity, 50, "Default capacity is 50 items")
         TestHarness.assertFalse(settings.autoSaveEnabled, "Auto-save is disabled by default")
-        TestHarness.assertTrue(settings.autoPasteOnSelection, "Auto-paste is enabled by default")
 
         // 2. Preset Add, In-place Update & Capacity Clamping
         let newPreset = ColorPreset(name: "Mint", hex: "#00FFCC")
@@ -592,6 +591,17 @@ public struct SettingsViewTests {
         let reqResult = tabWithMockPerm.permissionManager.resetAndRequestAccessibility()
         TestHarness.assertTrue(reqResult, "resetAndRequestAccessibility returns requestAccessibility result")
         TestHarness.assertEqual(mockPerm.callOrder, ["reset", "openSettings", "request"], "Accessibility grant sequence resets, opens settings, then requests")
+
+        let infoPlistURL = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
+            .appendingPathComponent("Sources/SuperShot/App/Info.plist")
+        if let plistData = try? Data(contentsOf: infoPlistURL),
+           let plistDict = try? PropertyListSerialization.propertyList(from: plistData, options: [], format: nil) as? [String: Any],
+           let axDesc = plistDict["NSAppleEventsUsageDescription"] as? String {
+            TestHarness.assertTrue(axDesc.contains("automatic scrolling capture"), "Info.plist NSAppleEventsUsageDescription references automatic scrolling capture")
+            TestHarness.assertFalse(axDesc.localizedCaseInsensitiveContains("auto-paste"), "Info.plist NSAppleEventsUsageDescription omits auto-paste")
+        } else {
+            TestHarness.recordFail("Info.plist NSAppleEventsUsageDescription", reason: "Failed to parse Info.plist")
+        }
     }
 }
 
